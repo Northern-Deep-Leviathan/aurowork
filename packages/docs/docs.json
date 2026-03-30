@@ -1,0 +1,68 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "AuroWork Docs",
+  "favicon": "/logo/light.svg",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "colors": {
+    "primary": "#0F766E",
+    "light": "#14B8A6",
+    "dark": "#0F766E"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Start here",
+        "pages": [
+          "get-started",
+          {
+            "group": "Tutorials",
+            "pages": [
+              "sharing-ow-setup",
+              "how-to-connect-a-custom-provider",
+              "how-to-connect-mcps",
+              "accessing-ow-from-slack",
+              "importing-a-skill",
+              "computer-use",
+              "how-to-connect-chat-gpt",
+              "enable-advanced-search-with-exa"
+            ]
+          },
+          {
+            "group": "Improve this doc",
+            "pages": [
+              "missing-docs"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/get-started"
+    },
+    {
+      "source": "/quickstart",
+      "destination": "/get-started"
+    }
+  ],
+  "errors": {
+    "404": {
+      "redirect": false,
+      "title": "Missing Documentation?",
+      "description": "If you're technical and want to use a specific part of the app that is not documented well yet, [send us a quick email](mailto:team@auroworklabs.com?subject=missing%20documentation&body=hey%20my%20github%20is%20%7Busername%7D%2C%20I%27m%20interested%20in%20%7Bfeature%7D%20from%20aurowork%20but%20I%27m%20missing%20documentation%20on%20it%2C%20could%20you%20create%20it%3F%0A%0AThanks) and tell us what you're missing."
+    }
+  },
+  "navbar": {
+    "primary": {
+      "type": "button",
+      "label": "Download AuroWork",
+      "href": "https://auroworklabs.com/download"
+    }
+  }
+}

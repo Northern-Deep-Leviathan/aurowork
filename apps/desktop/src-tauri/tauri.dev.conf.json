@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "AuroWork Dev",
+  "identifier": "com.differentai.aurowork.dev",
+  "bundle": {
+    "icon": [
+      "icons/dev/32x32.png",
+      "icons/dev/128x128.png",
+      "icons/dev/128x128@2x.png",
+      "icons/icon-dev.icns"
+    ],
+    "macOS": {
+      "bundleName": "AuroWork - Dev",
+      "infoPlist": "./Info.dev.plist"
+    }
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "AuroWork - Dev",
+        "width": 1180,
+        "height": 820,
+        "resizable": true
+      }
+    ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "aurowork-dev"
+        ]
+      }
+    }
+  }
+}

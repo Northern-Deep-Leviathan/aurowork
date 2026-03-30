@@ -1,0 +1,23 @@
+pkgbase = aurowork
+	pkgdesc = An Open source alternative to Claude Cowork
+	pkgver = 0.11.193
+	pkgrel = 1
+	url = https://github.com/different-ai/aurowork
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	depends = gtk3
+	depends = glib2
+	depends = libayatana-appindicator
+	depends = libsoup3
+	depends = webkit2gtk-4.1
+	depends = openssl
+	depends = dbus
+	depends = librsvg
+	noextract = aurowork-0.11.193.deb
+	source_x86_64 = aurowork-0.11.193.deb::https://github.com/different-ai/aurowork/releases/download/v0.11.193/aurowork-desktop-linux-amd64.deb
+	sha256sums_x86_64 = a66b5f17b0cbaadfa59112d74d4f6ee98930a6cc170df17fd9a0400a83fb15ee
+	source_aarch64 = aurowork-0.11.193.deb::https://github.com/different-ai/aurowork/releases/download/v0.11.193/aurowork-desktop-linux-arm64.deb
+	sha256sums_aarch64 = 1a75fd59143636aff90b18455082edd0030ac8dbb6f700933c470cb36c912cda
+
+pkgname = aurowork

@@ -1,0 +1,49 @@
+---
+title: "Get Started"
+description: "AuroWork is the open source alternative to Claude Cowork.  "
+---
+
+Most users use our [desktop app](https://auroworklabs.com). This guide helps you setup AuroWork via the CLI so that you can run AuroWork tasks in the background on your infra.
+
+## Step 1: Install on your remote server
+
+Install the npm package:
+
+```bash
+npm install -g aurowork-orchestrator
+```
+
+## Step 2: Start AuroWork in your workspace
+
+Run AuroWork where your code lives:
+
+```bash
+aurowork start --workspace /path/to/your/workspace --approval auto
+```
+
+<Frame>
+  ![AuroWork CLI terminal output showing URL and owner token](/images/get-started-cli-output.png)
+</Frame>
+
+Copy:
+
+- `AuroWork URL`
+- `AuroWork Owner Token`
+
+## Step 3: Connect the AuroWork desktop app
+
+On your local machine, open the AuroWork desktop app and connect into a remote workspace with:
+
+- On the bottom left click `+ Add workspace`
+- Then click `+ Connect Remote workspace`
+- Type in the `AuroWork URL and AuroWork Owner Token` from earlier
+
+<Frame>
+  ![Add Remote Workspace dialog in AuroWork desktop app](/images/get-started-add-remote-workspace.png)
+</Frame>
+
+## What this gives you right away
+
+- Your code and services stay on the remote machine.
+- Your local machine stays light.
+- You get a fast path from install to a connected remote AuroWork workspace.
