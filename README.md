@@ -1,232 +1,150 @@
-> AuroWork is the open source alternative to Claude Cowork/Codex (desktop app).
+# AuroWork
 
+> Open-source desktop AI agent — powered by [OpenCode](https://opencode.ai).
 
-## Core Philosophy
+AuroWork puts a native desktop GUI on top of OpenCode, turning agentic coding workflows into something anyone on your team can use — not just developers fluent in CLI.
 
-- Local-first, cloud-ready: AuroWork runs on your machine in one click. Send a message instantly.
-- Composable: desktop app, WhatsApp/Slack/Telegram connector, or server. Use what fits, no lock-in.
-- Ejectable: AuroWork is powered by OpenCode, so everything OpenCode can do works in AuroWork, even without a UI yet.
-- Sharing is caring: start solo on localhost, then explicitly opt into remote sharing when you need it.
+## Highlights
 
-<p align="center">
-  <img src="./app-demo.gif" alt="AuroWork demo" width="800" />
-</p>
+- **Local-first** — runs entirely on your machine. One click to start, zero cloud dependency.
+- **Powered by OpenCode** — full feature parity with the OpenCode CLI: sessions, skills, plugins, MCP, commands.
+- **Extensible** — install skills from the OpenPackage registry, add plugins via `opencode.json`, or connect MCP servers (Notion, Linear, Sentry, Stripe, etc.) with OAuth.
+- **Multi-workspace** — manage multiple project folders from a single app instance.
+- **Developer tools** — built-in Developer Mode with file-based debug logging (`/tmp/aurowork-debug.log`) for runtime diagnostics.
 
-AuroWork is designed around the idea that you can easily ship your agentic workflows as a repeatable, productized process.
+## Architecture
 
-## Alternate UIs
-- **AuroWork Orchestrator (CLI host)**: run OpenCode + AuroWork server without the desktop UI.
-  - install: `npm install -g aurowork-orchestrator`
-  - run: `aurowork start --workspace /path/to/workspace --approval auto`
-  - docs: [apps/orchestrator/README.md](./apps/orchestrator/README.md)
+```
+apps/app/          SolidJS UI (desktop / web)
+apps/desktop/      Tauri 2 shell (Rust) — window management, native commands, process lifecycle
+apps/server/       AuroWork Server — filesystem-backed API layer
+apps/orchestrator/ CLI host orchestrator (opencode + server + router)
+```
 
-## Quick start
+### How it works
 
-Download the correct version in [here](https://auroworklabs.com/download), in the latest [releases](https://github.com/different-ai/aurowork/releases) or install from source below.
+1. **Tauri shell** spawns an OpenCode server on `127.0.0.1`.
+2. **AuroWork Server** sits between the UI and OpenCode, handling workspace management, skills, plugins, permissions, and file operations.
+3. **SolidJS frontend** connects via the `@opencode-ai/sdk` — SSE streaming for real-time updates, session lifecycle, tool execution timeline, and permission prompts.
 
-## Why
-
-Current CLI and GUIs for opencode are anchored around developers. That means a focus on file diffs, tool names, and hard to extend capabilities without relying on exposing some form of cli.
-
-AuroWork is designed to be:
-
-- **Extensible**: skill and opencode plugins are installable modules.
-- **Auditable**: show what happened, when, and why.
-- **Permissioned**: access to privileged flows.
-- **Local/Remote**: AuroWork works locally as well as can connect to remote servers.
-
-## What’s Included
-
-- **Host mode**: runs opencode locally on your computer
-- **Client mode**: connect to an existing OpenCode server by URL.
-- **Sessions**: create/select sessions and send prompts.
-- **Live streaming**: SSE `/event` subscription for realtime updates.
-- **Execution plan**: render OpenCode todos as a timeline.
-- **Permissions**: surface permission requests and reply (allow once / always / deny).
-- **Templates**: save and re-run common workflows (stored locally).
-- **Skills manager**:
-  - list installed `.opencode/skills` folders
-  - install from OpenPackage (`opkg install ...`)
-  - import a local skill folder into `.opencode/skills/<skill-name>`
-
-## Skill Manager
-
-<img width="1292" height="932" alt="image" src="https://github.com/user-attachments/assets/b500c1c6-a218-42ce-8a11-52787f5642b6" />
-
-## Works on local computer or servers
-
-<img width="1292" height="932" alt="Screenshot 2026-01-13 at 7 05 16 PM" src="https://github.com/user-attachments/assets/9c864390-de69-48f2-82c1-93b328dd60c3" />
+OpenCode handles context compaction, model routing, and all LLM interactions natively. AuroWork is the experience layer.
 
 ## Quick Start
 
-### Requirements
+### Prerequisites
 
-- Node.js + `pnpm`
-- Rust toolchain (for Tauri): install via `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- Tauri CLI: `cargo install tauri-cli`
-- OpenCode CLI installed and available on PATH: `opencode`
+| Tool | Version |
+|------|---------|
+| Node.js | LTS |
+| pnpm | 10.27+ |
+| Rust toolchain | stable (`rustup`) |
+| Bun | 1.3.9+ |
+| Xcode CLI Tools | macOS only |
+| WebKitGTK 4.1 | Linux only |
 
-### Local Dev Prerequisites (Desktop)
-
-Before running `pnpm dev`, ensure these are installed and active in your shell:
-
-- Node + pnpm (repo uses `pnpm@10.27.0`)
-- **Bun 1.3.9+** (`bun --version`)
-- Rust toolchain (for Tauri), with Cargo from current `rustup` stable (supports `Cargo.lock` v4)
-- Xcode Command Line Tools (macOS)
-- On Linux, WebKitGTK 4.1 development packages so `pkg-config` can resolve `webkit2gtk-4.1` and `javascriptcoregtk-4.1`
-
-### One-minute sanity check
-
-Run from repo root:
+### Install & Run
 
 ```bash
-git checkout dev
-git pull --ff-only origin dev
-pnpm install --frozen-lockfile
+# Clone
+git clone https://github.com/Northern-Deep-Leviathan/aurowork.git
+cd aurowork
 
-which bun
-bun --version
-pnpm --filter @aurowork/desktop exec tauri --version
-```
-
-### Install
-
-```bash
+# Install dependencies
 pnpm install
-```
 
-AuroWork now lives in `apps/app` (UI) and `apps/desktop` (desktop shell).
-
-### Run (Desktop)
-
-```bash
+# Run desktop app (dev mode)
 pnpm dev
-```
 
-`pnpm dev` now enables `AUROWORK_DEV_MODE=1` automatically, so desktop dev uses an isolated OpenCode state instead of your personal global config/auth/data.
-
-### Run (Web UI only)
-
-```bash
+# Run web UI only
 pnpm dev:ui
 ```
 
-All repo `dev` entrypoints now opt into the same dev-mode isolation so local testing uses the AuroWork-managed OpenCode state consistently.
+`pnpm dev` sets `AUROWORK_DEV_MODE=1` automatically — local development uses an isolated OpenCode state, separate from your personal config.
 
-### Arch Users:
-
-```bash
-sudo pacman -S --needed webkit2gtk-4.1
-curl -fsSL https://opencode.ai/install | bash -s -- --version "$(node -e "const fs=require('fs'); const parsed=JSON.parse(fs.readFileSync('constants.json','utf8')); process.stdout.write(String(parsed.opencodeVersion||'').trim().replace(/^v/,''));")" --no-modify-path
-```
-
-## Architecture (high-level)
-
-- In **Host mode**, AuroWork runs a local host stack and connects the UI to it.
-  - Default runtime: `aurowork` (installed from `aurowork-orchestrator`), which orchestrates `opencode`, `aurowork-server`, and optionally `opencode-router`.
-  - Fallback runtime: `direct`, where the desktop app spawns `opencode serve --hostname 127.0.0.1 --port <free-port>` directly.
-
-When you select a project folder, AuroWork runs the host stack locally using that folder and connects the desktop UI.
-This lets you run agentic workflows, send prompts, and see progress entirely on your machine without a remote server.
-
-- The UI uses `@opencode-ai/sdk/v2/client` to:
-  - connect to the server
-  - list/create sessions
-  - send prompts
-  - subscribe to SSE events(Server-Sent Events are used to stream real-time updates from the server to the UI.)
-  - read todos and permission requests
-
-## Folder Picker
-
-The folder picker uses the Tauri dialog plugin.
-Capability permissions are defined in:
-
-- `apps/desktop/src-tauri/capabilities/default.json`
-
-## OpenPackage Notes
-
-If `opkg` is not installed globally, AuroWork falls back to:
+### CLI Host (no desktop UI)
 
 ```bash
-pnpm dlx opkg install <package>
+npm install -g aurowork-orchestrator
+aurowork start --workspace /path/to/workspace --approval auto
 ```
 
-## OpenCode Plugins
+See [apps/orchestrator/README.md](./apps/orchestrator/README.md) for full CLI documentation.
 
-Plugins are the **native** way to extend OpenCode. AuroWork now manages them from the Skills tab by
-reading and writing `opencode.json`.
+## What's Included
 
-- **Project scope**: `<workspace>/opencode.json`
-- **Global scope**: `~/.config/opencode/opencode.json` (or `$XDG_CONFIG_HOME/opencode/opencode.json`)
+| Feature | Description |
+|---------|-------------|
+| **Sessions** | Create, switch, and manage AI chat sessions per workspace |
+| **Live streaming** | SSE event subscription for real-time assistant responses |
+| **Execution plan** | OpenCode todos rendered as a visual timeline |
+| **Permissions** | Surface permission requests — allow once / always / deny |
+| **Skills manager** | Browse, install, and manage `.opencode/skills` |
+| **Plugin manager** | Configure plugins via `opencode.json` (project or global scope) |
+| **MCP servers** | Quick-connect to Notion, Linear, Sentry, Stripe, Context7, Chrome DevTools |
+| **Templates** | Save and re-run common workflows |
+| **File explorer** | Search files, view diffs, read workspace content |
+| **Developer Mode** | Toggle via Settings → Advanced. Enables debug file logging and console diagnostics |
 
-You can still edit `opencode.json` manually; AuroWork uses the same format as the OpenCode CLI:
+## Project Structure
 
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-wakatime"]
-}
+```
+.
+├── apps/
+│   ├── app/             # SolidJS frontend (UI components, context stores, i18n)
+│   ├── desktop/         # Tauri 2 desktop shell (Rust commands, window management)
+│   ├── server/          # AuroWork Server (workspace API, token management, file sessions)
+│   └── orchestrator/    # CLI orchestrator (multi-service host mode)
+├── ARCHITECTURE.md      # Runtime architecture, design principles
+├── PRODUCT.md           # Product vision, target users, UX requirements
+├── project-plan.md      # Development roadmap and feature tracking
+└── constants.json       # OpenCode version pin
 ```
 
 ## Useful Commands
 
 ```bash
-pnpm dev
-pnpm dev:ui
-pnpm typecheck
-pnpm build
-pnpm build:ui
-pnpm test:e2e
+pnpm dev              # Desktop app (dev mode)
+pnpm dev:ui           # Web UI only
+pnpm typecheck        # TypeScript type check
+pnpm build            # Production build
+pnpm build:ui         # Build web UI
+pnpm test:e2e         # End-to-end tests
 ```
 
 ## Troubleshooting
 
 ### Linux / Wayland (Hyprland)
 
-If AuroWork crashes on launch with WebKitGTK errors like `Failed to create GBM buffer`, disable dmabuf or compositing before launch. Try one of the following environment flags.
+If AuroWork crashes on launch with WebKitGTK errors:
 
 ```bash
 WEBKIT_DISABLE_DMABUF_RENDERER=1 aurowork
-```
-
-```bash
+# or
 WEBKIT_DISABLE_COMPOSITING_MODE=1 aurowork
 ```
 
-## Security Notes
+### Arch Linux
 
-- AuroWork hides model reasoning and sensitive tool metadata by default.
-- Host mode binds to `127.0.0.1` by default.
+```bash
+sudo pacman -S --needed webkit2gtk-4.1
+```
+
+## Security
+
+- Model reasoning and sensitive tool metadata are hidden by default.
+- Host mode binds to `127.0.0.1` — local only.
+- Permission system surfaces all tool calls for user approval.
 
 ## Contributing
 
-- Review `AGENTS.md` plus `VISION.md`, `PRINCIPLES.md`, `PRODUCT.md`, and `ARCHITECTURE.md` to understand the product goals before making changes.
-- Ensure Node.js, `pnpm`, the Rust toolchain, and `opencode` are installed before working inside the repo.
-- Run `pnpm install` once per checkout, then verify your change with `pnpm typecheck` plus `pnpm test:e2e` (or the targeted subset of scripts) before opening a PR.
-- Use `.github/pull_request_template.md` when opening PRs and include exact commands, outcomes, manual verification steps, and evidence.
-- If CI fails, classify failures in the PR body as either code-related regressions or external/environment/auth blockers.
-- Add new PRDs to `apps/app/pr/<name>.md` following the `.opencode/skills/prd-conventions/SKILL.md` conventions described in `AGENTS.md`.
-
-Community docs:
-
-- `CODE_OF_CONDUCT.md`
-- `SECURITY.md`
-- `SUPPORT.md`
-- `TRIAGE.md`
-
-First contribution checklist:
-
-- [ ] Run `pnpm install` and baseline verification commands.
-- [ ] Confirm your change has a clear issue link and scope.
-- [ ] Add/update tests for behavioral changes.
-- [ ] Include commands run and outcomes in your PR.
-- [ ] Add screenshots/video for user-facing flow changes.
-
-## For Teams & Businesses
-
-Interested in using AuroWork in your organization? We'd love to hear from you — reach out at [ben@auroworklabs.com](mailto:ben@auroworklabs.com) to chat about your use case.
+1. Read `AGENTS.md`, `ARCHITECTURE.md`, and `PRODUCT.md` before making changes.
+2. Run `pnpm install` once, then verify with `pnpm typecheck` and `pnpm test:e2e`.
+3. Use `.github/pull_request_template.md` for PRs — include commands run, outcomes, and evidence.
 
 ## License
 
-MIT — see `LICENSE`.
+MIT — see [LICENSE](./LICENSE).
+
+---
+
+> Forked from [different-ai/aurowork](https://github.com/different-ai/aurowork). This fork focuses on a streamlined local-first experience.
