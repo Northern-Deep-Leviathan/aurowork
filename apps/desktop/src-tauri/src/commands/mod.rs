@@ -1,6 +1,7 @@
 pub mod command_files;
 pub mod config;
 pub mod debug_log;
+pub mod fs;
 pub mod engine;
 pub mod misc;
 pub mod aurowork_server;

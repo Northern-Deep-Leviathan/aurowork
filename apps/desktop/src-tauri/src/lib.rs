@@ -20,6 +20,7 @@ use commands::command_files::{
 };
 use commands::config::{read_opencode_config, write_opencode_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
+use commands::fs::{fs_read_dir, fs_read_text_file, fs_write_text_file};
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
 };
@@ -201,7 +202,10 @@ pub fn run() {
             opencode_mcp_auth,
             set_window_decorations,
             debug_log_append,
-            debug_log_clear
+            debug_log_clear,
+            fs_read_dir,
+            fs_read_text_file,
+            fs_write_text_file
         ])
         .build(tauri::generate_context!())
         .expect("error while building AuroWork");
