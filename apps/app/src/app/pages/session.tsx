@@ -59,18 +59,19 @@ import {
   HardDrive,
   ListTodo,
   Loader2,
-  Menu,
   Minimize2,
+  PanelRightClose,
+  PanelRightOpen,
   RefreshCcw,
-  Redo2,
   Search,
   Shield,
-  Undo2,
+  SquarePen,
   X,
   Zap,
 } from "lucide-solid";
 
 import Button from "../components/button";
+import { CodeEditorPanel } from "../components/code-editor-panel";
 import ConfirmModal from "../components/confirm-modal";
 import RenameSessionModal from "../components/rename-session-modal";
 import ProviderAuthModal, {
@@ -419,6 +420,7 @@ export default function SessionView(props: SessionViewProps) {
   const topInitializedSessionIds = new Set<string>();
 
   const [toastMessage, setToastMessage] = createSignal<string | null>(null);
+  const [codeEditorExpanded, setCodeEditorExpanded] = createSignal(false);
   const activePermissionPresentation = createMemo(() =>
     describePermissionRequest(props.activePermission),
   );
@@ -489,8 +491,13 @@ export default function SessionView(props: SessionViewProps) {
   };
 
   const agentLabel = createMemo(() => {
-    const name = props.selectedSessionAgent ?? translate("session.default_agent");
+    const name = props.selectedSessionAgent || "aurowork";
     return name.charAt(0).toUpperCase() + name.slice(1);
+  });
+  const currentWorkspacePath = createMemo(() => {
+    const ws = props.selectedWorkspaceDisplay;
+    if (ws?.workspaceType === "local") return ws.path?.trim() || null;
+    return null;
   });
   const workspaceLabel = (workspace: WorkspaceInfo) =>
     workspace.displayName?.trim() ||
@@ -4118,28 +4125,14 @@ export default function SessionView(props: SessionViewProps) {
             <div class="flex items-center gap-1.5 text-gray-10">
               <button
                 type="button"
-                class={`hidden items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors sm:flex ${
-                  commandPaletteOpen()
-                    ? "bg-gray-2 text-dls-text"
-                    : "text-gray-10 hover:bg-gray-2/70 hover:text-dls-text"
-                }`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  if (commandPaletteOpen()) {
-                    closeCommandPalette();
-                    return;
-                  }
-                  window.setTimeout(() => openCommandPalette(), 0);
-                }}
-                title={translate("session.quick_actions_hint")}
-                aria-label={translate("session.quick_actions_label")}
+                class="hidden items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors sm:flex text-gray-10 hover:bg-gray-2/70 hover:text-dls-text disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => void props.createSessionAndOpen()}
+                disabled={props.newTaskDisabled}
+                title={translate("session.new_task")}
+                aria-label={translate("session.new_task")}
               >
-                <Menu size={15} />
-                <span>{ translate("session.menu_label") }</span>
-                <span class="ml-1 rounded border border-dls-border px-1 text-[10px] text-gray-9">
-                  ⌘K
-                </span>
+                <SquarePen size={15} />
+                <span>{translate("session.new_task")}</span>
               </button>
               <button
                 type="button"
@@ -4160,38 +4153,26 @@ export default function SessionView(props: SessionViewProps) {
               >
                 <Search size={16} />
               </button>
+              {/* Separator + Work Files toggle */}
               <div class="hidden h-4 w-px bg-dls-border sm:block" />
               <button
                 type="button"
-                class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-gray-10 transition-colors hover:bg-gray-2/70 hover:text-dls-text disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={undoLastMessage}
-                disabled={!canUndoLastMessage() || historyActionBusy() !== null}
-                title={translate("session.undo_last_message")}
-                aria-label={translate("session.undo_last_message")}
+                class={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
+                  codeEditorExpanded()
+                    ? "bg-gray-2 text-dls-text"
+                    : "text-gray-10 hover:bg-gray-2/70 hover:text-dls-text"
+                }`}
+                onClick={() => setCodeEditorExpanded((prev) => !prev)}
+                title="Work Files"
+                aria-label="Toggle Work Files"
               >
                 <Show
-                  when={historyActionBusy() === "undo"}
-                  fallback={<Undo2 size={16} />}
+                  when={codeEditorExpanded()}
+                  fallback={<PanelRightOpen size={16} />}
                 >
-                  <Loader2 size={16} class="animate-spin" />
+                  <PanelRightClose size={16} />
                 </Show>
-                <span class="hidden lg:inline">{translate("session.revert_label")}</span>
-              </button>
-              <button
-                type="button"
-                class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-gray-10 transition-colors hover:bg-gray-2/70 hover:text-dls-text disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={redoLastMessage}
-                disabled={!canRedoLastMessage() || historyActionBusy() !== null}
-                title={translate("session.redo_last_reverted")}
-                aria-label={translate("session.redo_last_reverted")}
-              >
-                <Show
-                  when={historyActionBusy() === "redo"}
-                  fallback={<Redo2 size={16} />}
-                >
-                  <Loader2 size={16} class="animate-spin" />
-                </Show>
-                <span class="hidden lg:inline">{translate("session.redo_label")}</span>
+                <span class="hidden lg:inline">Work Files</span>
               </button>
             </div>
           </header>
@@ -4744,6 +4725,15 @@ export default function SessionView(props: SessionViewProps) {
             statusPulse={showRunIndicator()}
           />
         </main>
+
+        {/* Work Files — 文件区 (独占竖版面板) */}
+        <Show when={codeEditorExpanded()}>
+          <CodeEditorPanel
+            expanded={codeEditorExpanded()}
+            onClose={() => setCodeEditorExpanded(false)}
+            rootPath={currentWorkspacePath()}
+          />
+        </Show>
       </div>
 
       <Show when={commandPaletteOpen()}>
