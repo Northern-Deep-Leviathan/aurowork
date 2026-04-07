@@ -2,11 +2,15 @@ import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 
 const LEFT_SIDEBAR_WIDTH_KEY = "aurowork.workspace-shell.left-width.v1";
 const RIGHT_SIDEBAR_EXPANDED_KEY = "aurowork.workspace-shell.right-expanded.v3";
+const RIGHT_PANEL_WIDTH_KEY = "aurowork.workspace-shell.right-width.v1";
 
 export const DEFAULT_WORKSPACE_LEFT_SIDEBAR_WIDTH = 260;
 export const MIN_WORKSPACE_LEFT_SIDEBAR_WIDTH = 220;
 export const MAX_WORKSPACE_LEFT_SIDEBAR_WIDTH = 420;
 export const DEFAULT_WORKSPACE_RIGHT_SIDEBAR_COLLAPSED_WIDTH = 72;
+export const DEFAULT_RIGHT_PANEL_WIDTH = 420;
+export const MIN_RIGHT_PANEL_WIDTH = 280;
+export const MAX_RIGHT_PANEL_WIDTH = 600;
 
 type WorkspaceShellLayoutOptions = {
   defaultLeftWidth?: number;
@@ -65,8 +69,16 @@ export function createWorkspaceShellLayout(options: WorkspaceShellLayoutOptions)
     return raw === "1";
   };
 
+  const readRightPanelWidth = () => {
+    const raw = readStorage(RIGHT_PANEL_WIDTH_KEY);
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return DEFAULT_RIGHT_PANEL_WIDTH;
+    return clampNumber(parsed, MIN_RIGHT_PANEL_WIDTH, MAX_RIGHT_PANEL_WIDTH);
+  };
+
   const [leftSidebarWidth, setLeftSidebarWidth] = createSignal(readLeftSidebarWidth());
   const [rightSidebarExpanded, setRightSidebarExpanded] = createSignal(readRightSidebarExpanded());
+  const [rightPanelWidth, setRightPanelWidth] = createSignal(readRightPanelWidth());
 
   createEffect(() => {
     writeStorage(LEFT_SIDEBAR_WIDTH_KEY, String(clampNumber(leftSidebarWidth(), minLeftWidth, maxLeftWidth)));
@@ -74,6 +86,10 @@ export function createWorkspaceShellLayout(options: WorkspaceShellLayoutOptions)
 
   createEffect(() => {
     writeStorage(RIGHT_SIDEBAR_EXPANDED_KEY, rightSidebarExpanded() ? "1" : "0");
+  });
+
+  createEffect(() => {
+    writeStorage(RIGHT_PANEL_WIDTH_KEY, String(clampNumber(rightPanelWidth(), MIN_RIGHT_PANEL_WIDTH, MAX_RIGHT_PANEL_WIDTH)));
   });
 
   const rightSidebarWidth = createMemo(() =>
@@ -127,16 +143,63 @@ export function createWorkspaceShellLayout(options: WorkspaceShellLayoutOptions)
     setRightSidebarExpanded((current) => !current);
   };
 
+  let rightDragCleanup: (() => void) | null = null;
+
+  const stopRightPanelResize = () => {
+    rightDragCleanup?.();
+    rightDragCleanup = null;
+    if (typeof document === "undefined") return;
+    document.body.style.removeProperty("cursor");
+    document.body.style.removeProperty("user-select");
+  };
+
+  const startRightPanelResize = (event: PointerEvent) => {
+    if (event.button !== 0 || typeof window === "undefined") return;
+
+    stopRightPanelResize();
+    const initialX = event.clientX;
+    const initialWidth = rightPanelWidth();
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      // Dragging left increases right panel width, dragging right decreases it
+      const delta = initialX - moveEvent.clientX;
+      setRightPanelWidth(clampNumber(initialWidth + delta, MIN_RIGHT_PANEL_WIDTH, MAX_RIGHT_PANEL_WIDTH));
+    };
+
+    const handleStop = () => {
+      stopRightPanelResize();
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleStop);
+    window.addEventListener("pointercancel", handleStop);
+    rightDragCleanup = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleStop);
+      window.removeEventListener("pointercancel", handleStop);
+    };
+
+    if (typeof document !== "undefined") {
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    }
+
+    event.preventDefault();
+  };
+
   onCleanup(() => {
     stopLeftSidebarResize();
+    stopRightPanelResize();
   });
 
   return {
     leftSidebarWidth,
     rightSidebarExpanded,
     rightSidebarWidth,
+    rightPanelWidth,
     setRightSidebarExpanded,
     startLeftSidebarResize,
+    startRightPanelResize,
     toggleRightSidebar,
   };
 }

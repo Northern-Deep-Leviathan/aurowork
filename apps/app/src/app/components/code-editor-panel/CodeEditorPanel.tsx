@@ -10,6 +10,7 @@ type CodeEditorPanelProps = {
   expanded: boolean;
   onClose: () => void;
   rootPath: string | null;
+  width?: number;
 };
 
 export function CodeEditorPanel(props: CodeEditorPanelProps) {
@@ -138,7 +139,7 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
     <aside
       ref={(el) => (panelRef = el)}
       class="relative hidden lg:flex h-full shrink-0 flex-col overflow-hidden rounded-[24px] border border-dls-border bg-dls-sidebar"
-      style={{ width: "420px", "min-width": "340px" }}
+      style={{ width: `${props.width ?? 420}px`, "min-width": "280px" }}
     >
       {/* Header */}
       <div class="flex h-12 items-center gap-2 border-b border-dls-border px-4 shrink-0">

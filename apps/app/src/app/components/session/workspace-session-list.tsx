@@ -232,6 +232,25 @@ export default function WorkspaceSessionList(props: Props) {
     });
   };
 
+  const allWorkspacesExpanded = () => {
+    const groups = props.workspaceSessionGroups;
+    if (groups.length === 0) return false;
+    const expanded = expandedWorkspaceIds();
+    return groups.every((g) => expanded.has(g.workspace.id));
+  };
+
+  const toggleAllWorkspacesExpanded = () => {
+    if (allWorkspacesExpanded()) {
+      // Collapse all
+      setExpandedWorkspaceIds(new Set<string>());
+    } else {
+      // Expand all
+      setExpandedWorkspaceIds(
+        new Set(props.workspaceSessionGroups.map((g) => g.workspace.id)),
+      );
+    }
+  };
+
   onMount(() => {
     expandWorkspace(props.selectedWorkspaceId);
   });
@@ -569,19 +588,6 @@ export default function WorkspaceSessionList(props: Props) {
                           class="rounded-md p-1 text-gray-9 hover:bg-gray-3/80 hover:text-gray-11"
                           onClick={(event) => {
                             event.stopPropagation();
-                            props.onCreateTaskInWorkspace(workspace().id);
-                          }}
-                          disabled={props.newTaskDisabled}
-                          aria-label="New task"
-                        >
-                          <Plus size={14} />
-                        </button>
-
-                        <button
-                          type="button"
-                          class="rounded-md p-1 text-gray-9 hover:bg-gray-3/80 hover:text-gray-11"
-                          onClick={(event) => {
-                            event.stopPropagation();
                             setWorkspaceMenuId((current) =>
                               current === workspace().id
                                 ? null
@@ -598,13 +604,13 @@ export default function WorkspaceSessionList(props: Props) {
                         type="button"
                         class="rounded-md p-1 text-gray-9 hover:bg-gray-3/80 hover:text-gray-11"
                         aria-label={
-                          isWorkspaceExpanded(workspace().id)
-                            ? "Collapse"
-                            : "Expand"
+                          allWorkspacesExpanded()
+                            ? "Collapse all sessions"
+                            : "Expand all sessions"
                         }
                         onClick={(event) => {
                           event.stopPropagation();
-                          toggleWorkspaceExpanded(workspace().id);
+                          toggleAllWorkspacesExpanded();
                         }}
                       >
                         <Show

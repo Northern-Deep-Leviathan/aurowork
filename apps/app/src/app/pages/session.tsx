@@ -471,6 +471,8 @@ export default function SessionView(props: SessionViewProps) {
   const {
     leftSidebarWidth,
     startLeftSidebarResize,
+    rightPanelWidth,
+    startRightPanelResize,
   } = createWorkspaceShellLayout({ expandedRightWidth: 280 });
 
   const openFeedback = () => {
@@ -4728,10 +4730,18 @@ export default function SessionView(props: SessionViewProps) {
 
         {/* Work Files — 文件区 (独占竖版面板) */}
         <Show when={codeEditorExpanded()}>
+          {/* Right splitter — 右侧拖拽调节条 */}
+          <div
+            class="hidden lg:block w-[6px] shrink-0 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-gray-6/40 active:bg-blue-8/60"
+            onPointerDown={startRightPanelResize}
+            title="Resize Work Files panel"
+            aria-label="Resize Work Files panel"
+          />
           <CodeEditorPanel
             expanded={codeEditorExpanded()}
             onClose={() => setCodeEditorExpanded(false)}
             rootPath={currentWorkspacePath()}
+            width={rightPanelWidth()}
           />
         </Show>
       </div>
