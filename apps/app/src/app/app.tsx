@@ -5868,8 +5868,8 @@ export default function App() {
 
   const selectedSessionAgent = createMemo(() => {
     const id = selectedSessionId();
-    if (!id) return null;
-    return sessionAgentById()[id] ?? null;
+    if (!id) return "aurowork";
+    return sessionAgentById()[id] || "aurowork";
   });
 
   const selectedSessionModelLabel = createMemo(() =>

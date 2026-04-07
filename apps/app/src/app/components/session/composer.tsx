@@ -1892,23 +1892,6 @@ export default function Composer(props: ComposerProps) {
                       }
                     >
                       <Show when={!props.agentPickerError}>
-                        <button
-                          type="button"
-                          class={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors ${!props.selectedAgent
-                            ? "bg-gray-2 text-gray-12"
-                            : "text-gray-11 hover:bg-gray-2/70"
-                              }`}
-                          onMouseDown={(event: MouseEvent) => {
-                            event.preventDefault();
-                            props.onSelectAgent(null);
-                          }}
-                        >
-                          <span>Default agent</span>
-                          <Show when={!props.selectedAgent}>
-                            <Check size={14} class="text-gray-10" />
-                          </Show>
-                        </button>
-
                         <For each={props.agentOptions}>
                           {(agent: Agent) => {
                             const active = () => props.selectedAgent === agent.name;
