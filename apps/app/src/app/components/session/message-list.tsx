@@ -720,8 +720,8 @@ export default function MessageList(props: MessageListProps) {
 
     return (
       <Show when={sessionId()}>
-        <div class="mt-3 border-l border-dls-border/70 pl-4">
-          <div class="flex flex-wrap items-center gap-2 text-[12px] text-gray-10">
+        <div class="mt-3 border-l border-[rgba(var(--dls-accent-rgb),0.2)] pl-4">
+          <div class="flex flex-wrap items-center gap-2 text-[12px] text-dls-secondary">
             <button
               type="button"
               class="inline-flex items-center gap-1 rounded-full border border-dls-border bg-dls-surface px-2.5 py-1 text-[12px] font-medium text-dls-text transition-colors hover:bg-dls-hover"
@@ -732,9 +732,9 @@ export default function MessageList(props: MessageListProps) {
               </Show>
               <span>{label()}</span>
             </button>
-            <span class="text-gray-9">{statusLabel()}</span>
+            <span class="text-dls-secondary">{statusLabel()}</span>
             <Show when={task().agentType && task().agentType !== label()}>
-              <span class="text-gray-8">{task().agentType}</span>
+              <span class="text-dls-secondary">{task().agentType}</span>
             </Show>
             <Show when={props.openSessionById && sessionId()}>
               <button
@@ -754,7 +754,7 @@ export default function MessageList(props: MessageListProps) {
             <div class="mt-3 rounded-[18px] border border-dls-border/70 bg-dls-surface px-3 py-3">
               <Show
                 when={childMessages().length > 0}
-                fallback={<div class="text-[12px] leading-5 text-gray-9">Waiting for the subagent transcript to arrive.</div>}
+                fallback={<div class="text-[12px] leading-5 text-dls-secondary">Waiting for the subagent transcript to arrive.</div>}
               >
                 <MessageList
                   messages={childMessages()}
@@ -823,14 +823,14 @@ export default function MessageList(props: MessageListProps) {
 
     if (rowProps.part.type === "reasoning") {
       return (
-        <div class="text-[14px] leading-[1.7] text-gray-9 whitespace-pre-wrap">
+        <div class="text-[14px] leading-[1.7] text-dls-secondary whitespace-pre-wrap">
           <div class="max-w-[720px]">{reasoningText() || headline()}</div>
         </div>
       );
     }
 
     return (
-      <div class="text-[14px] text-gray-9">
+      <div class="text-[14px] text-dls-secondary">
         <button
           type="button"
           class="w-full text-left transition-colors hover:text-dls-text disabled:cursor-default"
@@ -846,7 +846,7 @@ export default function MessageList(props: MessageListProps) {
             <Show when={expandable()}>
               <ChevronDown
                 size={14}
-                class={`mt-[2px] shrink-0 text-gray-8 transition-transform ${expanded() ? "" : "-rotate-90"}`}
+                class={`mt-[2px] shrink-0 text-dls-secondary transition-transform ${expanded() ? "" : "-rotate-90"}`}
               />
             </Show>
           </span>
@@ -855,14 +855,14 @@ export default function MessageList(props: MessageListProps) {
           <div class="mt-3 ml-[22px] space-y-3">
             <Show when={hasStructuredValue(toolInput())}>
               <div>
-                <div class="mb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-gray-8">Request</div>
-                <pre class="overflow-x-auto rounded-[16px] border border-dls-border/70 bg-dls-surface px-4 py-3 text-[12px] leading-6 text-gray-10">{formatStructuredValue(toolInput())}</pre>
+                <div class="mb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-dls-secondary">Request</div>
+                <pre class="overflow-x-auto rounded-[16px] border border-dls-border/70 bg-dls-surface px-4 py-3 text-[12px] leading-6 text-dls-secondary">{formatStructuredValue(toolInput())}</pre>
               </div>
             </Show>
             <Show when={hasStructuredValue(toolOutput())}>
               <div>
-                <div class="mb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-gray-8">Result</div>
-                <pre class="overflow-x-auto rounded-[16px] border border-dls-border/70 bg-dls-surface px-4 py-3 text-[12px] leading-6 text-gray-10">{formatStructuredValue(toolOutput())}</pre>
+                <div class="mb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-dls-secondary">Result</div>
+                <pre class="overflow-x-auto rounded-[16px] border border-dls-border/70 bg-dls-surface px-4 py-3 text-[12px] leading-6 text-dls-secondary">{formatStructuredValue(toolOutput())}</pre>
               </div>
             </Show>
             <Show when={task().isTask && task().sessionId}>
@@ -1044,10 +1044,10 @@ export default function MessageList(props: MessageListProps) {
             >
               <For each={block.attachments}>
                 {(attachment) => (
-                  <div class="flex items-center gap-2 rounded-[18px] border border-dls-border bg-dls-surface px-3 py-2 text-xs text-gray-11 shadow-[var(--dls-card-shadow)]">
+                  <div class="flex items-center gap-2 rounded-[18px] border border-dls-border bg-dls-surface px-3 py-2 text-xs text-dls-secondary shadow-[var(--dls-card-shadow)]">
                     <Show
                       when={isImageAttachment(attachment.mime)}
-                      fallback={<File size={14} class="text-gray-9" />}
+                      fallback={<File size={14} class="text-dls-secondary" />}
                     >
                       <div class="h-12 w-12 overflow-hidden rounded-xl border border-dls-border bg-dls-sidebar">
                         <img
@@ -1060,10 +1060,10 @@ export default function MessageList(props: MessageListProps) {
                       </div>
                     </Show>
                     <div class="max-w-[180px]">
-                      <div class="truncate text-gray-12">
+                      <div class="truncate text-dls-text">
                         {attachment.filename}
                       </div>
-                      <div class="text-[10px] text-gray-9">
+                      <div class="text-[10px] text-dls-secondary">
                         {attachment.mime}
                       </div>
                     </div>
@@ -1170,7 +1170,7 @@ export default function MessageList(props: MessageListProps) {
       <Show
         when={shouldVirtualize()}
         fallback={
-          <div class={isNestedVariant() ? "space-y-3" : "space-y-4"}>
+          <div class={isNestedVariant() ? "space-y-3" : "space-y-5"}>
             <For each={messageBlocks()}>
               {(block, blockIndex) => renderBlock(block, blockIndex())}
             </For>
@@ -1180,7 +1180,7 @@ export default function MessageList(props: MessageListProps) {
         <Show
           when={virtualRows().length > 0}
           fallback={
-            <div class={isNestedVariant() ? "space-y-3" : "space-y-4"}>
+            <div class={isNestedVariant() ? "space-y-3" : "space-y-5"}>
               <For each={messageBlocks()}>
                 {(block, blockIndex) => renderBlock(block, blockIndex())}
               </For>

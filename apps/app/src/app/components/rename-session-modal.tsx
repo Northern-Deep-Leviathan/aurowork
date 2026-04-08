@@ -32,13 +32,13 @@ export default function RenameSessionModal(props: RenameSessionModalProps) {
 
   return (
     <Show when={props.open}>
-      <div class="fixed inset-0 z-50 bg-gray-1/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-gray-2 border border-gray-6/70 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+      <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-dls-surface border border-dls-border w-full max-w-lg rounded-3xl shadow-[var(--dls-shell-shadow)] overflow-hidden">
           <div class="p-6">
             <div class="flex items-start justify-between gap-4">
               <div>
-                <h3 class="text-lg font-semibold text-gray-12">{translate("session.rename_title")}</h3>
-                <p class="text-sm text-gray-11 mt-1">{translate("session.rename_description")}</p>
+                <h3 class="text-lg font-semibold text-dls-text">{translate("session.rename_title")}</h3>
+                <p class="text-sm text-dls-secondary mt-1">{translate("session.rename_description")}</p>
               </div>
               <Button variant="ghost" class="!p-2 rounded-full" onClick={props.onClose}>
                 <X size={16} />
@@ -52,7 +52,7 @@ export default function RenameSessionModal(props: RenameSessionModalProps) {
                 value={props.title}
                 onInput={(e) => props.onTitleChange(e.currentTarget.value)}
                 placeholder={translate("session.rename_placeholder")}
-                class="bg-gray-3"
+                class="bg-dls-hover"
                 onKeyDown={(event) => {
                   if (event.key !== "Enter" || event.isComposing || event.keyCode === 229) return;
                   event.preventDefault();

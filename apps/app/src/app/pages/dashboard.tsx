@@ -1217,7 +1217,7 @@ export default function DashboardView(props: DashboardViewProps) {
           />
         </div>
         <div
-          class="absolute right-0 top-3 hidden h-[calc(100%-24px)] w-2 translate-x-1/2 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-gray-6/40 md:block"
+          class="absolute right-0 top-3 hidden h-[calc(100%-24px)] w-2 translate-x-1/2 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-dls-border/40 md:block"
           onPointerDown={startLeftSidebarResize}
           title="Resize workspace column"
           aria-label="Resize workspace column"
@@ -1269,11 +1269,11 @@ export default function DashboardView(props: DashboardViewProps) {
               <span class="hidden text-[12px] text-dls-secondary lg:inline">{props.busyHint}</span>
             </Show>
           </div>
-          <div class="flex items-center text-gray-10">
+          <div class="flex items-center text-dls-secondary">
             <Show when={props.tab === "settings"}>
               <button
                 type="button"
-                class="flex h-9 w-9 items-center justify-center rounded-md text-gray-10 transition-colors hover:bg-gray-2/70 hover:text-dls-text"
+                class="flex h-9 w-9 items-center justify-center rounded-md text-dls-secondary transition-colors hover:bg-dls-hover/70 hover:text-dls-text"
                 onClick={props.toggleSettings}
                 title="Close settings"
                 aria-label="Close settings"
@@ -1684,7 +1684,7 @@ export default function DashboardView(props: DashboardViewProps) {
           <div class={`mx-auto max-w-5xl px-4 py-3 grid gap-2 ${props.developerMode ? "grid-cols-4" : "grid-cols-3"}`}>
             <button
               class={`flex flex-col items-center gap-1 text-xs ${
-                props.tab === "skills" ? "text-gray-12" : "text-gray-10"
+                props.tab === "skills" ? "text-dls-text" : "text-dls-secondary"
               }`}
               onClick={() => props.setTab("skills")}
             >
@@ -1693,7 +1693,7 @@ export default function DashboardView(props: DashboardViewProps) {
             </button>
             <button
               class={`flex flex-col items-center gap-1 text-xs ${
-                props.tab === "mcp" || props.tab === "plugins" ? "text-gray-12" : "text-gray-10"
+                props.tab === "mcp" || props.tab === "plugins" ? "text-dls-text" : "text-dls-secondary"
               }`}
               onClick={() => props.setTab("mcp")}
             >
@@ -1703,7 +1703,7 @@ export default function DashboardView(props: DashboardViewProps) {
             <Show when={props.developerMode}>
               <button
                 class={`flex flex-col items-center gap-1 text-xs ${
-                  props.tab === "config" ? "text-gray-12" : "text-gray-10"
+                  props.tab === "config" ? "text-dls-text" : "text-dls-secondary"
                 }`}
                 onClick={() => props.setTab("config")}
               >

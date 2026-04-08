@@ -33,7 +33,7 @@ export default function MobileSidebarDrawer(props: MobileSidebarDrawerProps) {
       <div class="fixed inset-0 z-[45] md:hidden">
         <button
           type="button"
-          class="absolute inset-0 bg-gray-1/60 backdrop-blur-sm"
+          class="absolute inset-0 bg-dls-surface/60 backdrop-blur-sm"
           onClick={props.onClose}
           aria-label="Close sidebar"
         />

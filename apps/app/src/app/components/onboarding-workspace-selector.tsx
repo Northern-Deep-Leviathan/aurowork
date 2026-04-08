@@ -49,16 +49,16 @@ export default function OnboardingWorkspaceSelector(props: {
   };
 
   return (
-    <div class="bg-gray-2 border border-gray-6 rounded-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div class="bg-dls-hover border border-dls-border rounded-2xl overflow-hidden flex flex-col max-h-[90vh]">
       <div class="p-6 flex-1 overflow-y-auto space-y-8">
         <div class="space-y-4">
-          <div class="flex items-center gap-3 text-sm font-medium text-gray-12">
-            <div class="w-6 h-6 rounded-full bg-gray-4 flex items-center justify-center text-xs">1</div>
+          <div class="flex items-center gap-3 text-sm font-medium text-dls-text">
+            <div class="w-6 h-6 rounded-full bg-dls-active flex items-center justify-center text-xs">1</div>
             Select Folder
           </div>
           <div class="ml-9">
             <div
-              class={`w-full border border-dashed border-gray-6 bg-gray-1/40 rounded-xl p-4 text-left transition ${
+              class={`w-full border border-dashed border-dls-border bg-dls-surface/40 rounded-xl p-4 text-left transition ${
                 pickingFolder() ? "opacity-70" : "hover:border-dls-active"
               }`.trim()}
             >
@@ -92,8 +92,8 @@ export default function OnboardingWorkspaceSelector(props: {
         </div>
 
         <div class="space-y-4">
-          <div class="flex items-center gap-3 text-sm font-medium text-gray-12">
-            <div class="w-6 h-6 rounded-full bg-gray-4 flex items-center justify-center text-xs">2</div>
+          <div class="flex items-center gap-3 text-sm font-medium text-dls-text">
+            <div class="w-6 h-6 rounded-full bg-dls-active flex items-center justify-center text-xs">2</div>
             Choose Preset
           </div>
           <div class={`ml-9 grid gap-3 ${!canContinue() ? "opacity-50" : ""}`.trim()}>
@@ -106,23 +106,23 @@ export default function OnboardingWorkspaceSelector(props: {
                   }}
                   class={`p-4 rounded-xl border cursor-pointer transition-all ${
                     preset() === opt.id
-                      ? "bg-gray-4 border-gray-6 hover:border-gray-7"
-                      : "bg-gray-1/40 border-gray-6 hover:border-gray-7"
+                      ? "bg-[rgba(var(--dls-accent-rgb),0.08)] border-[rgba(var(--dls-accent-rgb),0.3)] ring-1 ring-[rgba(var(--dls-accent-rgb),0.2)]"
+                      : "bg-dls-surface/40 border-dls-border hover:border-dls-active"
                   } ${!canContinue() ? "pointer-events-none" : ""}`.trim()}
                 >
                   <div class="flex justify-between items-start">
                     <div>
                       <div
                         class={`font-medium text-sm ${
-                          preset() === opt.id ? "text-indigo-400" : "text-zinc-200"
+                          preset() === opt.id ? "text-dls-accent" : "text-dls-text"
                         }`}
                       >
                         {opt.name}
                       </div>
-                      <div class="text-xs text-zinc-500 mt-1">{opt.desc}</div>
+                      <div class="text-xs text-dls-secondary mt-1">{opt.desc}</div>
                     </div>
                     <Show when={preset() === opt.id}>
-                      <CheckCircle2 size={16} class="text-indigo-500" />
+                      <CheckCircle2 size={16} class="text-dls-accent" />
                     </Show>
                   </div>
                 </div>

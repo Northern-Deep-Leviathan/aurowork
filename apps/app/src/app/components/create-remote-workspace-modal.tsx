@@ -209,7 +209,7 @@ export default function CreateRemoteWorkspaceModal(props: {
         class={
           isInline()
             ? "w-full"
-            : "fixed inset-0 z-50 flex items-center justify-center bg-gray-1/60 p-4 animate-in fade-in duration-200"
+            : "fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-in fade-in duration-200"
         }
       >
         {content}

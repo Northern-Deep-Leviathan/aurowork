@@ -90,8 +90,8 @@ export default function StatusBar(props: StatusBarProps) {
   });
 
   return (
-    <div class="border-t border-dls-border bg-dls-surface">
-      <div class="flex h-12 items-center justify-between gap-3 px-4 md:px-6 text-[12px] text-dls-secondary">
+    <div class="bg-dls-sidebar">
+      <div class="flex h-10 items-center justify-between gap-3 px-4 md:px-6 text-[11px] text-dls-secondary">
         <div class="flex min-w-0 items-center gap-2.5">
           <span class="relative flex h-2.5 w-2.5 shrink-0 items-center justify-center">
             <Show when={statusCopy().pulse}>

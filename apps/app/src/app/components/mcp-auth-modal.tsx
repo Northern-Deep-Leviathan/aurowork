@@ -596,23 +596,23 @@ export default function McpAuthModal(props: McpAuthModalProps) {
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
         {/* Backdrop */}
         <div
-          class="absolute inset-0 bg-gray-1/60 backdrop-blur-sm"
+          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
           onClick={handleClose}
         />
 
         {/* Modal */}
-        <div class="relative w-full max-w-lg bg-gray-2 border border-gray-6 rounded-2xl shadow-2xl overflow-hidden">
+        <div class="relative w-full max-w-lg bg-dls-surface border border-dls-border rounded-3xl shadow-[var(--dls-shell-shadow)] overflow-hidden">
           {/* Header */}
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-6">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-dls-border">
             <div>
-              <h2 class="text-lg font-semibold text-gray-12">
+              <h2 class="text-lg font-semibold text-dls-text">
                   {translate("mcp.auth.connect_server", { server: serverName() })}
               </h2>
-              <p class="text-sm text-gray-11">{translate("mcp.auth.open_browser_signin")}</p>
+              <p class="text-sm text-dls-secondary">{translate("mcp.auth.open_browser_signin")}</p>
             </div>
             <button
               type="button"
-              class="p-2 text-gray-11 hover:text-gray-12 hover:bg-gray-4 rounded-lg transition-colors"
+              class="p-2 text-dls-secondary hover:text-dls-text hover:bg-dls-active rounded-lg transition-colors"
               onClick={handleClose}
             >
               <X size={20} />
@@ -622,20 +622,20 @@ export default function McpAuthModal(props: McpAuthModalProps) {
           {/* Content */}
           <div class="px-6 py-5 space-y-5">
             <Show when={isBusy()}>
-              <div class="rounded-xl border border-gray-6/60 bg-gray-1/40 px-5 py-6 text-center space-y-4">
+              <div class="rounded-xl border border-dls-border bg-dls-surface/40 px-5 py-6 text-center space-y-4">
                 <div class="flex items-center justify-center">
-                  <Loader2 size={32} class="animate-spin text-gray-11" />
+                  <Loader2 size={32} class="animate-spin text-dls-secondary" />
                 </div>
                 <div class="space-y-2">
-                  <p class="text-sm font-medium text-gray-12">
+                  <p class="text-sm font-medium text-dls-text">
                     {translate("mcp.auth.waiting_authorization")}
                   </p>
-                  <p class="text-xs text-gray-10">
+                  <p class="text-xs text-dls-secondary">
                     {translate("mcp.auth.follow_browser_steps")}
                   </p>
                   <button
                     type="button"
-                    class="text-xs text-gray-10 underline underline-offset-2 hover:text-gray-11 transition-colors"
+                    class="text-xs text-dls-secondary underline underline-offset-2 hover:text-dls-secondary transition-colors"
                     onClick={handleReopenBrowser}
                   >
                     {translate("mcp.auth.reopen_browser_link")}
@@ -650,12 +650,12 @@ export default function McpAuthModal(props: McpAuthModalProps) {
                   <Loader2 size={32} class="animate-spin text-amber-11" />
                 </div>
                 <div class="space-y-2">
-                  <p class="text-sm font-medium text-gray-12">
+                  <p class="text-sm font-medium text-dls-text">
                     {props.reloadBlocked
                       ? translate("mcp.auth.waiting_for_conversation_title")
                       : translate("mcp.auth.applying_changes_title")}
                   </p>
-                  <p class="text-xs text-gray-10">
+                  <p class="text-xs text-dls-secondary">
                     {props.reloadBlocked
                       ? translate("mcp.auth.waiting_for_conversation_body")
                       : translate("mcp.auth.applying_changes_body")}
@@ -666,7 +666,7 @@ export default function McpAuthModal(props: McpAuthModalProps) {
                     <For each={props.activeSessions ?? []}>
                       {(session) => (
                         <div class="flex items-center justify-between gap-3 rounded-lg border border-amber-6/50 bg-amber-1/40 px-3 py-2">
-                          <span class="text-xs text-gray-11">
+                          <span class="text-xs text-dls-secondary">
                             {translate("mcp.auth.waiting_for_session", { session: session.title })}
                           </span>
                           <button
@@ -694,21 +694,21 @@ export default function McpAuthModal(props: McpAuthModalProps) {
                     <CheckCircle2 size={24} class="text-green-11" />
                   </div>
                   <div>
-                    <p class="text-sm font-medium text-gray-12">Already Connected</p>
-                    <p class="text-xs text-gray-11">
+                    <p class="text-sm font-medium text-dls-text">Already Connected</p>
+                    <p class="text-xs text-dls-secondary">
                         {translate("mcp.auth.already_connected_description", { server: serverName() })}
                     </p>
                   </div>
                 </div>
-                <p class="text-xs text-gray-10">
+                <p class="text-xs text-dls-secondary">
                     {translate("mcp.auth.configured_previously")}
                 </p>
               </div>
             </Show>
 
             <Show when={reloadNotice()}>
-              <div class="bg-gray-1/50 border border-gray-6/70 rounded-xl p-4 space-y-3">
-                <p class="text-sm text-gray-11">{reloadNotice()}</p>
+              <div class="bg-dls-surface/50 border border-dls-border rounded-xl p-4 space-y-3">
+                <p class="text-sm text-dls-secondary">{reloadNotice()}</p>
 
                 <div class="flex flex-wrap gap-2 pt-1">
                   <Show when={props.onReloadEngine}>
@@ -795,17 +795,17 @@ export default function McpAuthModal(props: McpAuthModalProps) {
             </Show>
 
             <Show when={!isBusy() && authorizationUrl() && props.isRemoteWorkspace && !alreadyConnected()}>
-              <div class="rounded-xl border border-gray-6/60 bg-gray-1/40 p-4 space-y-3">
-                <div class="text-xs font-medium text-gray-12">
+              <div class="rounded-xl border border-dls-border bg-dls-surface/40 p-4 space-y-3">
+                <div class="text-xs font-medium text-dls-text">
                   {translate("mcp.auth.manual_finish_title")}
                 </div>
-                <div class="text-xs text-gray-10">
+                <div class="text-xs text-dls-secondary">
                   {translate("mcp.auth.manual_finish_hint")}
                 </div>
-                <div class="rounded-xl border border-gray-6/70 bg-gray-2/40 px-3 py-2 flex items-center gap-3">
+                <div class="rounded-xl border border-dls-border bg-dls-surface/40 px-3 py-2 flex items-center gap-3">
                   <div class="flex-1 min-w-0">
-                    <div class="text-[10px] uppercase tracking-wide text-gray-8">Authorization link</div>
-                    <div class="text-[11px] text-gray-11 font-mono truncate">
+                    <div class="text-[10px] uppercase tracking-wide text-dls-secondary/60">Authorization link</div>
+                    <div class="text-[11px] text-dls-secondary font-mono truncate">
                       {authorizationUrl()}
                     </div>
                   </div>
@@ -823,7 +823,7 @@ export default function McpAuthModal(props: McpAuthModalProps) {
                   value={callbackInput()}
                   onInput={(event) => setCallbackInput(event.currentTarget.value)}
                 />
-                <div class="text-[11px] text-gray-9">
+                <div class="text-[11px] text-dls-secondary">
                   {translate("mcp.auth.port_forward_hint")}
                 </div>
                 <div class="flex justify-end">
@@ -847,51 +847,51 @@ export default function McpAuthModal(props: McpAuthModalProps) {
             <Show when={!isBusy() && !isPreparingReload() && !error() && !reloadNotice() && !alreadyConnected()}>
               <div class="space-y-4">
                 <div class="flex items-start gap-3">
-                  <div class="flex-shrink-0 w-6 h-6 rounded-full bg-gray-4 flex items-center justify-center text-xs font-medium text-gray-11">
+                  <div class="flex-shrink-0 w-6 h-6 rounded-full bg-dls-active flex items-center justify-center text-xs font-medium text-dls-secondary">
                     1
                   </div>
                   <div>
-                    <p class="text-sm font-medium text-gray-12">Opening your browser</p>
-                    <p class="text-xs text-gray-10 mt-1">
+                    <p class="text-sm font-medium text-dls-text">Opening your browser</p>
+                    <p class="text-xs text-dls-secondary mt-1">
                         {translate("mcp.auth.step1_description", { server: serverName() })}
                     </p>
                   </div>
                 </div>
 
                 <div class="flex items-start gap-3">
-                  <div class="flex-shrink-0 w-6 h-6 rounded-full bg-gray-4 flex items-center justify-center text-xs font-medium text-gray-11">
+                  <div class="flex-shrink-0 w-6 h-6 rounded-full bg-dls-active flex items-center justify-center text-xs font-medium text-dls-secondary">
                     2
                   </div>
                   <div>
-                    <p class="text-sm font-medium text-gray-12">Authorize AuroWork</p>
-                    <p class="text-xs text-gray-10 mt-1">
+                    <p class="text-sm font-medium text-dls-text">Authorize AuroWork</p>
+                    <p class="text-xs text-dls-secondary mt-1">
                         {translate("mcp.auth.step2_description")}
                     </p>
                   </div>
                 </div>
 
                 <div class="flex items-start gap-3">
-                  <div class="flex-shrink-0 w-6 h-6 rounded-full bg-gray-4 flex items-center justify-center text-xs font-medium text-gray-11">
+                  <div class="flex-shrink-0 w-6 h-6 rounded-full bg-dls-active flex items-center justify-center text-xs font-medium text-dls-secondary">
                     3
                   </div>
                   <div>
-                    <p class="text-sm font-medium text-gray-12">Return here when you're done</p>
-                    <p class="text-xs text-gray-10 mt-1">
+                    <p class="text-sm font-medium text-dls-text">Return here when you're done</p>
+                    <p class="text-xs text-dls-secondary mt-1">
                         {translate("mcp.auth.step3_description")}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div class="rounded-xl border border-gray-6/60 bg-gray-1/40 p-4 text-sm text-gray-11">
+              <div class="rounded-xl border border-dls-border bg-dls-surface/40 p-4 text-sm text-dls-secondary">
                 <div class="space-y-3">
                   <p>{translate("mcp.auth.waiting_authorization")}</p>
-                  <p class="text-xs text-gray-10">
+                  <p class="text-xs text-dls-secondary">
                     {translate("mcp.auth.follow_browser_steps")}
                   </p>
                   <button
                     type="button"
-                    class="text-xs text-gray-10 underline underline-offset-2 hover:text-gray-11 transition-colors text-left"
+                    class="text-xs text-dls-secondary underline underline-offset-2 hover:text-dls-secondary transition-colors text-left"
                     onClick={handleReopenBrowser}
                   >
                     {translate("mcp.auth.reopen_browser_link")}
@@ -902,7 +902,7 @@ export default function McpAuthModal(props: McpAuthModalProps) {
           </div>
 
           {/* Footer */}
-          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-6 bg-gray-2/50">
+          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-dls-border bg-dls-surface/50">
             <Show when={alreadyConnected()}>
               <Button variant="primary" onClick={handleComplete}>
                 <CheckCircle2 size={16} />

@@ -125,8 +125,8 @@ const mcpStatusLabel = (status?: McpStatus, disabled?: boolean) => {
 };
 
 const mcpStatusDot = (status?: McpStatus, disabled?: boolean) => {
-  if (disabled) return "bg-gray-7";
-  if (!status) return "bg-gray-7";
+  if (disabled) return "bg-dls-secondary";
+  if (!status) return "bg-dls-secondary";
   switch (status.status) {
     case "connected":
       return "bg-green-9";
@@ -136,7 +136,7 @@ const mcpStatusDot = (status?: McpStatus, disabled?: boolean) => {
     case "failed":
       return "bg-red-9";
     default:
-      return "bg-gray-7";
+      return "bg-dls-secondary";
   }
 };
 
@@ -147,27 +147,27 @@ export default function ContextPanel(props: ContextPanelProps) {
   return (
     <div class="flex flex-col h-full overflow-hidden">
       <div class="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        <div class="rounded-2xl border border-gray-6 bg-gray-2/30" id="sidebar-context">
+        <div class="rounded-2xl border border-dls-border bg-dls-hover/30" id="sidebar-context">
           <button
-            class="w-full px-4 py-3 flex items-center justify-between text-sm text-gray-12 font-medium"
+            class="w-full px-4 py-3 flex items-center justify-between text-sm text-dls-text font-medium"
             onClick={() => props.onToggleSection("context")}
           >
             <span>Context</span>
             <ChevronDown
               size={16}
-              class={`transition-transform text-gray-10 ${props.expandedSections.context ? "rotate-180" : ""}`.trim()}
+              class={`transition-transform text-dls-secondary ${props.expandedSections.context ? "rotate-180" : ""}`.trim()}
             />
           </button>
           <Show when={props.expandedSections.context}>
             <div class="px-4 pb-4 pt-1 space-y-5">
               <div>
-                <div class="flex items-center justify-between text-[11px] uppercase tracking-wider text-gray-9 font-semibold mb-2">
+                <div class="flex items-center justify-between text-[11px] uppercase tracking-wider text-dls-secondary font-semibold mb-2">
                   <span>Working files</span>
                 </div>
                 <div class="space-y-2">
                   <Show
                     when={props.workingFiles.length}
-                    fallback={<div class="text-xs text-gray-9">None yet.</div>}
+                    fallback={<div class="text-xs text-dls-secondary">None yet.</div>}
                   >
                     <For each={props.workingFiles}>
                       {(file) => {
@@ -177,16 +177,16 @@ export default function ContextPanel(props: ContextPanelProps) {
                         return (
                           <button
                             type="button"
-                            class={`flex items-center gap-2 text-xs text-gray-11 rounded px-1 -mx-1 transition-colors w-full text-left ${
+                            class={`flex items-center gap-2 text-xs text-dls-secondary rounded px-1 -mx-1 transition-colors w-full text-left ${
                               canOpen()
-                                ? "hover:text-gray-12 hover:bg-gray-3"
+                                ? "hover:text-dls-text hover:bg-dls-hover"
                                 : "cursor-default opacity-70"
                             }`.trim()}
                             onClick={() => props.onFileClick?.(file)}
                             title={canOpen() ? `Open ${displayPath()}` : displayPath()}
                             disabled={!canOpen()}
                           >
-                            <File size={12} class="text-gray-9" />
+                            <File size={12} class="text-dls-secondary" />
                             <span class="truncate">{label()}</span>
                           </button>
                         );
@@ -199,15 +199,15 @@ export default function ContextPanel(props: ContextPanelProps) {
           </Show>
         </div>
 
-        <div class="rounded-2xl border border-gray-6 bg-gray-2/30">
+        <div class="rounded-2xl border border-dls-border bg-dls-hover/30">
           <button
-            class="w-full px-4 py-3 flex items-center justify-between text-sm text-gray-12 font-medium"
+            class="w-full px-4 py-3 flex items-center justify-between text-sm text-dls-text font-medium"
             onClick={() => props.onToggleSection("plugins")}
           >
             <span>Plugins</span>
             <ChevronDown
               size={16}
-              class={`transition-transform text-gray-10 ${props.expandedSections.plugins ? "rotate-180" : ""}`.trim()}
+              class={`transition-transform text-dls-secondary ${props.expandedSections.plugins ? "rotate-180" : ""}`.trim()}
             />
           </button>
           <Show when={props.expandedSections.plugins}>
@@ -216,7 +216,7 @@ export default function ContextPanel(props: ContextPanelProps) {
                 <Show
                   when={props.activePlugins.length}
                   fallback={
-                    <div class="text-xs text-gray-9">
+                    <div class="text-xs text-dls-secondary">
                       {props.activePluginStatus ?? "No plugins loaded."}
                     </div>
                   }
@@ -229,12 +229,12 @@ export default function ContextPanel(props: ContextPanelProps) {
                       const description = suggested?.description?.trim();
                       const detail = description || (normalized !== label ? normalized : "");
                       return (
-                        <div class="flex items-start gap-2 text-xs text-gray-11">
+                        <div class="flex items-start gap-2 text-xs text-dls-secondary">
                           <Circle size={6} class="text-green-9 fill-green-9 mt-1" />
                           <div class="min-w-0">
                             <div class="truncate">{label}</div>
                             <Show when={detail}>
-                              <div class="text-[11px] text-gray-9 truncate" title={detail}>
+                              <div class="text-[11px] text-dls-secondary truncate" title={detail}>
                                 {detail}
                               </div>
                             </Show>
@@ -249,15 +249,15 @@ export default function ContextPanel(props: ContextPanelProps) {
           </Show>
         </div>
 
-        <div class="rounded-2xl border border-gray-6 bg-gray-2/30">
+        <div class="rounded-2xl border border-dls-border bg-dls-hover/30">
           <button
-            class="w-full px-4 py-3 flex items-center justify-between text-sm text-gray-12 font-medium"
+            class="w-full px-4 py-3 flex items-center justify-between text-sm text-dls-text font-medium"
             onClick={() => props.onToggleSection("mcp")}
           >
             <span>MCP</span>
             <ChevronDown
               size={16}
-              class={`transition-transform text-gray-10 ${props.expandedSections.mcp ? "rotate-180" : ""}`.trim()}
+              class={`transition-transform text-dls-secondary ${props.expandedSections.mcp ? "rotate-180" : ""}`.trim()}
             />
           </button>
           <Show when={props.expandedSections.mcp}>
@@ -266,7 +266,7 @@ export default function ContextPanel(props: ContextPanelProps) {
                 <Show
                   when={props.mcpServers.length}
                   fallback={
-                    <div class="text-xs text-gray-9">
+                    <div class="text-xs text-dls-secondary">
                       {props.mcpStatus ?? "No MCP servers loaded."}
                     </div>
                   }
@@ -280,11 +280,11 @@ export default function ContextPanel(props: ContextPanelProps) {
                           ? entry.config.url
                           : entry.config.command?.join(" ");
                       return (
-                        <div class="flex items-start gap-2 text-xs text-gray-11">
+                        <div class="flex items-start gap-2 text-xs text-dls-secondary">
                           <span class={`mt-1 h-2 w-2 rounded-full ${mcpStatusDot(status(), disabled())}`} />
                           <div class="min-w-0">
                             <div class="truncate">{entry.name}</div>
-                            <div class="text-[11px] text-gray-9 truncate">
+                            <div class="text-[11px] text-dls-secondary truncate">
                               {mcpStatusLabel(status(), disabled())}
                               {detail ? ` - ${detail}` : ""}
                             </div>
@@ -299,15 +299,15 @@ export default function ContextPanel(props: ContextPanelProps) {
           </Show>
         </div>
 
-        <div class="rounded-2xl border border-gray-6 bg-gray-2/30">
+        <div class="rounded-2xl border border-dls-border bg-dls-hover/30">
           <button
-            class="w-full px-4 py-3 flex items-center justify-between text-sm text-gray-12 font-medium"
+            class="w-full px-4 py-3 flex items-center justify-between text-sm text-dls-text font-medium"
             onClick={() => props.onToggleSection("skills")}
           >
             <span>Skills</span>
             <ChevronDown
               size={16}
-              class={`transition-transform text-gray-10 ${props.expandedSections.skills ? "rotate-180" : ""}`.trim()}
+              class={`transition-transform text-dls-secondary ${props.expandedSections.skills ? "rotate-180" : ""}`.trim()}
             />
           </button>
           <Show when={props.expandedSections.skills}>
@@ -316,7 +316,7 @@ export default function ContextPanel(props: ContextPanelProps) {
                 <Show
                   when={props.skills.length}
                   fallback={
-                    <div class="text-xs text-gray-9">
+                    <div class="text-xs text-dls-secondary">
                       {props.skillsStatus ?? "No skills loaded."}
                     </div>
                   }
@@ -328,12 +328,12 @@ export default function ContextPanel(props: ContextPanelProps) {
                       const trigger = skill.trigger?.trim();
                       const subtitle = trigger || description;
                       return (
-                        <div class="flex items-start gap-2 text-xs text-gray-11">
-                          <Package size={12} class="text-gray-9 mt-0.5" />
+                        <div class="flex items-start gap-2 text-xs text-dls-secondary">
+                          <Package size={12} class="text-dls-secondary mt-0.5" />
                           <div class="min-w-0">
                             <div class="truncate">{label}</div>
                             <Show when={subtitle}>
-                              <div class="text-[11px] text-gray-9 truncate" title={subtitle}>
+                              <div class="text-[11px] text-dls-secondary truncate" title={subtitle}>
                                 {subtitle}
                               </div>
                             </Show>
@@ -348,15 +348,15 @@ export default function ContextPanel(props: ContextPanelProps) {
           </Show>
         </div>
 
-        <div class="rounded-2xl border border-gray-6 bg-gray-2/30">
+        <div class="rounded-2xl border border-dls-border bg-dls-hover/30">
           <button
-            class="w-full px-4 py-3 flex items-center justify-between text-sm text-gray-12 font-medium"
+            class="w-full px-4 py-3 flex items-center justify-between text-sm text-dls-text font-medium"
             onClick={() => props.onToggleSection("authorizedFolders")}
           >
             <span>Authorized folders</span>
             <ChevronDown
               size={16}
-              class={`transition-transform text-gray-10 ${
+              class={`transition-transform text-dls-secondary ${
                 props.expandedSections.authorizedFolders ? "rotate-180" : ""
               }`.trim()}
             />
@@ -366,12 +366,12 @@ export default function ContextPanel(props: ContextPanelProps) {
               <div class="space-y-2">
                 <Show
                   when={props.authorizedDirs.length}
-                  fallback={<div class="text-xs text-gray-9">None yet.</div>}
+                  fallback={<div class="text-xs text-dls-secondary">None yet.</div>}
                 >
                   <For each={props.authorizedDirs.slice(0, 3)}>
                     {(folder) => (
-                      <div class="flex items-center gap-2 text-xs text-gray-11">
-                        <Folder size={12} class="text-gray-9" />
+                      <div class="flex items-center gap-2 text-xs text-dls-secondary">
+                        <Folder size={12} class="text-dls-secondary" />
                         <span class="truncate" title={folder}>
                           {folder.split(/[/\\]/).pop()}
                         </span>

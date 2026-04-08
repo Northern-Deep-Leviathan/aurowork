@@ -42,7 +42,7 @@ function statusBadgeClass(kind: "ready" | "warning" | "neutral" | "error") {
     case "error":
       return "border-red-7/30 bg-red-3/20 text-red-11";
     default:
-      return "border-gray-6/60 bg-gray-3/20 text-gray-11";
+      return "border-dls-border/60 bg-dls-hover/20 text-dls-secondary";
   }
 }
 
@@ -588,11 +588,11 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
   const settingsPanelClass =
     "rounded-[28px] border border-dls-border bg-dls-surface p-5 md:p-6";
   const settingsPanelSoftClass =
-    "rounded-2xl border border-gray-6/60 bg-gray-1/40 p-4";
+    "rounded-2xl border border-dls-border/60 bg-dls-surface/40 p-4";
   const headerBadgeClass =
-    "inline-flex min-h-8 items-center gap-2 rounded-xl border border-gray-6/60 bg-gray-1/40 px-3 text-[13px] font-medium text-dls-text";
+    "inline-flex min-h-8 items-center gap-2 rounded-xl border border-dls-border/60 bg-dls-surface/40 px-3 text-[13px] font-medium text-dls-text";
   const headerStatusBadgeClass =
-    "inline-flex h-8 items-center justify-center gap-2 rounded-xl border border-gray-6/60 bg-gray-1/40 px-3 text-[13px] leading-none font-medium text-dls-secondary";
+    "inline-flex h-8 items-center justify-center gap-2 rounded-xl border border-dls-border/60 bg-dls-surface/40 px-3 text-[13px] leading-none font-medium text-dls-secondary";
 
   return (
     <div class="space-y-6">
@@ -615,7 +615,7 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
           </div>
           <div class={headerStatusBadgeClass}>
             <span
-              class={`h-2 w-2 rounded-full ${summaryTone() === "ready" ? "bg-green-500" : summaryTone() === "warning" ? "bg-amber-500" : summaryTone() === "error" ? "bg-red-500" : "bg-gray-400"}`}
+              class={`h-2 w-2 rounded-full ${summaryTone() === "ready" ? "bg-green-500" : summaryTone() === "warning" ? "bg-amber-500" : summaryTone() === "error" ? "bg-red-500" : "bg-dls-secondary"}`}
             />
             {summaryLabel()}
           </div>
@@ -670,7 +670,7 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
 
         <Show when={statusMessage() && !authError() && !workersError() && !orgsError() && !templatesError()}>
           {(value) => (
-            <div class="rounded-xl border border-gray-6/60 bg-gray-1/60 px-3 py-2 text-xs text-gray-11">
+            <div class="rounded-xl border border-dls-border/60 bg-dls-surface/60 px-3 py-2 text-xs text-dls-secondary">
               {value()}
             </div>
           )}
@@ -749,7 +749,7 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
             )}
           </Show>
 
-          <div class={`${settingsPanelSoftClass} text-sm text-gray-10`}>
+          <div class={`${settingsPanelSoftClass} text-sm text-dls-secondary`}>
             Finish auth in your browser and AuroWork will reconnect here
             automatically.
           </div>
@@ -767,7 +767,7 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
             </div>
 
             <div class="flex flex-col gap-3">
-              <div class="flex flex-col gap-3 rounded-xl border border-gray-6/60 bg-gray-1/40 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-col gap-3 rounded-xl border border-dls-border/60 bg-dls-surface/40 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">
                   <div class="truncate text-sm font-medium text-dls-text">
                     {user()?.name || user()?.email}
@@ -787,7 +787,7 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
                 </Button>
               </div>
 
-              <div class="flex flex-col gap-3 rounded-xl border border-gray-6/60 bg-gray-1/40 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-col gap-3 rounded-xl border border-dls-border/60 bg-dls-surface/40 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">
                   <div class="text-sm font-medium text-dls-text">Active org</div>
                   <div class="truncate text-xs text-dls-secondary">
@@ -857,7 +857,7 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-2">
-                <div class="inline-flex items-center gap-1.5 rounded-full border border-gray-6/60 bg-gray-1/40 px-2.5 py-1 text-[11px] font-medium text-gray-11">
+                <div class="inline-flex items-center gap-1.5 rounded-full border border-dls-border/60 bg-dls-surface/40 px-2.5 py-1 text-[11px] font-medium text-dls-secondary">
                   <Users size={12} />
                   {activeOrgName()}
                 </div>
@@ -893,7 +893,7 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
                 {(worker) => {
                   const status = createMemo(() => workerStatusMeta(worker.status));
                   return (
-                    <div class="flex items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] transition-colors hover:bg-gray-2/60">
+                    <div class="flex items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] transition-colors hover:bg-dls-hover/60">
                       <div class="min-w-0 pr-4">
                         <div class="flex flex-wrap items-center gap-2">
                           <span class="truncate font-medium text-dls-text">
@@ -905,7 +905,7 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
                             {status().label}
                           </span>
                           <Show when={worker.isMine}>
-                            <span class="inline-flex items-center rounded-full border border-gray-6/60 bg-gray-1/40 px-2 py-0.5 text-[10px] font-medium text-gray-11">
+                            <span class="inline-flex items-center rounded-full border border-dls-border/60 bg-dls-surface/40 px-2 py-0.5 text-[10px] font-medium text-dls-secondary">
                               Mine
                             </span>
                           </Show>
@@ -947,7 +947,7 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-2">
-                <div class="inline-flex items-center gap-1.5 rounded-full border border-gray-6/60 bg-gray-1/40 px-2.5 py-1 text-[11px] font-medium text-gray-11">
+                <div class="inline-flex items-center gap-1.5 rounded-full border border-dls-border/60 bg-dls-surface/40 px-2.5 py-1 text-[11px] font-medium text-dls-secondary">
                   <Users size={12} />
                   {activeOrgName()}
                 </div>
@@ -988,17 +988,17 @@ export default function DenSettingsPanel(props: DenSettingsPanelProps) {
                   const isMine = () => template.creator?.userId === user()?.id;
                   const opening = () => openingTemplateId() === template.id;
                   return (
-                    <div class="flex items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] transition-colors hover:bg-gray-2/60">
+                    <div class="flex items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] transition-colors hover:bg-dls-hover/60">
                       <div class="min-w-0 pr-4">
                         <div class="flex flex-wrap items-center gap-2">
                           <span class="truncate font-medium text-dls-text">
                             {template.name}
                           </span>
-                          <span class="inline-flex items-center rounded-full border border-gray-6/60 bg-gray-1/40 px-2 py-0.5 text-[10px] font-medium text-gray-11">
+                          <span class="inline-flex items-center rounded-full border border-dls-border/60 bg-dls-surface/40 px-2 py-0.5 text-[10px] font-medium text-dls-secondary">
                             Team template
                           </span>
                           <Show when={isMine()}>
-                            <span class="inline-flex items-center rounded-full border border-gray-6/60 bg-gray-1/40 px-2 py-0.5 text-[10px] font-medium text-gray-11">
+                            <span class="inline-flex items-center rounded-full border border-dls-border/60 bg-dls-surface/40 px-2 py-0.5 text-[10px] font-medium text-dls-secondary">
                               Mine
                             </span>
                           </Show>

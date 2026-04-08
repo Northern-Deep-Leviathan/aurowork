@@ -83,7 +83,7 @@ export default function ConfigView(props: ConfigViewProps) {
       case "limited":
         return "bg-amber-7/10 text-amber-11 border-amber-7/20";
       default:
-        return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+        return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
     }
   });
 
@@ -132,7 +132,7 @@ export default function ConfigView(props: ConfigViewProps) {
     return hostRemoteAccessEnabled() ? "Remote enabled" : "Local only";
   });
   const hostStatusStyle = createMemo(() => {
-    if (!hostInfo()?.running) return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+    if (!hostInfo()?.running) return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
     return "bg-green-7/10 text-green-11 border-green-7/20";
   });
   const hostConnectUrl = createMemo(() => {
@@ -219,28 +219,28 @@ export default function ConfigView(props: ConfigViewProps) {
 
   return (
     <section class="space-y-6">
-      <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-2">
-        <div class="text-sm font-medium text-gray-12">Workspace config</div>
-        <div class="text-xs text-gray-10">
+      <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-2">
+        <div class="text-sm font-medium text-dls-text">Workspace config</div>
+        <div class="text-xs text-dls-secondary">
           These settings affect the selected workspace. Runtime-only actions apply to whichever workspace is currently connected.
         </div>
         <Show when={props.runtimeWorkspaceId}>
-          <div class="text-[11px] text-gray-7 font-mono truncate">
+          <div class="text-[11px] text-dls-secondary font-mono truncate">
             Workspace: {props.runtimeWorkspaceId}
           </div>
         </Show>
       </div>
 
-      <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-4">
+      <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-4">
         <div>
-          <div class="text-sm font-medium text-gray-12">Engine reload</div>
-          <div class="text-xs text-gray-10">Restart the OpenCode server for this workspace.</div>
+          <div class="text-sm font-medium text-dls-text">Engine reload</div>
+          <div class="text-xs text-dls-secondary">Restart the OpenCode server for this workspace.</div>
         </div>
 
-        <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+        <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
           <div class="min-w-0 space-y-1">
-            <div class="text-sm text-gray-12">Reload now</div>
-            <div class="text-xs text-gray-7">Applies config updates and reconnects your session.</div>
+            <div class="text-sm text-dls-text">Reload now</div>
+            <div class="text-xs text-dls-secondary">Applies config updates and reconnects your session.</div>
             <Show when={props.anyActiveRuns}>
               <div class="text-[11px] text-amber-11">Reloading will stop active tasks.</div>
             </Show>
@@ -248,7 +248,7 @@ export default function ConfigView(props: ConfigViewProps) {
               <div class="text-[11px] text-red-11">{props.reloadError}</div>
             </Show>
             <Show when={reloadAvailabilityReason()}>
-              <div class="text-[11px] text-gray-9">{reloadAvailabilityReason()}</div>
+              <div class="text-[11px] text-dls-secondary">{reloadAvailabilityReason()}</div>
             </Show>
           </div>
           <Button
@@ -262,12 +262,12 @@ export default function ConfigView(props: ConfigViewProps) {
           </Button>
         </div>
 
-        <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+        <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
           <div class="min-w-0 space-y-1">
-            <div class="text-sm text-gray-12">Auto reload (local)</div>
-            <div class="text-xs text-gray-7">Reload automatically after agents/skills/commands/config change (only when idle).</div>
+            <div class="text-sm text-dls-text">Auto reload (local)</div>
+            <div class="text-xs text-dls-secondary">Reload automatically after agents/skills/commands/config change (only when idle).</div>
             <Show when={!props.workspaceAutoReloadAvailable}>
-              <div class="text-[11px] text-gray-9">Available for local workspaces in the desktop app.</div>
+              <div class="text-[11px] text-dls-secondary">Available for local workspaces in the desktop app.</div>
             </Show>
           </div>
           <Button
@@ -280,10 +280,10 @@ export default function ConfigView(props: ConfigViewProps) {
           </Button>
         </div>
 
-        <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+        <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
           <div class="min-w-0 space-y-1">
-            <div class="text-sm text-gray-12">Resume sessions after auto reload</div>
-            <div class="text-xs text-gray-7">
+            <div class="text-sm text-dls-text">Resume sessions after auto reload</div>
+            <div class="text-xs text-dls-secondary">
               If a reload was queued while tasks were running, send a resume message afterward.
             </div>
           </div>
@@ -304,11 +304,11 @@ export default function ConfigView(props: ConfigViewProps) {
       </div>
 
       <Show when={props.developerMode}>
-        <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-3">
+        <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-3">
           <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <div class="text-sm font-medium text-gray-12">Diagnostics bundle</div>
-              <div class="text-xs text-gray-10">Copy sanitized runtime state for debugging.</div>
+              <div class="text-sm font-medium text-dls-text">Diagnostics bundle</div>
+              <div class="text-xs text-dls-secondary">Copy sanitized runtime state for debugging.</div>
             </div>
             <Button
               variant="secondary"
@@ -319,18 +319,18 @@ export default function ConfigView(props: ConfigViewProps) {
               {copyingField() === "debug-bundle" ? "Copied" : "Copy"}
             </Button>
           </div>
-          <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-64 overflow-auto bg-gray-1/20 border border-gray-6 rounded-xl p-3">
+          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-64 overflow-auto bg-dls-surface/20 border border-dls-border rounded-xl p-3">
             {diagnosticsBundleJson()}
           </pre>
         </div>
       </Show>
 
       <Show when={hostInfo()}>
-        <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-4">
+        <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-4">
           <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <div class="text-sm font-medium text-gray-12">AuroWork server sharing</div>
-              <div class="text-xs text-gray-10">
+              <div class="text-sm font-medium text-dls-text">AuroWork server sharing</div>
+              <div class="text-xs text-dls-secondary">
                 Share these details with a trusted device. Keep the server on the same network for the fastest setup.
               </div>
             </div>
@@ -340,12 +340,12 @@ export default function ConfigView(props: ConfigViewProps) {
           </div>
 
           <div class="grid gap-3">
-            <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+            <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
               <div class="min-w-0">
-                <div class="text-xs font-medium text-gray-11">AuroWork Server URL</div>
-                <div class="text-xs text-gray-7 font-mono truncate">{hostConnectUrl() || "Starting server…"}</div>
+                <div class="text-xs font-medium text-dls-secondary">AuroWork Server URL</div>
+                <div class="text-xs text-dls-secondary font-mono truncate">{hostConnectUrl() || "Starting server…"}</div>
                 <Show when={hostConnectUrl()}>
-                  <div class="text-[11px] text-gray-8 mt-1">
+                  <div class="text-[11px] text-dls-secondary mt-1">
                     {!hostRemoteAccessEnabled()
                       ? "Remote access is off. Use Share workspace to enable it before connecting from another machine."
                       : hostConnectUrlUsesMdns()
@@ -364,17 +364,17 @@ export default function ConfigView(props: ConfigViewProps) {
               </Button>
             </div>
 
-            <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+            <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
               <div class="min-w-0">
-                <div class="text-xs font-medium text-gray-11">Collaborator token</div>
-                <div class="text-xs text-gray-7 font-mono truncate">
+                <div class="text-xs font-medium text-dls-secondary">Collaborator token</div>
+                <div class="text-xs text-dls-secondary font-mono truncate">
                   {clientTokenVisible()
                     ? hostInfo()?.clientToken || "—"
                     : hostInfo()?.clientToken
                       ? "••••••••••••"
                       : "—"}
                 </div>
-                <div class="text-[11px] text-gray-8 mt-1">
+                <div class="text-[11px] text-dls-secondary mt-1">
                   {hostRemoteAccessEnabled()
                     ? "Routine remote access for phones or laptops connecting to this server."
                     : "Stored in advance for remote sharing, but remote access is currently disabled."}
@@ -400,17 +400,17 @@ export default function ConfigView(props: ConfigViewProps) {
               </div>
             </div>
 
-            <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+            <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
               <div class="min-w-0">
-                <div class="text-xs font-medium text-gray-11">Owner token</div>
-                <div class="text-xs text-gray-7 font-mono truncate">
+                <div class="text-xs font-medium text-dls-secondary">Owner token</div>
+                <div class="text-xs text-dls-secondary font-mono truncate">
                   {ownerTokenVisible()
                     ? hostInfo()?.ownerToken || "—"
                     : hostInfo()?.ownerToken
                       ? "••••••••••••"
                       : "—"}
                 </div>
-                <div class="text-[11px] text-gray-8 mt-1">
+                <div class="text-[11px] text-dls-secondary mt-1">
                   {hostRemoteAccessEnabled()
                     ? "Use this when a remote client needs to answer permission prompts or take owner-only actions."
                     : "Only relevant after you enable remote access for this worker."}
@@ -436,17 +436,17 @@ export default function ConfigView(props: ConfigViewProps) {
               </div>
             </div>
 
-            <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+            <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
               <div class="min-w-0">
-                <div class="text-xs font-medium text-gray-11">Host admin token</div>
-                <div class="text-xs text-gray-7 font-mono truncate">
+                <div class="text-xs font-medium text-dls-secondary">Host admin token</div>
+                <div class="text-xs text-dls-secondary font-mono truncate">
                   {hostTokenVisible()
                     ? hostInfo()?.hostToken || "—"
                     : hostInfo()?.hostToken
                       ? "••••••••••••"
                       : "—"}
                 </div>
-                <div class="text-[11px] text-gray-8 mt-1">Internal host-only token for approvals CLI and admin APIs. Do not use this in the remote app connect flow.</div>
+                <div class="text-[11px] text-dls-secondary mt-1">Internal host-only token for approvals CLI and admin APIs. Do not use this in the remote app connect flow.</div>
               </div>
               <div class="flex items-center gap-2 shrink-0">
                 <Button
@@ -469,17 +469,17 @@ export default function ConfigView(props: ConfigViewProps) {
             </div>
           </div>
 
-          <div class="text-xs text-gray-9">
+          <div class="text-xs text-dls-secondary">
             For per-workspace sharing links, use <span class="font-medium">Share...</span> in the workspace menu.
           </div>
         </div>
       </Show>
 
-      <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-4">
+      <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-4">
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <div class="text-sm font-medium text-gray-12">AuroWork server</div>
-            <div class="text-xs text-gray-10">
+            <div class="text-sm font-medium text-dls-text">AuroWork server</div>
+            <div class="text-xs text-dls-secondary">
               Connect to an AuroWork server. Use the URL plus a collaborator or owner token from your server admin.
             </div>
           </div>
@@ -497,7 +497,7 @@ export default function ConfigView(props: ConfigViewProps) {
           />
 
           <label class="block">
-            <div class="mb-1 text-xs font-medium text-gray-11">Collaborator or owner token</div>
+            <div class="mb-1 text-xs font-medium text-dls-secondary">Collaborator or owner token</div>
             <div class="flex items-center gap-2">
               <input
                 type={auroworkTokenVisible() ? "text" : "password"}
@@ -505,7 +505,7 @@ export default function ConfigView(props: ConfigViewProps) {
                 onInput={(event) => setAuroworkToken(event.currentTarget.value)}
                 placeholder="Paste your token"
                 disabled={props.busy}
-                class="w-full rounded-xl bg-gray-2/60 px-3 py-2 text-sm text-gray-12 placeholder:text-gray-10 shadow-[0_0_0_1px_rgba(255,255,255,0.08)] focus:outline-none focus:ring-2 focus:ring-gray-6/20"
+                class="w-full rounded-xl bg-dls-hover/60 px-3 py-2 text-sm text-dls-text placeholder:text-dls-secondary shadow-[0_0_0_1px_rgba(255,255,255,0.08)] focus:outline-none focus:ring-2 focus:ring-dls-border/20"
               />
               <Button
                 variant="outline"
@@ -516,13 +516,13 @@ export default function ConfigView(props: ConfigViewProps) {
                 {auroworkTokenVisible() ? "Hide" : "Show"}
               </Button>
             </div>
-            <div class="mt-1 text-xs text-gray-10">Optional. Paste a collaborator token for routine access or an owner token when this client must answer permission prompts.</div>
+            <div class="mt-1 text-xs text-dls-secondary">Optional. Paste a collaborator token for routine access or an owner token when this client must answer permission prompts.</div>
           </label>
         </div>
 
         <div class="space-y-1">
-          <div class="text-[11px] text-gray-7 font-mono truncate">Resolved worker URL: {resolvedWorkspaceUrl() || "Not set"}</div>
-          <div class="text-[11px] text-gray-8 font-mono truncate">Worker ID: {resolvedWorkspaceId() || "Unavailable"}</div>
+          <div class="text-[11px] text-dls-secondary font-mono truncate">Resolved worker URL: {resolvedWorkspaceUrl() || "Not set"}</div>
+          <div class="text-[11px] text-dls-secondary font-mono truncate">Worker ID: {resolvedWorkspaceId() || "Unavailable"}</div>
         </div>
 
         <div class="flex flex-wrap gap-2">
@@ -569,7 +569,7 @@ export default function ConfigView(props: ConfigViewProps) {
                 ? "text-green-11"
                 : auroworkTestState() === "error"
                   ? "text-red-11"
-                  : "text-gray-9"
+                  : "text-dls-secondary"
             }`}
             role="status"
             aria-live="polite"
@@ -579,19 +579,19 @@ export default function ConfigView(props: ConfigViewProps) {
         </Show>
 
         <Show when={auroworkStatusLabel() !== "Connected"}>
-          <div class="text-xs text-gray-9">AuroWork server connection needed to sync skills, plugins, and commands.</div>
+          <div class="text-xs text-dls-secondary">AuroWork server connection needed to sync skills, plugins, and commands.</div>
         </Show>
       </div>
 
-      <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-2">
-        <div class="text-sm font-medium text-gray-12">Messaging identities</div>
-        <div class="text-xs text-gray-10">
-          Manage Telegram/Slack identities and routing in the <span class="font-medium text-gray-12">Identities</span> tab.
+      <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-2">
+        <div class="text-sm font-medium text-dls-text">Messaging identities</div>
+        <div class="text-xs text-dls-secondary">
+          Manage Telegram/Slack identities and routing in the <span class="font-medium text-dls-text">Identities</span> tab.
         </div>
       </div>
 
       <Show when={!isTauriRuntime()}>
-        <div class="text-xs text-gray-9">
+        <div class="text-xs text-dls-secondary">
           Some config features (local server sharing + messaging bridge) require the desktop app.
         </div>
       </Show>

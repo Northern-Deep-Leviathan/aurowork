@@ -599,12 +599,12 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
 
   return (
     <Show when={props.open}>
-      <div class="fixed inset-0 z-50 bg-gray-1/60 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
-        <div class="bg-gray-2 border border-gray-6/70 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[calc(100vh-2rem)] flex flex-col">
-          <div class="px-6 pt-6 pb-4 border-b border-gray-6/50 flex items-start justify-between gap-4">
+      <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
+        <div class="bg-dls-surface border border-dls-border w-full max-w-lg rounded-3xl shadow-[var(--dls-shell-shadow)] overflow-hidden max-h-[calc(100vh-2rem)] flex flex-col">
+          <div class="px-6 pt-6 pb-4 border-b border-dls-border flex items-start justify-between gap-4">
             <div>
-              <h3 class="text-lg font-semibold text-gray-12">Connect providers</h3>
-              <p class="text-sm text-gray-11 mt-1">Sign in to services you want AuroWork to use.</p>
+              <h3 class="text-lg font-semibold text-dls-text">Connect providers</h3>
+              <p class="text-sm text-dls-secondary mt-1">Sign in to services you want AuroWork to use.</p>
             </div>
             <Button
               variant="ghost"
@@ -622,7 +622,7 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                 when={errorMessage()}
                 fallback={
                   <Show when={props.loading}>
-                    <div class="rounded-xl border border-gray-6 bg-gray-1/60 px-4 py-3 text-sm text-gray-10 animate-pulse">
+                    <div class="rounded-xl border border-dls-border bg-dls-surface/60 px-4 py-3 text-sm text-dls-secondary animate-pulse">
                       Loading providers...
                     </div>
                   </Show>
@@ -639,7 +639,7 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                 <Show when={resolvedView() === "list"}>
                   <div class="space-y-3" onKeyDown={handleListKeyDown}>
                     <div class="relative flex items-center mb-1">
-                      <Search size={16} class="absolute left-3 text-gray-9" />
+                      <Search size={16} class="absolute left-3 text-dls-secondary" />
                       <input
                         ref={searchInputEl}
                         type="text"
@@ -653,14 +653,14 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                         autocapitalize="off"
                         spellcheck={false}
                         disabled={actionDisabled()}
-                        class="w-full rounded-xl bg-gray-2 px-9 py-2.5 text-[13px] text-gray-12 placeholder:text-gray-9 border border-gray-6/60 focus:border-gray-8 focus:bg-gray-1 focus:outline-none transition-colors shadow-sm"
+                        class="w-full rounded-xl bg-dls-surface px-9 py-2.5 text-[13px] text-dls-text placeholder:text-dls-secondary border border-dls-border focus:border-dls-border focus:bg-dls-surface focus:outline-none transition-colors shadow-sm"
                       />
                     </div>
 
                     <Show
                       when={filteredEntries().length}
                       fallback={
-                        <div class="text-sm text-gray-10 pt-2">
+                        <div class="text-sm text-dls-secondary pt-2">
                           {entries().length ? "No providers match your search." : "No providers available."}
                         </div>
                       }
@@ -673,27 +673,27 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                               type="button"
                               class={`w-full group flex items-start gap-3.5 rounded-xl px-3.5 py-3 text-left transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed ${
                                 idx() === activeEntryIndex()
-                                  ? "bg-gray-3/60"
-                                  : "hover:bg-gray-3/30"
+                                  ? "bg-dls-hover/60"
+                                  : "hover:bg-dls-hover/30"
                               }`}
                               disabled={actionDisabled()}
                               onMouseEnter={() => setActiveEntryIndex(idx())}
                               onClick={() => handleEntrySelect(entry)}
                             >
-                              <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-5/60 bg-gray-2 shadow-sm overflow-hidden">
-                                <ProviderIcon providerId={entry.id} size={18} class="text-gray-12" />
+                              <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dls-border bg-dls-surface shadow-sm overflow-hidden">
+                                <ProviderIcon providerId={entry.id} size={18} class="text-dls-text" />
                               </div>
 
                               <div class="flex-1 min-w-0">
                                 <div class="flex items-center justify-between gap-3">
                                   <div class="min-w-0 flex items-center gap-2">
-                                    <div class="text-[14px] font-medium text-gray-12 truncate tracking-tight">{entry.name}</div>
+                                    <div class="text-[14px] font-medium text-dls-text truncate tracking-tight">{entry.name}</div>
                                   </div>
                                   <div class="flex items-center justify-end shrink-0">
                                     <Show
                                       when={entry.connected}
                                       fallback={
-                                        <div class="text-[12px] font-medium text-gray-9 group-hover:text-gray-12 transition-colors flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
+                                        <div class="text-[12px] font-medium text-dls-secondary group-hover:text-dls-text transition-colors flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
                                           Connect <ChevronRight size={14} class="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all duration-200" />
                                         </div>
                                       }
@@ -705,7 +705,7 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                                     </Show>
                                   </div>
                                 </div>
-                                <div class="text-[11px] text-gray-9 font-mono truncate mt-0.5 opacity-60 group-hover:opacity-80 transition-opacity">{entry.id}</div>
+                                <div class="text-[11px] text-dls-secondary font-mono truncate mt-0.5 opacity-60 group-hover:opacity-80 transition-opacity">{entry.id}</div>
                                 
                                 <div class="mt-2 flex flex-wrap gap-1.5">
                                   <For each={entry.methods}>
@@ -714,7 +714,7 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                                         class={`text-[10px] font-medium px-2 py-0.5 rounded-md border ${
                                           method.type === "oauth"
                                             ? "bg-indigo-3/30 text-indigo-11 border-indigo-5/30"
-                                            : "bg-gray-3/40 text-gray-11 border-gray-6/40"
+                                            : "bg-dls-hover/40 text-dls-secondary border-dls-border"
                                         }`}
                                       >
                                         {methodLabel(method)}
@@ -729,16 +729,16 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                       </For>
                     </Show>
 
-                    <div class="text-[11px] text-gray-9">Arrow keys to navigate, Enter to select.</div>
+                    <div class="text-[11px] text-dls-secondary">Arrow keys to navigate, Enter to select.</div>
                   </div>
                 </Show>
 
                 <Show when={resolvedView() === "method" && selectedEntry()}>
-                  <div class="rounded-xl border border-gray-6/40 bg-gray-2/50 shadow-sm p-5 space-y-4">
+                  <div class="rounded-xl border border-dls-border bg-dls-surface/50 shadow-sm p-5 space-y-4">
                     <div class="flex items-center justify-between gap-4">
                       <div>
-                        <div class="text-sm font-medium text-gray-12">{selectedEntry()!.name}</div>
-                        <div class="text-xs text-gray-10 mt-1">Choose how you'd like to connect.</div>
+                        <div class="text-sm font-medium text-dls-text">{selectedEntry()!.name}</div>
+                        <div class="text-xs text-dls-secondary mt-1">Choose how you'd like to connect.</div>
                       </div>
                       <Button variant="ghost" onClick={handleBack} disabled={actionDisabled()}>
                         Back
@@ -752,13 +752,13 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                             class={`w-full rounded-xl border px-4 py-3.5 text-left transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed ${
                               method.type === "oauth"
                                 ? "border-indigo-5/40 bg-indigo-3/20 hover:bg-indigo-4/30 shadow-sm"
-                                : "border-gray-5/50 bg-gray-2 hover:bg-gray-3/50 shadow-sm"
+                                : "border-dls-border bg-dls-surface hover:bg-dls-hover/50 shadow-sm"
                             }`}
                             onClick={() => void handleMethodSelect(method)}
                             disabled={actionDisabled()}
                           >
-                            <div class="text-sm font-medium text-gray-12">{methodLabel(method)}</div>
-                            <div class="mt-1 text-xs text-gray-10">{methodDescription(selectedEntry()!, method)}</div>
+                            <div class="text-sm font-medium text-dls-text">{methodLabel(method)}</div>
+                            <div class="mt-1 text-xs text-dls-secondary">{methodDescription(selectedEntry()!, method)}</div>
                           </button>
                         )}
                       </For>
@@ -767,11 +767,11 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                 </Show>
 
                 <Show when={resolvedView() === "api" && selectedEntry()}>
-                  <div class="rounded-xl border border-gray-6/40 bg-gray-2/50 shadow-sm p-5 space-y-4">
+                  <div class="rounded-xl border border-dls-border bg-dls-surface/50 shadow-sm p-5 space-y-4">
                     <div class="flex items-center justify-between gap-4">
                       <div>
-                        <div class="text-sm font-medium text-gray-12">{selectedEntry()!.name}</div>
-                        <div class="text-xs text-gray-10 mt-1">Paste your API key to connect.</div>
+                        <div class="text-sm font-medium text-dls-text">{selectedEntry()!.name}</div>
+                        <div class="text-xs text-dls-secondary mt-1">Paste your API key to connect.</div>
                       </div>
                       <Button variant="ghost" onClick={handleBack} disabled={actionDisabled()}>
                         Back
@@ -792,12 +792,12 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                       disabled={actionDisabled()}
                     />
                     <Show when={selectedEntry()!.env.length > 0}>
-                      <div class="text-[11px] text-gray-9">
+                      <div class="text-[11px] text-dls-secondary">
                         Env vars: <span class="font-mono">{selectedEntry()!.env.join(", ")}</span>
                       </div>
                     </Show>
                     <div class="flex items-center justify-between gap-3">
-                      <div class="text-[11px] text-gray-9">
+                      <div class="text-[11px] text-dls-secondary">
                         Keys are stored locally by OpenCode.
                       </div>
                       <Button
@@ -812,21 +812,21 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                 </Show>
 
                 <Show when={resolvedView() === "oauth-code" && selectedEntry() && oauthSession()}>
-                  <div class="rounded-xl border border-gray-6/40 bg-gray-2/50 shadow-sm p-5 space-y-4">
+                  <div class="rounded-xl border border-dls-border bg-dls-surface/50 shadow-sm p-5 space-y-4">
                     <div class="flex items-center justify-between gap-4">
                       <div>
-                        <div class="text-sm font-medium text-gray-12">{selectedEntry()!.name}</div>
-                        <div class="text-xs text-gray-10 mt-1">Finish OAuth by pasting the authorization code.</div>
+                        <div class="text-sm font-medium text-dls-text">{selectedEntry()!.name}</div>
+                        <div class="text-xs text-dls-secondary mt-1">Finish OAuth by pasting the authorization code.</div>
                       </div>
                       <Button variant="ghost" onClick={handleBack} disabled={actionDisabled()}>
                         Back
                       </Button>
                     </div>
-                    <div class="text-xs text-gray-9">
+                    <div class="text-xs text-dls-secondary">
                       Complete sign-in in your browser, then paste the code here.
                     </div>
                     <Show when={oauthInstructions()}>
-                      <div class="rounded-lg border border-gray-6/60 bg-gray-1/60 px-3 py-2 text-[11px] text-gray-9 font-mono break-all">
+                      <div class="rounded-lg border border-dls-border bg-dls-surface/60 px-3 py-2 text-[11px] text-dls-secondary font-mono break-all">
                         {oauthInstructions()}
                       </div>
                     </Show>
@@ -871,11 +871,11 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                 </Show>
 
                 <Show when={resolvedView() === "oauth-auto" && selectedEntry() && oauthSession()}>
-                  <div class="rounded-xl border border-gray-6/40 bg-gray-2/50 shadow-sm p-5 space-y-4">
+                  <div class="rounded-xl border border-dls-border bg-dls-surface/50 shadow-sm p-5 space-y-4">
                     <div class="flex items-center justify-between gap-4">
                       <div>
-                        <div class="text-sm font-medium text-gray-12">{selectedEntry()!.name}</div>
-                        <div class="text-xs text-gray-10 mt-1">Waiting for browser confirmation.</div>
+                        <div class="text-sm font-medium text-dls-text">{selectedEntry()!.name}</div>
+                        <div class="text-xs text-dls-secondary mt-1">Waiting for browser confirmation.</div>
                       </div>
                       <Button variant="ghost" onClick={handleBack} disabled={actionDisabled()}>
                         Back
@@ -884,10 +884,10 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                     <Show
                       when={isOpenAiHeadlessSession()}
                       fallback={
-                        <div class="text-xs text-gray-9">Sign in in the browser tab we just opened. We will complete the connection automatically.</div>
+                        <div class="text-xs text-dls-secondary">Sign in in the browser tab we just opened. We will complete the connection automatically.</div>
                       }
                     >
-                      <div class="space-y-2 text-xs text-gray-9">
+                      <div class="space-y-2 text-xs text-dls-secondary">
                         <div>You&apos;ll need to sign in to your OpenAI account and provide the code below.</div>
                         <div>
                           The first time you do this you&apos;ll need to enable Device auth in your account settings.
@@ -897,10 +897,10 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                       </div>
                     </Show>
                     <Show when={oauthDisplayCode()}>
-                      <div class="rounded-xl border border-gray-6/70 bg-gray-2/40 px-3 py-3 flex items-center gap-3">
+                      <div class="rounded-xl border border-dls-border bg-dls-surface/40 px-3 py-3 flex items-center gap-3">
                         <div class="flex-1 min-w-0">
-                          <div class="text-[10px] uppercase tracking-wide text-gray-8">Confirmation code</div>
-                          <div class="text-sm text-gray-12 font-mono break-all">{oauthDisplayCode()}</div>
+                          <div class="text-[10px] uppercase tracking-wide text-dls-secondary/60">Confirmation code</div>
+                          <div class="text-sm text-dls-text font-mono break-all">{oauthDisplayCode()}</div>
                         </div>
                         <Button variant="ghost" class="text-xs shrink-0" onClick={() => void copyOauthDisplayCode()}>
                           {oauthCodeCopied() ? "Copied" : "Copy"}
@@ -910,13 +910,13 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                     <Show
                       when={isOpenAiHeadlessSession() && !oauthBrowserOpened()}
                       fallback={
-                        <div class="flex items-center gap-2 text-xs text-gray-9">
+                        <div class="flex items-center gap-2 text-xs text-dls-secondary">
                           <Loader2 size={14} class={props.submitting || pollingBusy() || oauthAutoBusy() ? "animate-spin" : ""} />
                           <span>Checking connection status automatically...</span>
                         </div>
                       }
                     >
-                      <div class="flex items-center gap-2 text-xs text-gray-9">
+                      <div class="flex items-center gap-2 text-xs text-dls-secondary">
                         <span>Authorization checks will start after you click Open Browser.</span>
                       </div>
                     </Show>
@@ -934,7 +934,7 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                             : "Open Browser"
                           : "Open browser again"}
                       </Button>
-                      <div class="text-[11px] text-gray-9 text-right">This window will close once the provider is connected.</div>
+                      <div class="text-[11px] text-dls-secondary text-right">This window will close once the provider is connected.</div>
                     </div>
                   </div>
                 </Show>
@@ -942,8 +942,8 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
             </Show>
           </div>
 
-          <div class="px-6 pt-4 pb-6 border-t border-gray-6/50 flex flex-col gap-3">
-            <div class="min-h-[16px] text-xs text-gray-10">
+          <div class="px-6 pt-4 pb-6 border-t border-dls-border flex flex-col gap-3">
+            <div class="min-h-[16px] text-xs text-dls-secondary">
               <Show when={props.submitting}>{submittingLabel()}</Show>
             </div>
             <Button variant="ghost" onClick={handleClose} disabled={actionDisabled()}>

@@ -70,8 +70,8 @@ const statusDot = (status: McpStatus) => {
     case "connected": return "bg-green-9";
     case "needs_auth":
     case "needs_client_registration": return "bg-amber-9";
-    case "disabled": return "bg-gray-8";
-    case "disconnected": return "bg-gray-7";
+    case "disabled": return "bg-dls-secondary";
+    case "disconnected": return "bg-dls-secondary";
     default: return "bg-red-9";
   }
 };
@@ -93,7 +93,7 @@ const statusBadgeStyle = (status: McpStatus) => {
     case "needs_auth":
     case "needs_client_registration": return "bg-amber-3 text-amber-11";
     case "disabled":
-    case "disconnected": return "bg-gray-3 text-gray-11";
+    case "disconnected": return "bg-dls-hover text-dls-secondary";
     default: return "bg-red-3 text-red-11";
   }
 };
@@ -113,7 +113,7 @@ const serviceIcon = (name: string) => {
 
 const serviceColor = (name: string) => {
   const lower = name.toLowerCase();
-  if (lower.includes("notion")) return "text-gray-12";
+  if (lower.includes("notion")) return "text-dls-text";
   if (lower.includes("linear")) return "text-blue-11";
   if (lower.includes("sentry")) return "text-purple-11";
   if (lower.includes("stripe")) return "text-blue-11";
@@ -124,7 +124,7 @@ const serviceColor = (name: string) => {
 
 const serviceIconBg = (name: string) => {
   const lower = name.toLowerCase();
-  if (lower.includes("notion")) return "bg-gray-3 border-gray-6";
+  if (lower.includes("notion")) return "bg-dls-hover border-dls-border";
   if (lower.includes("linear")) return "bg-blue-3 border-blue-6";
   if (lower.includes("sentry")) return "bg-purple-3 border-purple-6";
   if (lower.includes("stripe")) return "bg-blue-3 border-blue-6";

@@ -129,23 +129,23 @@ export default function QuestionModal(props: QuestionModalProps) {
 
     return (
         <Show when={props.open && currentQuestion()}>
-            <div class="fixed inset-0 z-50 bg-gray-1/60 backdrop-blur-sm flex items-center justify-center p-4">
-                <div class="bg-gray-2 border border-gray-6/70 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-                    <div class="p-6 border-b border-gray-6/40 bg-gray-2/50">
+            <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                <div class="bg-dls-surface border border-dls-border w-full max-w-lg rounded-3xl shadow-[var(--dls-shell-shadow)] overflow-hidden flex flex-col max-h-[85vh]">
+                    <div class="p-6 border-b border-dls-border bg-dls-surface/50">
                         <div class="flex items-center gap-3 mb-2">
                             <div class="w-8 h-8 rounded-full bg-blue-9/20 flex items-center justify-center text-blue-9">
                                 <HelpCircle size={18} />
                             </div>
                             <div>
-                                <h3 class="text-lg font-semibold text-gray-12">
+                                <h3 class="text-lg font-semibold text-dls-text">
                                     {currentQuestion()!.header || "Question"}
                                 </h3>
-                                <div class="text-xs text-gray-11 font-medium">
+                                <div class="text-xs text-dls-secondary font-medium">
                                     Question {currentIndex() + 1} of {props.questions.length}
                                 </div>
                             </div>
                         </div>
-                        <p class="text-sm text-gray-11 mt-2 leading-relaxed">
+                        <p class="text-sm text-dls-secondary mt-2 leading-relaxed">
                             {currentQuestion()!.question}
                         </p>
                     </div>
@@ -161,10 +161,10 @@ export default function QuestionModal(props: QuestionModalProps) {
                                         <button
                                             class={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-all duration-200 flex items-center justify-between group
                         ${isSelected()
-                                                    ? "bg-blue-9/10 border-blue-9/30 text-gray-12 shadow-sm"
-                                                    : "bg-gray-1 border-gray-6 hover:border-gray-8 text-gray-11 hover:text-gray-12 hover:bg-gray-3"
+                                                    ? "bg-blue-9/10 border-blue-9/30 text-dls-text shadow-sm"
+                                                    : "bg-dls-surface border-dls-border hover:border-dls-border text-dls-secondary hover:text-dls-text hover:bg-dls-hover"
                                                 }
-                        ${isFocused() ? "ring-2 ring-blue-9/20 border-blue-9/40 bg-gray-3" : ""}
+                        ${isFocused() ? "ring-2 ring-blue-9/20 border-blue-9/40 bg-dls-hover" : ""}
                       `}
                                             onClick={() => {
                                                 setFocusedOptionIndex(idx());
@@ -210,7 +210,7 @@ export default function QuestionModal(props: QuestionModalProps) {
                         <div class="text-xs text-dls-secondary flex items-center gap-2">
                             <span class="px-1.5 py-0.5 rounded border border-dls-border bg-dls-active font-mono">↑↓</span>
                             <span>navigate</span>
-                            <span class="px-1.5 py-0.5 rounded border border-gray-6 bg-gray-3 font-mono ml-2">↵</span>
+                            <span class="px-1.5 py-0.5 rounded border border-dls-border bg-dls-active font-mono ml-2">↵</span>
                             <span>select</span>
                         </div>
 

@@ -5,36 +5,36 @@
 
 :root {
   color-scheme: light;
-  --dls-surface: #ffffff;
-  --dls-sidebar: #f9fafb;
-  --dls-app-bg: #ffffff;
-  --dls-border: #f3f4f6;
-  --dls-accent: #011627;
-  --dls-accent-hover: #000000;
-  --dls-accent-rgb: 1 22 39;
-  --dls-text-primary: #111827;
-  --dls-text-secondary: #6b7280;
-  --dls-hover: #f3f4f6;
-  --dls-active: #eef2f7;
+  --dls-surface: #FAF9F6;
+  --dls-sidebar: #F5F3EE;
+  --dls-app-bg: #FAF9F6;
+  --dls-border: #E8E4DE;
+  --dls-accent: #C4745B;
+  --dls-accent-hover: #B3654D;
+  --dls-accent-rgb: 196 116 91;
+  --dls-text-primary: #2D2B28;
+  --dls-text-secondary: #8C857C;
+  --dls-hover: #F0EDE7;
+  --dls-active: #E8E4DE;
   --dls-radius: 16px;
   --dls-radius-lg: 24px;
-  --dls-shell-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-  --dls-card-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --dls-shell-shadow: 0 10px 30px rgba(120, 100, 80, 0.06);
+  --dls-card-shadow: 0 8px 24px rgba(120, 100, 80, 0.04);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --dls-surface: #121212;
-  --dls-sidebar: #1a1a1a;
-  --dls-app-bg: #161616;
-  --dls-border: #262626;
-  --dls-accent: #3b82f6;
-  --dls-accent-hover: #2563eb;
-  --dls-accent-rgb: 59 130 246;
-  --dls-text-primary: #ededed;
-  --dls-text-secondary: #9ca3af;
-  --dls-hover: #1f1f1f;
-  --dls-active: #2d2d2d;
+  --dls-surface: #1A1917;
+  --dls-sidebar: #211F1D;
+  --dls-app-bg: #1A1917;
+  --dls-border: #2E2B27;
+  --dls-accent: #D98B6E;
+  --dls-accent-hover: #C4745B;
+  --dls-accent-rgb: 217 139 110;
+  --dls-text-primary: #ECE8E1;
+  --dls-text-secondary: #9B938A;
+  --dls-hover: #252320;
+  --dls-active: #302D29;
   --dls-shell-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
   --dls-card-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
 }
@@ -51,9 +51,7 @@ html {
 body {
   margin: 0;
   font-family:
-    "IBM Plex Sans",
-    Geist,
-    "Avenir Next",
+    "DM Sans",
     Inter,
     ui-sans-serif,
     system-ui,
@@ -67,7 +65,7 @@ body {
     "Apple Color Emoji",
     "Segoe UI Emoji";
   font-size: 0.875rem;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--dls-text-primary);
   background-color: var(--dls-surface);
   -webkit-font-smoothing: antialiased;

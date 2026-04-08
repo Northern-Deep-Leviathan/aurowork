@@ -53,7 +53,7 @@ export default function WorkspaceRightSidebar(props: Props) {
       class={`w-full border text-[13px] font-medium transition-[background-color,border-color,box-shadow,color] ${
         active
           ? "border-dls-border bg-dls-surface text-dls-text shadow-[var(--dls-card-shadow)]"
-          : "border-transparent text-gray-10 hover:border-dls-border hover:bg-dls-surface hover:text-dls-text"
+          : "border-transparent text-dls-secondary hover:border-dls-border hover:bg-dls-surface hover:text-dls-text"
       } ${
         props.expanded
           ? "flex min-h-11 items-center justify-start gap-2.5 rounded-[16px] px-3.5"
@@ -80,14 +80,14 @@ export default function WorkspaceRightSidebar(props: Props) {
       <div class={`flex items-center pb-3 ${props.expanded ? "justify-between gap-3" : "justify-center"}`}>
         <Show when={props.expanded}>
           <div class="min-w-0 px-1">
-            <div class="truncate text-[11px] font-medium uppercase tracking-[0.18em] text-gray-8">
+            <div class="truncate text-[11px] font-medium uppercase tracking-[0.18em] text-dls-secondary">
               {(props.activeWorkspaceLabel || "Workspace")} configuration
             </div>
           </div>
         </Show>
         <button
           type="button"
-          class="flex h-10 w-10 items-center justify-center rounded-[16px] text-gray-10 transition-colors hover:bg-dls-surface hover:text-dls-text"
+          class="flex h-10 w-10 items-center justify-center rounded-[16px] text-dls-secondary transition-colors hover:bg-dls-surface hover:text-dls-text"
           onClick={mobile() ? closeMobile : props.onToggleExpanded}
           title={mobile() ? "Close sidebar" : props.expanded ? "Collapse sidebar" : "Expand sidebar"}
           aria-label={mobile() ? "Close sidebar" : props.expanded ? "Collapse sidebar" : "Expand sidebar"}

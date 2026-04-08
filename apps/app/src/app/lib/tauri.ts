@@ -183,6 +183,16 @@ export async function workspaceSetRuntimeActive(workspaceId: string | null): Pro
   return invoke<WorkspaceList>("workspace_set_runtime_active", { workspaceId: workspaceId ?? "" });
 }
 
+export async function workspaceCheckFolder(folderPath: string): Promise<{
+  writable: boolean;
+  exists: boolean;
+  error: string | null;
+}> {
+  return invoke<{ writable: boolean; exists: boolean; error: string | null }>("workspace_check_folder", {
+    folderPath,
+  });
+}
+
 export async function workspaceCreate(input: {
   folderPath: string;
   name: string;

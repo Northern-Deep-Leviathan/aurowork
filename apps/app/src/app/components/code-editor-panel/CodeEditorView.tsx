@@ -49,16 +49,16 @@ const codeEditorTheme = EditorView.theme({
   },
   ".cm-gutters": {
     backgroundColor: "transparent",
-    borderRight: "1px solid var(--gray-4)",
-    color: "var(--gray-8)",
+    borderRight: "1px solid var(--dls-border)",
+    color: "var(--dls-text-secondary)",
     fontSize: "11px",
   },
   ".cm-activeLineGutter": {
     backgroundColor: "transparent",
-    color: "var(--gray-11)",
+    color: "var(--dls-text-secondary)",
   },
   ".cm-activeLine": {
-    backgroundColor: "var(--gray-2)",
+    backgroundColor: "var(--dls-bg-hover)",
   },
 });
 

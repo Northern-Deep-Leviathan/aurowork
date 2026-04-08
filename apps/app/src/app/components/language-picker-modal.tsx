@@ -14,9 +14,9 @@ export default function LanguagePickerModal(props: LanguagePickerModalProps) {
 
   return (
     <Show when={props.open}>
-      <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="bg-zinc-900 rounded-2xl p-6 w-full max-w-md border border-zinc-800 shadow-xl">
-          <h3 class="text-lg font-medium text-white mb-4">{translate("settings.language")}</h3>
+      <div class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div class="bg-dls-surface rounded-3xl p-6 w-full max-w-md border border-dls-border shadow-[var(--dls-shell-shadow)]">
+          <h3 class="text-lg font-medium text-dls-text mb-4">{translate("settings.language")}</h3>
 
           <div class="space-y-2">
             <For each={LANGUAGE_OPTIONS}>
@@ -24,8 +24,8 @@ export default function LanguagePickerModal(props: LanguagePickerModalProps) {
                 <button
                   class={`w-full p-3 rounded-xl text-left transition-all ${
                     props.currentLanguage === option.value
-                      ? "bg-zinc-800 text-white border-2 border-zinc-700"
-                      : "bg-zinc-950 text-zinc-400 hover:bg-zinc-900 border-2 border-transparent"
+                      ? "bg-dls-active text-dls-text border-2 border-[rgba(var(--dls-accent-rgb),0.3)]"
+                      : "bg-dls-sidebar text-dls-secondary hover:bg-dls-hover border-2 border-transparent"
                   }`}
                   onClick={() => {
                     props.onSelect(option.value);
@@ -36,10 +36,10 @@ export default function LanguagePickerModal(props: LanguagePickerModalProps) {
                     <div class="flex-1">
                       <div class="font-medium text-sm">{option.nativeName}</div>
                       <Show when={option.label !== option.nativeName}>
-                        <div class="text-xs text-zinc-500 mt-0.5">{option.label}</div>
+                        <div class="text-xs text-dls-secondary mt-0.5">{option.label}</div>
                       </Show>
                     </div>
-                    <div class="text-zinc-500">
+                    <div class="text-dls-secondary">
                       <Show
                         when={props.currentLanguage === option.value}
                         fallback={<Circle size={14} />}
@@ -54,7 +54,7 @@ export default function LanguagePickerModal(props: LanguagePickerModalProps) {
           </div>
 
           <button
-            class="mt-4 w-full py-2 text-sm text-zinc-500 hover:text-white transition-colors"
+            class="mt-4 w-full py-2 text-sm text-dls-secondary hover:text-dls-text transition-colors"
             onClick={props.onClose}
           >
             {translate("common.cancel")}

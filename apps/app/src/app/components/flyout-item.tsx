@@ -23,7 +23,7 @@ export default function FlyoutItem(props: FlyoutProps) {
 
   return (
     <div
-      class="fixed z-[100] pointer-events-none transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-12 text-gray-1 shadow-xl border border-gray-11/20"
+      class="fixed z-[100] pointer-events-none transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center gap-2 px-3 py-2 rounded-xl bg-dls-text text-dls-surface shadow-xl border border-dls-secondary/20"
       style={{
         top: `${props.item.rect.top}px`,
         left: `${props.item.rect.left}px`,

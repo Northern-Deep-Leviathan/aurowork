@@ -221,6 +221,7 @@ import {
   orchestratorStatus,
   pickDirectory,
   setWindowDecorations,
+  workspaceCheckFolder,
   type OrchestratorStatus,
   type AuroworkServerInfo,
   type WorkspaceInfo,
@@ -2365,8 +2366,24 @@ export default function App() {
     if (!trimmed) {
       throw new Error("Session name is required");
     }
-    
+
     await renameSession(sessionID, trimmed);
+
+    // Eagerly patch the sidebar store so the new title is visible immediately,
+    // even before the full refresh round-trip completes.
+    const wsId = workspaceStore.selectedWorkspaceId().trim();
+    if (wsId) {
+      setSidebarSessionsByWorkspaceId((prev) => {
+        const list = prev[wsId];
+        if (!list) return prev;
+        const idx = list.findIndex((s) => s.id === sessionID);
+        if (idx < 0) return prev;
+        const updated = [...list];
+        updated[idx] = { ...updated[idx], title: trimmed };
+        return { ...prev, [wsId]: updated };
+      });
+    }
+
     await refreshSidebarWorkspaceSessions(workspaceStore.selectedWorkspaceId()).catch(() => undefined);
   }
 
@@ -8547,6 +8564,13 @@ export default function App() {
           setSharedBundleCreateWorkerRequest(null);
         }}
         onPickFolder={workspaceStore.pickWorkspaceFolder}
+        onCheckFolder={async (folder) => {
+          try {
+            return await workspaceCheckFolder(folder);
+          } catch {
+            return { writable: true, error: null };
+          }
+        }}
         defaultPreset={createWorkspaceDefaultPreset()}
         onConfirm={async (preset, folder) => {
           const request = sharedBundleCreateWorkerRequest();
@@ -8586,28 +8610,28 @@ export default function App() {
       />
 
       <Show when={autoConnectRemoteWorkspaceOverlayOpen()}>
-        <div class="fixed inset-0 z-[60] flex items-center justify-center bg-gray-1/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div
             role="status"
             aria-live="polite"
-            class="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-6 bg-gray-2 shadow-2xl"
+            class="w-full max-w-lg overflow-hidden rounded-2xl border border-dls-border bg-dls-hover shadow-[var(--dls-shell-shadow)]"
           >
-            <div class="border-b border-gray-6 bg-gray-1 px-6 py-5">
-              <div class="inline-flex items-center rounded-full border border-gray-6 bg-gray-2 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-gray-10">
+            <div class="border-b border-dls-border bg-dls-surface px-6 py-5">
+              <div class="inline-flex items-center rounded-full border border-dls-border bg-dls-hover px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-dls-secondary">
                 AuroWork Cloud
               </div>
-              <h3 class="mt-4 text-lg font-semibold text-gray-12">Adding your worker</h3>
-              <p class="mt-1 text-sm text-gray-10">
+              <h3 class="mt-4 text-lg font-semibold text-dls-text">Adding your worker</h3>
+              <p class="mt-1 text-sm text-dls-secondary">
                 Connecting your AuroWork worker now. This usually takes a moment.
               </p>
             </div>
             <div class="flex items-center gap-4 px-6 py-6">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-6 bg-gray-1/50">
-                <div class="h-5 w-5 rounded-full border-2 border-gray-7 border-t-gray-12 animate-spin" />
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-dls-border bg-dls-surface/50">
+                <div class="h-5 w-5 rounded-full border-2 border-dls-secondary border-t-dls-text animate-spin" />
               </div>
               <div class="min-w-0 flex-1">
-                <div class="text-sm font-medium text-gray-12">Preparing your session</div>
-                <div class="mt-1 text-xs leading-relaxed text-gray-10">
+                <div class="text-sm font-medium text-dls-text">Preparing your session</div>
+                <div class="mt-1 text-xs leading-relaxed text-dls-secondary">
                   We are adding the remote worker in the background so you can land directly in the chat view.
                 </div>
               </div>

@@ -32,7 +32,7 @@ export default function WorkspaceChip(props: {
   return (
     <button
       onClick={props.onClick}
-      class="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-gray-2 border border-gray-6 rounded-lg hover:border-gray-7 hover:bg-gray-4 transition-all group"
+      class="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-dls-hover border border-dls-border rounded-lg hover:border-dls-border hover:bg-dls-active transition-all group"
     >
       <div
         class={`p-1 rounded ${
@@ -45,21 +45,21 @@ export default function WorkspaceChip(props: {
       </div>
       <div class="flex flex-col items-start mr-2 min-w-0">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-medium text-gray-12 leading-none truncate max-w-[9.5rem]">
+          <span class="text-xs font-medium text-dls-text leading-none truncate max-w-[9.5rem]">
             {props.workspace.name}
           </span>
           {props.workspace.workspaceType === "remote" ? (
-            <span class="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-gray-4 text-gray-11">
+            <span class="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-dls-active text-dls-secondary">
               {isSandboxWorkspace ? "Sandbox" : translate("dashboard.remote")}
             </span>
           ) : null}
         </div>
-        <span class="text-[10px] text-gray-10 font-mono leading-none max-w-[120px] truncate">
+        <span class="text-[10px] text-dls-secondary font-mono leading-none max-w-[120px] truncate">
           {subtitle()}
         </span>
       </div>
-      <ChevronDown size={14} class="text-gray-10 group-hover:text-gray-11" />
-      {props.connecting ? <Loader2 size={14} class="text-gray-10 animate-spin" /> : null}
+      <ChevronDown size={14} class="text-dls-secondary group-hover:text-dls-secondary" />
+      {props.connecting ? <Loader2 size={14} class="text-dls-secondary animate-spin" /> : null}
     </button>
   );
 }

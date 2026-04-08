@@ -84,22 +84,22 @@ export default function AddMcpModal(props: AddMcpModalProps) {
     <Show when={props.open}>
       <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          class="absolute inset-0 bg-gray-1/60 backdrop-blur-sm"
+          class="absolute inset-0 bg-black/40 backdrop-blur-sm"
           onClick={handleClose}
         />
 
-        <div class="relative w-full max-w-lg bg-gray-2 border border-gray-6 rounded-2xl shadow-2xl overflow-hidden">
+        <div class="relative w-full max-w-lg bg-dls-surface border border-dls-border rounded-3xl shadow-[var(--dls-shell-shadow)] overflow-hidden">
           {/* Header */}
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-6">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-dls-border">
             <div>
-              <h2 class="text-lg font-semibold text-gray-12">
+              <h2 class="text-lg font-semibold text-dls-text">
                 {tr("mcp.add_modal_title")}
               </h2>
-              <p class="text-sm text-gray-11">{tr("mcp.add_modal_subtitle")}</p>
+              <p class="text-sm text-dls-secondary">{tr("mcp.add_modal_subtitle")}</p>
             </div>
             <button
               type="button"
-              class="p-2 text-gray-11 hover:text-gray-12 hover:bg-gray-4 rounded-lg transition-colors"
+              class="p-2 text-dls-secondary hover:text-dls-text hover:bg-dls-active rounded-lg transition-colors"
               onClick={handleClose}
             >
               <X size={20} />
@@ -195,7 +195,7 @@ export default function AddMcpModal(props: AddMcpModalProps) {
           </div>
 
           {/* Footer */}
-          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-6 bg-gray-2/50">
+          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-dls-border bg-dls-surface/50">
             <Button variant="ghost" onClick={handleClose}>
               {tr("mcp.auth.cancel")}
             </Button>

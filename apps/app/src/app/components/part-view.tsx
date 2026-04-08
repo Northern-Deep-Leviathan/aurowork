@@ -411,12 +411,12 @@ function createCustomRenderer(tone: "light" | "dark") {
   const renderer = new marked.Renderer();
   const codeBlockClass =
     tone === "dark"
-      ? "bg-gray-12/10 border-gray-11/20 text-gray-12"
-      : "bg-gray-1/80 border-gray-6/70 text-gray-12";
+      ? "bg-dls-text/10 border-dls-secondary/20 text-dls-text"
+      : "bg-dls-surface/80 border-dls-border/70 text-dls-text";
   const inlineCodeClass =
     tone === "dark"
-      ? "bg-gray-12/15 text-gray-12"
-      : "bg-gray-2/70 text-gray-12";
+      ? "bg-dls-text/15 text-dls-text"
+      : "bg-dls-hover/70 text-dls-text";
   
   const isSafeUrl = (url: string) => {
     const normalized = (url || "").trim().toLowerCase();
@@ -435,7 +435,7 @@ function createCustomRenderer(tone: "light" | "dark") {
       <div class="rounded-2xl border px-4 py-3 my-4 ${codeBlockClass}">
         ${
           language
-            ? `<div class="text-[10px] uppercase tracking-[0.2em] text-gray-9 mb-2">${escapeHtml(language)}</div>`
+            ? `<div class="text-[10px] uppercase tracking-[0.2em] text-dls-secondary mb-2">${escapeHtml(language)}</div>`
             : ""
         }
         <pre class="overflow-x-auto whitespace-pre text-[13px] leading-relaxed font-mono"><code>${escapeHtml(
@@ -570,9 +570,9 @@ export default function PartView(props: Props) {
     return { title, detail, mime };
   };
 
-  const textClass = () => (tone() === "dark" ? "text-gray-12" : "text-gray-12");
-  const subtleTextClass = () => (tone() === "dark" ? "text-gray-12/70" : "text-gray-11");
-  const panelBgClass = () => (tone() === "dark" ? "bg-gray-2/10" : "bg-gray-2/30");
+  const textClass = () => (tone() === "dark" ? "text-dls-text" : "text-dls-text");
+  const subtleTextClass = () => (tone() === "dark" ? "text-dls-text/70" : "text-dls-secondary");
+  const panelBgClass = () => (tone() === "dark" ? "bg-dls-hover/10" : "bg-dls-hover/30");
   const toolOnly = () => true;
   const showToolOutput = () => developerMode();
   const markdownSource = createMemo(() => {
@@ -779,7 +779,7 @@ export default function PartView(props: Props) {
     if (line.startsWith("+")) return "text-green-11 bg-green-1/40";
     if (line.startsWith("-")) return "text-red-11 bg-red-1/40";
     if (line.startsWith("@@")) return "text-blue-11 bg-blue-1/30";
-    return "text-gray-12";
+    return "text-dls-text";
   };
 
   const toolOutput = () => normalizeToolText(toolState()?.output);
@@ -868,7 +868,7 @@ export default function PartView(props: Props) {
     <Switch>
       <Match when={p().type === "text"}>
         <Show when={collapsedLongText()}>
-          <div class="rounded-xl border border-gray-6/70 bg-gray-2/30 p-4 space-y-3">
+          <div class="rounded-xl border border-dls-border/70 bg-dls-hover/30 p-4 space-y-3">
             <div
               ref={(el) => {
                 textContainerEl = el;
@@ -879,7 +879,7 @@ export default function PartView(props: Props) {
             </div>
               <button
                 type="button"
-                class="rounded-md border border-gray-6/80 bg-gray-1 px-3 py-1.5 text-xs font-medium text-gray-11 hover:bg-gray-2 hover:text-gray-12"
+                class="rounded-md border border-dls-border/80 bg-dls-surface px-3 py-1.5 text-xs font-medium text-dls-secondary hover:bg-dls-hover hover:text-dls-text"
                 onClick={() => {
                   const id = textPartStableId();
                   if (id) {
@@ -944,12 +944,12 @@ export default function PartView(props: Props) {
           {(info) => (
             <div
               class={`flex items-center gap-3 rounded-xl border px-3 py-2 ${
-                tone() === "dark" ? "border-gray-6 bg-gray-1/60" : "border-gray-6/70 bg-gray-2/40"
+                tone() === "dark" ? "border-dls-border bg-dls-surface/60" : "border-dls-border/70 bg-dls-hover/40"
               }`.trim()}
             >
               <div
                 class={`h-9 w-9 rounded-lg flex items-center justify-center ${
-                  tone() === "dark" ? "bg-gray-12/10 text-gray-12" : "bg-gray-2/70 text-gray-11"
+                  tone() === "dark" ? "bg-dls-text/10 text-dls-text" : "bg-dls-hover/70 text-dls-secondary"
                 }`.trim()}
               >
                 <File size={16} />
@@ -964,8 +964,8 @@ export default function PartView(props: Props) {
                 <div
                   class={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full max-w-[160px] truncate ${
                     tone() === "dark"
-                      ? "bg-gray-12/10 text-gray-12/80"
-                      : "bg-gray-1/70 text-gray-9"
+                      ? "bg-dls-text/10 text-dls-text/80"
+                      : "bg-dls-surface/70 text-dls-secondary"
                   }`.trim()}
                 >
                   {info().mime}
@@ -988,7 +988,7 @@ export default function PartView(props: Props) {
         >
           <details class={`rounded-lg ${panelBgClass()} p-2`.trim()}>
             <summary class={`cursor-pointer text-xs ${subtleTextClass()}`.trim()}>Thinking</summary>
-            <pre class={`mt-2 whitespace-pre-wrap break-words text-xs text-gray-12`.trim()}>
+            <pre class={`mt-2 whitespace-pre-wrap break-words text-xs text-dls-text`.trim()}>
               {clampText(String((p() as { text: string }).text), 2000)}
             </pre>
           </details>
@@ -1000,7 +1000,7 @@ export default function PartView(props: Props) {
           <div class="grid gap-3">
             <div class="flex items-start justify-between gap-3">
               <div class="space-y-1">
-                <div class={`text-xs font-medium text-gray-12`.trim()}>
+                <div class={`text-xs font-medium text-dls-text`.trim()}>
                   {toolTitle()}
                 </div>
                 <div class={`text-[11px] ${subtleTextClass()}`.trim()}>{toolName()}</div>
@@ -1013,7 +1013,7 @@ export default function PartView(props: Props) {
                       ? "bg-blue-3/15 text-blue-12"
                       : toolStatus() === "error"
                         ? "bg-red-3/15 text-red-12"
-                        : "bg-gray-2/10 text-gray-12"
+                        : "bg-dls-hover/10 text-dls-text"
                 }`}
               >
                 {toolStatus()}
@@ -1032,14 +1032,14 @@ export default function PartView(props: Props) {
                     {(diag: any) => (
                       <div class="flex items-start justify-between gap-4 text-xs">
                         <div>
-                          <div class="font-medium text-gray-12">{String(diag?.message ?? "")}</div>
+                          <div class="font-medium text-dls-text">{String(diag?.message ?? "")}</div>
                           <Show when={diag?.source || diag?.code}>
-                            <div class="text-[11px] text-gray-10">
+                            <div class="text-[11px] text-dls-secondary">
                               {[diag?.source, diag?.code].filter(Boolean).join(" · ")}
                             </div>
                           </Show>
                         </div>
-                        <div class="text-[11px] text-gray-10 text-right">
+                        <div class="text-[11px] text-dls-secondary text-right">
                           <div>{formatDiagnosticLabel(diag)}</div>
                           <Show when={formatDiagnosticLocation(diag)}>
                             <div>{formatDiagnosticLocation(diag)}</div>
@@ -1080,7 +1080,7 @@ export default function PartView(props: Props) {
                       alt={image.alt || ""}
                       loading="lazy"
                       decoding="async"
-                      class="max-w-full h-auto rounded-lg border border-gray-6/50"
+                      class="max-w-full h-auto rounded-lg border border-dls-border/50"
                     />
                   )}
                 </For>
@@ -1095,7 +1095,7 @@ export default function PartView(props: Props) {
 
             <Show when={showToolOutput() && toolOutput() && toolOutput() !== diffTextNormalized() && !hasReadXmlOutput()}>
               <pre
-                class={`whitespace-pre-wrap break-words rounded-lg ${panelBgClass()} p-2 text-xs text-gray-12`.trim()}
+                class={`whitespace-pre-wrap break-words rounded-lg ${panelBgClass()} p-2 text-xs text-dls-text`.trim()}
               >
                 {outputPreview()}
               </pre>
@@ -1104,7 +1104,7 @@ export default function PartView(props: Props) {
             <Show when={showToolOutput() && hasReadXmlOutput()}>
               <details class={`rounded-lg ${panelBgClass()} p-2`.trim()}>
                 <summary class={`cursor-pointer text-xs ${subtleTextClass()}`.trim()}>Raw read output</summary>
-                <pre class={`mt-2 whitespace-pre-wrap break-words text-xs text-gray-12`.trim()}>
+                <pre class={`mt-2 whitespace-pre-wrap break-words text-xs text-dls-text`.trim()}>
                   {outputPreview()}
                 </pre>
               </details>
@@ -1112,7 +1112,7 @@ export default function PartView(props: Props) {
 
             <Show when={showToolOutput() && isLargeOutput()}>
               <button
-                class={`text-[11px] ${subtleTextClass()} hover:text-gray-12 transition-colors`}
+                class={`text-[11px] ${subtleTextClass()} hover:text-dls-text transition-colors`}
                 onClick={() => setExpandedOutput((current) => !current)}
               >
                 {expandedOutput() ? "Show less" : "Show more"}
@@ -1122,7 +1122,7 @@ export default function PartView(props: Props) {
             <Show when={showToolOutput() && toolInput() != null}>
               <details class={`rounded-lg ${panelBgClass()} p-2`.trim()}>
                 <summary class={`cursor-pointer text-xs ${subtleTextClass()}`.trim()}>Input</summary>
-                <pre class={`mt-2 whitespace-pre-wrap break-words text-xs text-gray-12`.trim()}>
+                <pre class={`mt-2 whitespace-pre-wrap break-words text-xs text-dls-text`.trim()}>
                   {safeStringify(toolInput())}
                 </pre>
               </details>
@@ -1137,7 +1137,7 @@ export default function PartView(props: Props) {
           alt=""
           loading="lazy"
           decoding="async"
-          class="max-w-full h-auto rounded-xl border border-gray-6/50"
+          class="max-w-full h-auto rounded-xl border border-dls-border/50"
         />
       </Match>
 
@@ -1145,7 +1145,7 @@ export default function PartView(props: Props) {
         <div class={`text-xs ${subtleTextClass()}`.trim()}>
           {p().type === "step-start" ? "Step started" : "Step finished"}
           <Show when={"reason" in p() && (p() as any).reason}>
-            <span class={tone() === "dark" ? "text-gray-12/80" : "text-gray-11"}>
+            <span class={tone() === "dark" ? "text-dls-text/80" : "text-dls-secondary"}>
               {" "}· {String((p() as any).reason)}
             </span>
           </Show>
@@ -1154,7 +1154,7 @@ export default function PartView(props: Props) {
 
       <Match when={true}>
         <Show when={developerMode()}>
-          <pre class={`whitespace-pre-wrap break-words text-xs text-gray-12`.trim()}>
+          <pre class={`whitespace-pre-wrap break-words text-xs text-dls-text`.trim()}>
             {safeStringify(p())}
           </pre>
         </Show>

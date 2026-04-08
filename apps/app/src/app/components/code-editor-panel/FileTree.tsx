@@ -154,7 +154,7 @@ export default function FileTree(props: FileTreeProps) {
   return (
     <div class="h-full overflow-y-auto overflow-x-hidden text-[13px]">
       <Show when={rootLoading()}>
-        <div class="px-3 py-4 text-xs text-gray-9">Loading...</div>
+        <div class="px-3 py-4 text-xs text-dls-secondary">Loading...</div>
       </Show>
       <Show when={rootError()}>
         <div class="px-3 py-4 text-xs text-red-11">
@@ -162,7 +162,7 @@ export default function FileTree(props: FileTreeProps) {
         </div>
       </Show>
       <Show when={!rootLoading() && !rootError() && nodes.length === 0 && props.rootPath}>
-        <div class="px-3 py-4 text-xs text-gray-9">Empty directory</div>
+        <div class="px-3 py-4 text-xs text-dls-secondary">Empty directory</div>
       </Show>
       <div class="py-1">
         <For each={nodes}>
@@ -209,15 +209,15 @@ function FileTreeNode(props: FileTreeNodeProps) {
         type="button"
         class={`flex w-full items-center gap-1.5 rounded-md py-[3px] pr-2 text-left transition-colors ${
           isSelected()
-            ? "bg-gray-3 text-gray-12"
-            : "text-gray-11 hover:bg-gray-2"
+            ? "bg-dls-hover text-dls-text"
+            : "text-dls-secondary hover:bg-dls-hover"
         }`}
         style={{ "padding-left": `${paddingLeft()}px` }}
         onClick={handleClick}
         title={props.node.entry.path}
       >
         <Show when={props.node.entry.is_dir}>
-          <span class="flex h-4 w-4 shrink-0 items-center justify-center text-gray-8">
+          <span class="flex h-4 w-4 shrink-0 items-center justify-center text-dls-secondary">
             <Show
               when={props.node.loading}
               fallback={
@@ -229,10 +229,10 @@ function FileTreeNode(props: FileTreeNodeProps) {
                 </Show>
               }
             >
-              <span class="h-3 w-3 animate-spin rounded-full border-2 border-gray-6 border-t-gray-10" />
+              <span class="h-3 w-3 animate-spin rounded-full border-2 border-dls-border border-t-dls-secondary" />
             </Show>
           </span>
-          <span class="shrink-0 text-gray-9">
+          <span class="shrink-0 text-dls-secondary">
             <Show when={props.node.expanded} fallback={<Folder size={14} />}>
               <FolderOpen size={14} />
             </Show>
@@ -240,7 +240,7 @@ function FileTreeNode(props: FileTreeNodeProps) {
         </Show>
         <Show when={!props.node.entry.is_dir}>
           <span class="h-4 w-4 shrink-0" />
-          <span class="shrink-0 text-gray-8">
+          <span class="shrink-0 text-dls-secondary">
             <File size={14} />
           </span>
         </Show>

@@ -378,9 +378,9 @@ export default function SettingsView(props: SettingsViewProps) {
         return "bg-red-7/10 text-red-11 border-red-7/20";
       case "checking":
       case "downloading":
-        return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+        return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
       default:
-        return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+        return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
     }
   });
 
@@ -486,7 +486,7 @@ export default function SettingsView(props: SettingsViewProps) {
     if (props.notionStatus === "connecting") {
       return "bg-amber-7/10 text-amber-11 border-amber-7/20";
     }
-    return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+    return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
   };
 
   const [providerConnectError, setProviderConnectError] = createSignal<
@@ -547,7 +547,7 @@ export default function SettingsView(props: SettingsViewProps) {
   });
   const providerStatusStyle = createMemo(() => {
     if (!providerAvailableCount())
-      return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+      return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
     if (!providerConnectedCount())
       return "bg-amber-7/10 text-amber-11 border-amber-7/20";
     return "bg-green-7/10 text-green-11 border-green-7/20";
@@ -668,7 +668,7 @@ export default function SettingsView(props: SettingsViewProps) {
       case "limited":
         return "bg-amber-7/10 text-amber-11 border-amber-7/20";
       default:
-        return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+        return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
     }
   });
 
@@ -679,7 +679,7 @@ export default function SettingsView(props: SettingsViewProps) {
       case "limited":
         return "bg-amber-9";
       default:
-        return "bg-gray-6";
+        return "bg-dls-border";
     }
   });
 
@@ -697,14 +697,14 @@ export default function SettingsView(props: SettingsViewProps) {
     if (status === "error") return "bg-red-7/10 text-red-11 border-red-7/20";
     return props.clientConnected
       ? "bg-green-7/10 text-green-11 border-green-7/20"
-      : "bg-gray-4/60 text-gray-11 border-gray-7/50";
+      : "bg-dls-active/60 text-dls-secondary border-dls-border/50";
   });
 
   const clientStatusDot = createMemo(() => {
     const status = props.opencodeConnectStatus?.status;
     if (status === "connecting") return "bg-amber-9";
     if (status === "error") return "bg-red-9";
-    return props.clientConnected ? "bg-green-9" : "bg-gray-6";
+    return props.clientConnected ? "bg-green-9" : "bg-dls-border";
   });
 
   const engineStatusLabel = createMemo(() => {
@@ -713,10 +713,10 @@ export default function SettingsView(props: SettingsViewProps) {
   });
 
   const engineStatusStyle = createMemo(() => {
-    if (!isTauriRuntime()) return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+    if (!isTauriRuntime()) return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
     return props.engineInfo?.running
       ? "bg-green-7/10 text-green-11 border-green-7/20"
-      : "bg-gray-4/60 text-gray-11 border-gray-7/50";
+      : "bg-dls-active/60 text-dls-secondary border-dls-border/50";
   });
 
   const opencodeConnectStatusLabel = createMemo(() => {
@@ -729,7 +729,7 @@ export default function SettingsView(props: SettingsViewProps) {
 
   const opencodeConnectStatusStyle = createMemo(() => {
     const status = props.opencodeConnectStatus?.status;
-    if (!status) return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+    if (!status) return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
     if (status === "connected")
       return "bg-green-7/10 text-green-11 border-green-7/20";
     if (status === "connecting")
@@ -749,10 +749,10 @@ export default function SettingsView(props: SettingsViewProps) {
   });
 
   const opencodeRouterStatusStyle = createMemo(() => {
-    if (!isTauriRuntime()) return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+    if (!isTauriRuntime()) return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
     return props.opencodeRouterInfo?.running
       ? "bg-green-7/10 text-green-11 border-green-7/20"
-      : "bg-gray-4/60 text-gray-11 border-gray-7/50";
+      : "bg-dls-active/60 text-dls-secondary border-dls-border/50";
   });
 
   const [opencodeRouterRestarting, setOpenCodeRouterRestarting] =
@@ -818,10 +818,10 @@ export default function SettingsView(props: SettingsViewProps) {
 
   const orchestratorStatusStyle = createMemo(() => {
     if (!props.orchestratorStatus)
-      return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+      return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
     return props.orchestratorStatus.running
       ? "bg-green-7/10 text-green-11 border-green-7/20"
-      : "bg-gray-4/60 text-gray-11 border-gray-7/50";
+      : "bg-dls-active/60 text-dls-secondary border-dls-border/50";
   });
 
   const auroworkAuditStatusLabel = createMemo(() => {
@@ -833,7 +833,7 @@ export default function SettingsView(props: SettingsViewProps) {
 
   const auroworkAuditStatusStyle = createMemo(() => {
     if (!props.runtimeWorkspaceId)
-      return "bg-gray-4/60 text-gray-11 border-gray-7/50";
+      return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
     if (props.auroworkAuditStatus === "loading")
       return "bg-amber-7/10 text-amber-11 border-amber-7/20";
     if (props.auroworkAuditStatus === "error")
@@ -1336,7 +1336,7 @@ export default function SettingsView(props: SettingsViewProps) {
   const settingsPanelClass =
     "rounded-[28px] border border-dls-border bg-dls-surface p-5 md:p-6";
   const settingsPanelSoftClass =
-    "rounded-2xl border border-gray-6/60 bg-gray-1/40 p-4";
+    "rounded-2xl border border-dls-border/60 bg-dls-surface/40 p-4";
 
   const tabDescription = (tab: SettingsTab) => {
     switch (tab) {
@@ -1371,7 +1371,7 @@ export default function SettingsView(props: SettingsViewProps) {
     <section class="space-y-6 md:grid md:grid-cols-[220px_minmax(0,1fr)] md:gap-8 md:space-y-0">
       <aside class="space-y-6 md:sticky md:top-4 md:self-start">
         <div class={settingsRailClass}>
-          <div class="mb-2 px-2 text-[11px] font-medium uppercase tracking-[0.18em] text-gray-8">
+          <div class="mb-2 px-2 text-[11px] font-medium uppercase tracking-[0.18em] text-dls-secondary">
             {translate("settings.tab_workspace")}
           </div>
           <div class="space-y-1">
@@ -1382,7 +1382,7 @@ export default function SettingsView(props: SettingsViewProps) {
                   class={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[13px] font-medium transition-colors ${
                     activeTab() === tab
                       ? "bg-dls-surface text-dls-text shadow-sm"
-                      : "text-gray-10 hover:bg-dls-surface/50 hover:text-dls-text"
+                      : "text-dls-secondary hover:bg-dls-surface/50 hover:text-dls-text"
                   }`}
                   onClick={() => props.setSettingsTab(tab)}
                 >
@@ -1394,7 +1394,7 @@ export default function SettingsView(props: SettingsViewProps) {
         </div>
 
         <div class={settingsRailClass}>
-          <div class="mb-2 px-2 text-[11px] font-medium uppercase tracking-[0.18em] text-gray-8">
+          <div class="mb-2 px-2 text-[11px] font-medium uppercase tracking-[0.18em] text-dls-secondary">
             {translate("settings.tab_global")}
           </div>
           <div class="space-y-1">
@@ -1405,7 +1405,7 @@ export default function SettingsView(props: SettingsViewProps) {
                   class={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[13px] font-medium transition-colors ${
                     activeTab() === tab
                       ? "bg-dls-surface text-dls-text shadow-sm"
-                      : "text-gray-10 hover:bg-dls-surface/50 hover:text-dls-text"
+                      : "text-dls-secondary hover:bg-dls-surface/50 hover:text-dls-text"
                   }`}
                   onClick={() => props.setSettingsTab(tab)}
                 >
@@ -1420,10 +1420,10 @@ export default function SettingsView(props: SettingsViewProps) {
       <div class="min-w-0 space-y-6">
         <div class={`${settingsPanelClass} flex flex-col gap-3 md:flex-row md:items-center md:justify-between`}>
           <div class="space-y-1">
-            <h2 class="text-lg font-semibold tracking-tight text-gray-12">
+            <h2 class="text-lg font-semibold tracking-tight text-dls-text">
               {tabLabel(activeTab())}
             </h2>
-            <p class="text-sm text-gray-9">
+            <p class="text-sm text-dls-secondary">
               {tabDescription(activeTab())}
             </p>
           </div>
@@ -1444,7 +1444,7 @@ export default function SettingsView(props: SettingsViewProps) {
                 <Show when={updateToolbarActionLabel()}>
                   <Button
                     variant="outline"
-                    class="text-xs h-8 py-0 px-3 rounded-full border-gray-6/60 bg-gray-1/70 hover:bg-gray-2/70"
+                    class="text-xs h-8 py-0 px-3 rounded-full border-dls-border/60 bg-dls-surface/70 hover:bg-dls-hover/70"
                     onClick={handleUpdateToolbarAction}
                     disabled={updateToolbarDisabled()}
                     title={updateRestartBlockedMessage() ?? ""}
@@ -1467,11 +1467,11 @@ export default function SettingsView(props: SettingsViewProps) {
           <div class="space-y-6">
             <div class={`${settingsPanelClass} space-y-4`}>
               <div class="space-y-1">
-                <div class="flex items-center gap-2 text-sm font-semibold text-gray-12">
-                    <FolderLock size={16} class="text-gray-10" />
+                <div class="flex items-center gap-2 text-sm font-semibold text-dls-text">
+                    <FolderLock size={16} class="text-dls-secondary" />
                     {translate("settings.authorized_folders_title")}
                   </div>
-                  <div class="text-xs text-gray-9 leading-relaxed max-w-[65ch]">
+                  <div class="text-xs text-dls-secondary leading-relaxed max-w-[65ch]">
                     {translate("settings.authorized_folders_description")}
                   </div>
                 </div>
@@ -1479,16 +1479,16 @@ export default function SettingsView(props: SettingsViewProps) {
                 <Show
                   when={props.authorizedFoldersAvailable}
                   fallback={
-                    <div class={`${settingsPanelSoftClass} px-3 py-3 text-xs text-gray-10`}>
+                    <div class={`${settingsPanelSoftClass} px-3 py-3 text-xs text-dls-secondary`}>
                       {props.authorizedFoldersHint ??
                         translate("settings.authorized_folders_fallback_hint")}
                     </div>
                   }
                 >
-                  <div class="flex flex-col overflow-hidden rounded-xl border border-gray-5/60 bg-gray-1/50 shadow-sm">
+                  <div class="flex flex-col overflow-hidden rounded-xl border border-dls-border/60 bg-dls-surface/50 shadow-sm">
                     <Show when={props.authorizedFoldersHint}>
                       {(hint) => (
-                        <div class="bg-gray-2/60 px-3 py-2 text-[11px] text-gray-10 border-b border-gray-5/40">
+                        <div class="bg-dls-hover/60 px-3 py-2 text-[11px] text-dls-secondary border-b border-dls-border/40">
                           {hint()}
                         </div>
                       )}
@@ -1501,21 +1501,21 @@ export default function SettingsView(props: SettingsViewProps) {
                           <div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-3/30 text-blue-11 mb-3">
                             <Folder size={20} />
                           </div>
-                          <div class="text-sm font-medium text-gray-11">{translate("settings.authorized_folders_empty_title")}</div>
-                          <div class="text-[11px] text-gray-9 mt-1 max-w-[40ch]">
+                          <div class="text-sm font-medium text-dls-secondary">{translate("settings.authorized_folders_empty_title")}</div>
+                          <div class="text-[11px] text-dls-secondary mt-1 max-w-[40ch]">
                             {translate("settings.authorized_folders_empty_hint")}
                           </div>
                         </div>
                       }
                     >
-                      <div class="flex flex-col divide-y divide-gray-5/40 max-h-[300px] overflow-y-auto">
+                      <div class="flex flex-col divide-y divide-dls-border/40 max-h-[300px] overflow-y-auto">
                         <For each={visibleAuthorizedFolders()}>
                           {(folder) => {
                             const isWorkspaceRoot = folder === workspaceRootFolder();
                             const folderName = folder.split(/[/\\]/).filter(Boolean).pop() || folder;
                             return (
                               <div class={`flex items-center justify-between px-3 py-2.5 transition-colors ${
-                                isWorkspaceRoot ? "bg-blue-2/20" : "hover:bg-gray-2/50"
+                                isWorkspaceRoot ? "bg-blue-2/20" : "hover:bg-dls-hover/50"
                               }`}>
                                 <div class="flex items-center gap-3 overflow-hidden">
                                   <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-3/30 text-blue-11">
@@ -1523,20 +1523,20 @@ export default function SettingsView(props: SettingsViewProps) {
                                   </div>
                                   <div class="flex min-w-0 flex-col">
                                     <div class="flex items-center gap-2">
-                                      <span class="truncate text-sm font-medium text-gray-12">{folderName}</span>
+                                      <span class="truncate text-sm font-medium text-dls-text">{folderName}</span>
                                       <Show when={isWorkspaceRoot}>
                                         <span class="rounded-full border border-blue-7/30 bg-blue-3/25 px-2 py-0.5 text-[10px] font-medium text-blue-11">
                                           {translate("settings.authorized_folders_workspace_root")}
                                         </span>
                                       </Show>
                                     </div>
-                                    <span class="truncate font-mono text-[10px] text-gray-8">{folder}</span>
+                                    <span class="truncate font-mono text-[10px] text-dls-secondary">{folder}</span>
                                   </div>
                                 </div>
                                 <Show
                                   when={!isWorkspaceRoot}
                                   fallback={
-                                    <span class="shrink-0 text-[10px] font-medium text-gray-8">
+                                    <span class="shrink-0 text-[10px] font-medium text-dls-secondary">
                                       {translate("settings.authorized_folders_always_available")}
                                     </span>
                                   }
@@ -1564,21 +1564,21 @@ export default function SettingsView(props: SettingsViewProps) {
 
                     <Show when={props.authorizedFoldersStatus}>
                       {(status) => (
-                        <div class="bg-blue-2/30 px-3 py-2 text-[11px] text-blue-11 border-t border-gray-5/40">
+                        <div class="bg-blue-2/30 px-3 py-2 text-[11px] text-blue-11 border-t border-dls-border/40">
                           {status()}
                         </div>
                       )}
                     </Show>
                     <Show when={props.authorizedFoldersError}>
                       {(error) => (
-                        <div class="bg-red-2/30 px-3 py-2 text-[11px] text-red-11 border-t border-gray-5/40">
+                        <div class="bg-red-2/30 px-3 py-2 text-[11px] text-red-11 border-t border-dls-border/40">
                           {error()}
                         </div>
                       )}
                     </Show>
 
                     <form
-                      class="flex items-center gap-2 bg-gray-2/60 border-t border-gray-5/60 p-2"
+                      class="flex items-center gap-2 bg-dls-hover/60 border-t border-dls-border/60 p-2"
                       onSubmit={(event) => {
                         event.preventDefault();
                         void props.addAuthorizedFolder();
@@ -1586,7 +1586,7 @@ export default function SettingsView(props: SettingsViewProps) {
                     >
                       <div class="relative flex-1">
                         <input
-                          class="w-full rounded-lg border border-gray-5/60 bg-gray-1 px-3 py-1.5 text-xs text-gray-12 placeholder:text-gray-8 focus:outline-none focus:ring-2 focus:ring-blue-7/30 disabled:opacity-50"
+                          class="w-full rounded-lg border border-dls-border/60 bg-dls-surface px-3 py-1.5 text-xs text-dls-text placeholder:text-dls-secondary focus:outline-none focus:ring-2 focus:ring-blue-7/30 disabled:opacity-50"
                           value={props.authorizedFolderDraft}
                           onInput={(event) =>
                             props.setAuthorizedFolderDraft(event.currentTarget.value)
@@ -1607,7 +1607,7 @@ export default function SettingsView(props: SettingsViewProps) {
                         <Button
                           type="button"
                           variant="outline"
-                          class="h-8 px-3 text-xs bg-gray-1 hover:bg-gray-2"
+                          class="h-8 px-3 text-xs bg-dls-surface hover:bg-dls-hover"
                           onClick={() => void props.pickAuthorizedFolder()}
                           disabled={
                             props.authorizedFoldersLoading ||
@@ -1622,7 +1622,7 @@ export default function SettingsView(props: SettingsViewProps) {
                       <Button
                         type="submit"
                         variant="primary"
-                        class="h-8 px-3 text-xs bg-gray-3 text-gray-12 hover:bg-gray-4 border border-gray-5/60"
+                        class="h-8 px-3 text-xs bg-dls-active text-dls-text hover:bg-dls-active border border-dls-border/60"
                         disabled={
                           props.authorizedFoldersLoading ||
                           props.authorizedFoldersSaving ||
@@ -1641,12 +1641,12 @@ export default function SettingsView(props: SettingsViewProps) {
               <div class="flex items-start justify-between gap-4">
                 <div>
                   <div class="flex items-center gap-2">
-                    <PlugZap size={16} class="text-gray-11" />
-                    <div class="text-sm font-medium text-gray-12">
+                    <PlugZap size={16} class="text-dls-secondary" />
+                    <div class="text-sm font-medium text-dls-text">
                       {translate("settings.providers_title")}
                     </div>
                   </div>
-                  <div class="text-xs text-gray-9 mt-1">
+                  <div class="text-xs text-dls-secondary mt-1">
                     {translate("settings.providers_description")}
                   </div>
                 </div>
@@ -1667,7 +1667,7 @@ export default function SettingsView(props: SettingsViewProps) {
                     ? translate("settings.providers_loading")
                     : translate("settings.providers_connect")}
                 </Button>
-                <div class="text-xs text-gray-10">{providerSummary()}</div>
+                <div class="text-xs text-dls-secondary">{providerSummary()}</div>
               </div>
 
               <Show when={connectedProviders().length > 0}>
@@ -1676,17 +1676,17 @@ export default function SettingsView(props: SettingsViewProps) {
                     {(provider) => (
                       <div class={`${settingsPanelSoftClass} flex flex-wrap items-center justify-between gap-3 px-3 py-2`}>
                         <div class="min-w-0 flex items-center gap-3">
-                          <ProviderIcon providerId={provider.id} size={18} class="text-gray-12" />
+                          <ProviderIcon providerId={provider.id} size={18} class="text-dls-text" />
                           <div class="min-w-0">
-                            <div class="text-sm font-medium text-gray-12 truncate">
+                            <div class="text-sm font-medium text-dls-text truncate">
                               {provider.name}
                             </div>
-                            <div class="text-[11px] text-gray-8 font-mono truncate">
+                            <div class="text-[11px] text-dls-secondary font-mono truncate">
                               {provider.id}
                             </div>
                             <Show when={providerSourceLabel(provider.source)}>
                               {(label) => (
-                                <div class="mt-1 text-[11px] text-gray-9 truncate">{label()}</div>
+                                <div class="mt-1 text-[11px] text-dls-secondary truncate">{label()}</div>
                               )}
                             </Show>
                           </div>
@@ -1722,7 +1722,7 @@ export default function SettingsView(props: SettingsViewProps) {
                 </div>
               </Show>
               <Show when={providerDisconnectStatus()}>
-                <div class={`${settingsPanelSoftClass} px-3 py-2 text-xs text-gray-10`}>
+                <div class={`${settingsPanelSoftClass} px-3 py-2 text-xs text-dls-secondary`}>
                   {providerDisconnectStatus()}
                 </div>
               </Show>
@@ -1732,25 +1732,25 @@ export default function SettingsView(props: SettingsViewProps) {
                 </div>
               </Show>
 
-              <div class="text-[11px] text-gray-9">
+              <div class="text-[11px] text-dls-secondary">
                 {translate("settings.providers_api_keys_hint")}
               </div>
             </div>
 
             <div class={`${settingsPanelClass} space-y-4`}>
               <div>
-                <div class="text-sm font-medium text-gray-12">{translate("settings.model_section_title")}</div>
-                <div class="text-xs text-gray-10">
+                <div class="text-sm font-medium text-dls-text">{translate("settings.model_section_title")}</div>
+                <div class="text-xs text-dls-secondary">
                   {translate("settings.model_section_description")}
                 </div>
               </div>
 
-              <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+              <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
                 <div class="min-w-0">
-                  <div class="text-sm text-gray-12 truncate">
+                  <div class="text-sm text-dls-text truncate">
                     {props.defaultModelLabel}
                   </div>
-                  <div class="text-xs text-gray-7 font-mono truncate">
+                  <div class="text-xs text-dls-secondary font-mono truncate">
                     {props.defaultModelRef}
                   </div>
                 </div>
@@ -1764,10 +1764,10 @@ export default function SettingsView(props: SettingsViewProps) {
                 </Button>
               </div>
 
-              <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+              <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
                 <div class="min-w-0">
-                  <div class="text-sm text-gray-12">{translate("settings.show_model_reasoning")}</div>
-                  <div class="text-xs text-gray-7">
+                  <div class="text-sm text-dls-text">{translate("settings.show_model_reasoning")}</div>
+                  <div class="text-xs text-dls-secondary">
                     {translate("settings.show_model_reasoning_hint")}
                   </div>
                 </div>
@@ -1781,13 +1781,13 @@ export default function SettingsView(props: SettingsViewProps) {
                 </Button>
               </div>
 
-              <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+              <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
                 <div class="min-w-0">
-                  <div class="text-sm text-gray-12">{translate("settings.model_behavior_title")}</div>
-                  <div class="text-xs text-gray-7 truncate">
+                  <div class="text-sm text-dls-text">{translate("settings.model_behavior_title")}</div>
+                  <div class="text-xs text-dls-secondary truncate">
                     {translate("settings.model_behavior_hint")}
                   </div>
-                  <div class="mt-1 text-xs text-gray-8 font-medium truncate">
+                  <div class="mt-1 text-xs text-dls-secondary font-medium truncate">
                     {props.modelVariantLabel}
                   </div>
                 </div>
@@ -1810,8 +1810,8 @@ export default function SettingsView(props: SettingsViewProps) {
           <div class="space-y-6">
               <div class={`${settingsPanelClass} space-y-4`}>
                 <div>
-                  <div class="text-sm font-medium text-gray-12">{translate("settings.appearance_section_title")}</div>
-                <div class="text-xs text-gray-9">
+                  <div class="text-sm font-medium text-dls-text">{translate("settings.appearance_section_title")}</div>
+                <div class="text-xs text-dls-secondary">
                   {translate("settings.appearance_section_hint")}
                 </div>
               </div>
@@ -1848,10 +1848,10 @@ export default function SettingsView(props: SettingsViewProps) {
               </div>
 
               <div class="space-y-2">
-                <div class="text-xs font-medium text-gray-11">
+                <div class="text-xs font-medium text-dls-secondary">
                   {translate("settings.language")}
                 </div>
-                <div class="text-xs text-gray-9">
+                <div class="text-xs text-dls-secondary">
                   {translate("settings.language.description")}
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -1874,23 +1874,23 @@ export default function SettingsView(props: SettingsViewProps) {
                 </div>
               </div>
 
-                <div class="text-xs text-gray-8">
+                <div class="text-xs text-dls-secondary">
                   {translate("settings.theme_system_auto_hint")}
                 </div>
               </div>
             <Show when={isTauriRuntime()}>
-              <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-3">
+              <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-3">
                 <div>
-                  <div class="text-sm font-medium text-gray-12">{translate("settings.appearance_window_title")}</div>
-                  <div class="text-xs text-gray-10">
+                  <div class="text-sm font-medium text-dls-text">{translate("settings.appearance_window_title")}</div>
+                  <div class="text-xs text-dls-secondary">
                     {translate("settings.appearance_window_hint")}
                   </div>
                 </div>
 
-                <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+                <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
                   <div class="min-w-0">
-                    <div class="text-sm text-gray-12">{translate("settings.hide_titlebar_title")}</div>
-                    <div class="text-xs text-gray-7">
+                    <div class="text-sm text-dls-text">{translate("settings.hide_titlebar_title")}</div>
+                    <div class="text-xs text-dls-secondary">
                       {translate("settings.hide_titlebar_hint")}
                     </div>
                   </div>
@@ -1998,8 +1998,8 @@ export default function SettingsView(props: SettingsViewProps) {
           <div class="space-y-6">
             <div class={`${settingsPanelClass} space-y-4`}>
               <div>
-                <div class="text-sm font-medium text-gray-12">{translate("settings.runtime_title")}</div>
-                <div class="text-xs text-gray-9">
+                <div class="text-sm font-medium text-dls-text">{translate("settings.runtime_title")}</div>
+                <div class="text-xs text-dls-secondary">
                   {translate("settings.runtime_description")}
                 </div>
               </div>
@@ -2007,14 +2007,14 @@ export default function SettingsView(props: SettingsViewProps) {
               <div class="grid gap-3 sm:grid-cols-2">
                 <div class={`${settingsPanelSoftClass} p-4 space-y-3`}>
                   <div class="flex items-start gap-3">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-6/60 bg-gray-1/70 text-gray-12">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-dls-border/60 bg-dls-surface/70 text-dls-text">
                       <Cpu size={18} />
                     </div>
                     <div>
-                      <div class="text-sm font-medium text-gray-12">
+                      <div class="text-sm font-medium text-dls-text">
                         {translate("settings.opencode_engine_title")}
                       </div>
-                      <div class="text-xs text-gray-9">
+                      <div class="text-xs text-dls-secondary">
                         {translate("settings.opencode_engine_description")}
                       </div>
                     </div>
@@ -2029,14 +2029,14 @@ export default function SettingsView(props: SettingsViewProps) {
 
                 <div class={`${settingsPanelSoftClass} p-4 space-y-3`}>
                   <div class="flex items-start gap-3">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-6/60 bg-gray-1/70 text-gray-12">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-dls-border/60 bg-dls-surface/70 text-dls-text">
                       <Server size={18} />
                     </div>
                     <div>
-                      <div class="text-sm font-medium text-gray-12">
+                      <div class="text-sm font-medium text-dls-text">
                         {translate("settings.aurowork_server_title")}
                       </div>
-                      <div class="text-xs text-gray-9">
+                      <div class="text-xs text-dls-secondary">
                         {translate("settings.aurowork_server_description")}
                       </div>
                     </div>
@@ -2055,16 +2055,16 @@ export default function SettingsView(props: SettingsViewProps) {
 
             <div class={`${settingsPanelClass} space-y-3`}>
               <div>
-                <div class="text-sm font-medium text-gray-12">{translate("settings.opencode_title")}</div>
-                <div class="text-xs text-gray-9">
+                <div class="text-sm font-medium text-dls-text">{translate("settings.opencode_title")}</div>
+                <div class="text-xs text-dls-secondary">
                   {translate("settings.opencode_description")}
                 </div>
               </div>
 
-              <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+              <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
                 <div class="min-w-0">
-                  <div class="text-sm text-gray-12">{translate("settings.enable_exa_title")}</div>
-                  <div class="text-xs text-gray-7">
+                  <div class="text-sm text-dls-text">{translate("settings.enable_exa_title")}</div>
+                  <div class="text-xs text-dls-secondary">
                     {translate("settings.enable_exa_hint")}
                   </div>
                 </div>
@@ -2078,14 +2078,14 @@ export default function SettingsView(props: SettingsViewProps) {
                 </Button>
               </div>
 
-              <div class="text-[11px] text-gray-7">
+              <div class="text-[11px] text-dls-secondary">
                 {translate("settings.opencode_restart_hint")}
               </div>
             </div>
 
             <div class={`${settingsPanelClass} space-y-3`}>
-              <div class="text-sm font-medium text-gray-12">{translate("settings.developer_mode_title")}</div>
-              <div class="text-xs text-gray-9">
+              <div class="text-sm font-medium text-dls-text">{translate("settings.developer_mode_title")}</div>
+              <div class="text-xs text-dls-secondary">
                 {translate("settings.developer_mode_description")}
               </div>
               <div class="pt-1 flex flex-wrap items-center gap-3">
@@ -2110,7 +2110,7 @@ export default function SettingsView(props: SettingsViewProps) {
                     ? translate("settings.disable_developer_mode")
                     : translate("settings.enable_developer_mode")}
                 </button>
-                <div class="text-xs text-gray-10">
+                <div class="text-xs text-dls-secondary">
                   {props.developerMode
                     ? translate("settings.developer_panel_enabled")
                     : translate("settings.developer_panel_enable_hint")}
@@ -2120,10 +2120,10 @@ export default function SettingsView(props: SettingsViewProps) {
                 <div class={`${settingsPanelSoftClass} p-4 space-y-3`}>
                   <div class="flex items-start justify-between gap-3">
                     <div>
-                      <div class="text-sm font-medium text-gray-12">
+                      <div class="text-sm font-medium text-dls-text">
                         {translate("settings.open_deeplink_title")}
                       </div>
-                      <div class="text-xs text-gray-9">
+                      <div class="text-xs text-dls-secondary">
                         {translate("settings.open_deeplink_description")}
                       </div>
                     </div>
@@ -2149,7 +2149,7 @@ export default function SettingsView(props: SettingsViewProps) {
                         }
                         rows={3}
                         placeholder="aurowork://..."
-                        class="w-full rounded-xl border border-gray-6 bg-gray-1 px-3 py-2 text-xs font-mono text-gray-12 outline-none transition focus:border-blue-8"
+                        class="w-full rounded-xl border border-dls-border bg-dls-surface px-3 py-2 text-xs font-mono text-dls-text outline-none transition focus:border-blue-8"
                       />
                       <div class="flex flex-wrap items-center gap-2">
                         <Button
@@ -2164,7 +2164,7 @@ export default function SettingsView(props: SettingsViewProps) {
                         >
                           {debugDeepLinkBusy() ? translate("settings.open_deeplink_opening") : translate("settings.open_deeplink_action")}
                         </Button>
-                        <div class="text-[11px] text-gray-8">
+                        <div class="text-[11px] text-dls-secondary">
                           Accepts <span class="font-mono">aurowork://</span>,{" "}
                           <span class="font-mono">aurowork-dev://</span>, or a
                           raw supported{" "}
@@ -2179,7 +2179,7 @@ export default function SettingsView(props: SettingsViewProps) {
 
                   <Show when={debugDeepLinkStatus()}>
                     {(value) => (
-                      <div class="text-xs text-gray-10">{value()}</div>
+                      <div class="text-xs text-dls-secondary">{value()}</div>
                     )}
                   </Show>
                 </div>
@@ -2187,9 +2187,9 @@ export default function SettingsView(props: SettingsViewProps) {
             </div>
 
             <div class={`${settingsPanelClass} space-y-3`}>
-              <div class="text-sm font-medium text-gray-12">{translate("settings.connection_section_title")}</div>
-              <div class="text-xs text-gray-9">{props.headerStatus}</div>
-              <div class="text-xs text-gray-8 font-mono break-all">
+              <div class="text-sm font-medium text-dls-text">{translate("settings.connection_section_title")}</div>
+              <div class="text-xs text-dls-secondary">{props.headerStatus}</div>
+              <div class="text-xs text-dls-secondary font-mono break-all">
                 {props.baseUrl}
               </div>
               <div class="pt-2 flex flex-wrap gap-2">
@@ -2255,13 +2255,13 @@ export default function SettingsView(props: SettingsViewProps) {
                 </Show>
               </div>
               <Show when={auroworkReconnectStatus()}>
-                {(value) => <div class="text-xs text-gray-10">{value()}</div>}
+                {(value) => <div class="text-xs text-dls-secondary">{value()}</div>}
               </Show>
               <Show when={auroworkReconnectError()}>
                 {(value) => <div class="text-xs text-red-11">{value()}</div>}
               </Show>
               <Show when={auroworkRestartStatus()}>
-                {(value) => <div class="text-xs text-gray-10">{value()}</div>}
+                {(value) => <div class="text-xs text-dls-secondary">{value()}</div>}
               </Show>
               <Show when={auroworkRestartError()}>
                 {(value) => <div class="text-xs text-red-11">{value()}</div>}
@@ -2278,12 +2278,12 @@ export default function SettingsView(props: SettingsViewProps) {
             <div class={`${settingsPanelClass} space-y-3`}>
               <div class="flex items-start justify-between gap-4">
                 <div>
-                  <div class="text-sm font-medium text-gray-12">{translate("settings.updates_section_title")}</div>
-                  <div class="text-xs text-gray-10">
+                  <div class="text-sm font-medium text-dls-text">{translate("settings.updates_section_title")}</div>
+                  <div class="text-xs text-dls-secondary">
                     {translate("settings.updates_section_description")}
                   </div>
                 </div>
-                <div class="text-xs text-gray-7 font-mono">
+                <div class="text-xs text-dls-secondary font-mono">
                   {props.appVersion ? `v${props.appVersion}` : ""}
                 </div>
               </div>
@@ -2297,20 +2297,20 @@ export default function SettingsView(props: SettingsViewProps) {
                     }
                     fallback={
                       <>
-                        <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6">
+                        <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border">
                           <div class="space-y-0.5">
-                            <div class="text-sm text-gray-12">
+                            <div class="text-sm text-dls-text">
                               {translate("settings.background_checks_title")}
                             </div>
-                            <div class="text-xs text-gray-7">
+                            <div class="text-xs text-dls-secondary">
                               {translate("settings.background_checks_hint")}
                             </div>
                           </div>
                           <button
                             class={`min-w-[70px] px-4 py-1.5 rounded-full text-xs font-medium border shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] transition-colors ${
                               props.updateAutoCheck
-                                ? "bg-gray-12/12 text-gray-12 border-gray-6/30"
-                                : "bg-gray-1/70 text-gray-10 border-gray-6/60 hover:text-gray-12 hover:bg-gray-2/70"
+                                ? "bg-dls-text/12 text-dls-text border-dls-border/30"
+                                : "bg-dls-surface/70 text-dls-secondary border-dls-border/60 hover:text-dls-text hover:bg-dls-hover/70"
                             }`}
                             onClick={props.toggleUpdateAutoCheck}
                           >
@@ -2318,18 +2318,18 @@ export default function SettingsView(props: SettingsViewProps) {
                           </button>
                         </div>
 
-                        <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6">
+                        <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border">
                           <div class="space-y-0.5">
-                            <div class="text-sm text-gray-12">{translate("settings.auto_update_title")}</div>
-                            <div class="text-xs text-gray-7">
+                            <div class="text-sm text-dls-text">{translate("settings.auto_update_title")}</div>
+                            <div class="text-xs text-dls-secondary">
                               {translate("settings.auto_update_hint")}
                             </div>
                           </div>
                           <button
                             class={`min-w-[70px] px-4 py-1.5 rounded-full text-xs font-medium border shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] transition-colors ${
                               props.updateAutoDownload
-                                ? "bg-gray-12/12 text-gray-12 border-gray-6/30"
-                                : "bg-gray-1/70 text-gray-10 border-gray-6/60 hover:text-gray-12 hover:bg-gray-2/70"
+                                ? "bg-dls-text/12 text-dls-text border-dls-border/30"
+                                : "bg-dls-surface/70 text-dls-secondary border-dls-border/60 hover:text-dls-text hover:bg-dls-hover/70"
                             }`}
                             onClick={props.toggleUpdateAutoDownload}
                           >
@@ -2337,10 +2337,10 @@ export default function SettingsView(props: SettingsViewProps) {
                           </button>
                         </div>
 
-                        <div class="bg-gray-1 p-3 rounded-xl border border-gray-6 space-y-3">
+                        <div class="bg-dls-surface p-3 rounded-xl border border-dls-border space-y-3">
                           <div class="flex items-center justify-between gap-3">
                             <div class="space-y-0.5">
-                              <div class="text-sm text-gray-12">
+                              <div class="text-sm text-dls-text">
                                 <Switch>
                                   <Match when={updateState() === "checking"}>
                                     {translate("settings.update_checking")}
@@ -2366,7 +2366,7 @@ export default function SettingsView(props: SettingsViewProps) {
                                   updateLastCheckedAt()
                                 }
                               >
-                                <div class="text-xs text-gray-7">
+                                <div class="text-xs text-dls-secondary">
                                   {translate("settings.last_checked")}{" "}
                                   {formatRelativeTime(
                                     updateLastCheckedAt() as number,
@@ -2378,12 +2378,12 @@ export default function SettingsView(props: SettingsViewProps) {
                                   updateState() === "available" && updateDate()
                                 }
                               >
-                                <div class="text-xs text-gray-7">
+                                <div class="text-xs text-dls-secondary">
                                   {translate("settings.published")} {updateDate()}
                                 </div>
                               </Show>
                               <Show when={updateState() === "downloading"}>
-                                <div class="text-xs text-gray-7">
+                                <div class="text-xs text-dls-secondary">
                                   {formatBytes(
                                     (updateDownloadedBytes() as number) ?? 0,
                                   )}
@@ -2402,7 +2402,7 @@ export default function SettingsView(props: SettingsViewProps) {
                             <div class="flex items-center gap-2">
                               <Button
                                 variant="outline"
-                                class="text-xs h-9 py-0 px-4 rounded-full border-gray-6/60 bg-gray-1/70 hover:bg-gray-2/70"
+                                class="text-xs h-9 py-0 px-4 rounded-full border-dls-border/60 bg-dls-surface/70 hover:bg-dls-hover/70"
                                 onClick={props.checkForUpdates}
                                 disabled={
                                   props.busy ||
@@ -2450,21 +2450,21 @@ export default function SettingsView(props: SettingsViewProps) {
                         <Show
                           when={updateState() === "available" && updateNotes()}
                         >
-                          <div class="rounded-xl bg-gray-1/20 border border-gray-6 p-3 text-xs text-gray-11 whitespace-pre-wrap max-h-40 overflow-auto">
+                          <div class="rounded-xl bg-dls-surface/20 border border-dls-border p-3 text-xs text-dls-secondary whitespace-pre-wrap max-h-40 overflow-auto">
                             {updateNotes()}
                           </div>
                         </Show>
                       </>
                     }
                   >
-                    <div class="rounded-xl bg-gray-1/20 border border-gray-6 p-3 text-sm text-gray-11">
+                    <div class="rounded-xl bg-dls-surface/20 border border-dls-border p-3 text-sm text-dls-secondary">
                       {props.updateEnv?.reason ??
                         translate("settings.updates_not_supported_reason")}
                     </div>
                   </Show>
                 }
               >
-                <div class="rounded-xl bg-gray-1/20 border border-gray-6 p-3 text-sm text-gray-11">
+                <div class="rounded-xl bg-dls-surface/20 border border-dls-border p-3 text-sm text-dls-secondary">
                   {translate("settings.updates_desktop_only_reason")}
                 </div>
               </Show>
@@ -2476,10 +2476,10 @@ export default function SettingsView(props: SettingsViewProps) {
           <div class="space-y-6">
             <div class={`${settingsPanelClass} space-y-4`}>
               <div>
-                <div class="text-sm font-medium text-gray-12">
+                <div class="text-sm font-medium text-dls-text">
                   {translate("settings.migration_recovery_label")}
                 </div>
-                <div class="text-xs text-gray-9">
+                <div class="text-xs text-dls-secondary">
                   {translate("settings.migration_recovery_hint")}
                 </div>
               </div>
@@ -2512,7 +2512,7 @@ export default function SettingsView(props: SettingsViewProps) {
                 )}
               </Show>
               <Show when={props.migrationRepairBusy}>
-                <div class="text-xs text-gray-10">
+                <div class="text-xs text-dls-secondary">
                   {translate("status.repairing_migration")}
                 </div>
               </Show>
@@ -2531,13 +2531,13 @@ export default function SettingsView(props: SettingsViewProps) {
               </Show>
             </div>
                 <div class={`${settingsPanelClass} space-y-3`}>
-                  <div class="text-sm font-medium text-gray-12">
+                  <div class="text-sm font-medium text-dls-text">
                     {translate("settings.workspace_config_title")}
                   </div>
-                  <div class="text-xs text-gray-10">
+                  <div class="text-xs text-dls-secondary">
                     {translate("settings.workspace_config_description")}
                   </div>
-                  <div class="text-[11px] text-gray-7 font-mono break-all">
+                  <div class="text-[11px] text-dls-secondary font-mono break-all">
                     {workspaceConfigPath() || translate("settings.workspace_config_no_local")}
                   </div>
                   <div class="flex flex-wrap items-center gap-2">
@@ -2577,18 +2577,18 @@ export default function SettingsView(props: SettingsViewProps) {
                   </div>
                   <Show when={configActionStatus()}>
                     {(status) => (
-                      <div class="text-xs text-gray-10">{status()}</div>
+                      <div class="text-xs text-dls-secondary">{status()}</div>
                     )}
                   </Show>
                 </div>
-                <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div class="min-w-0">
-                    <div class="text-sm text-gray-12">{translate("settings.opencode_cache_title")}</div>
-                    <div class="text-xs text-gray-7">
+                    <div class="text-sm text-dls-text">{translate("settings.opencode_cache_title")}</div>
+                    <div class="text-xs text-dls-secondary">
                       {translate("settings.opencode_cache_description_recovery")}
                     </div>
                     <Show when={props.cacheRepairResult}>
-                      <div class="text-xs text-gray-11 mt-2">
+                      <div class="text-xs text-dls-secondary mt-2">
                         {props.cacheRepairResult}
                       </div>
                     </Show>
@@ -2607,16 +2607,16 @@ export default function SettingsView(props: SettingsViewProps) {
                     {props.cacheRepairBusy ? translate("settings.cache_repairing") : translate("settings.cache_repair_button")}
                   </Button>
                 </div>
-                <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div class="min-w-0">
-                    <div class="text-sm text-gray-12">
+                    <div class="text-sm text-dls-text">
                       {translate("settings.docker_containers_title")}
                     </div>
-                    <div class="text-xs text-gray-7">
+                    <div class="text-xs text-dls-secondary">
                       {translate("settings.docker_containers_description")}
                     </div>
                     <Show when={props.dockerCleanupResult}>
-                      <div class="text-xs text-gray-11 mt-2">
+                      <div class="text-xs text-dls-secondary mt-2">
                         {props.dockerCleanupResult}
                       </div>
                     </Show>
@@ -2649,18 +2649,18 @@ export default function SettingsView(props: SettingsViewProps) {
         <Match when={activeTab() === "debug"}>
           <Show when={props.developerMode}>
             <section>
-              <h3 class="text-sm font-medium text-gray-11 uppercase tracking-wider mb-4">
+              <h3 class="text-sm font-medium text-dls-secondary uppercase tracking-wider mb-4">
                 {translate("settings.debug_developer_title")}
               </h3>
 
               <div class="space-y-4">
-                <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-3">
+                <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-3">
                   <div class="flex items-start justify-between gap-3">
                     <div>
-                      <div class="text-sm font-medium text-gray-12">
+                      <div class="text-sm font-medium text-dls-text">
                         {translate("settings.debug_report_title")}
                       </div>
-                      <div class="text-xs text-gray-10">
+                      <div class="text-xs text-dls-secondary">
                         {translate("settings.debug_report_description")}
                       </div>
                     </div>
@@ -2683,7 +2683,7 @@ export default function SettingsView(props: SettingsViewProps) {
                       </Button>
                     </div>
                   </div>
-                  <div class="grid gap-2 md:grid-cols-2 text-xs text-gray-11">
+                  <div class="grid gap-2 md:grid-cols-2 text-xs text-dls-secondary">
                     <div>{translate("settings.debug_desktop_app_label")}: {appVersionLabel()}</div>
                     <div>{translate("settings.debug_commit_label")}: {appCommitLabel()}</div>
                     <div>{translate("settings.debug_orchestrator_label")}: {orchestratorVersionLabel()}</div>
@@ -2691,23 +2691,23 @@ export default function SettingsView(props: SettingsViewProps) {
                     <div>{translate("settings.debug_aurowork_server_label")}: {auroworkServerVersionLabel()}</div>
                     <div>{translate("settings.debug_opencode_router_label")}: {opencodeRouterVersionLabel()}</div>
                   </div>
-                  <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-64 overflow-auto bg-gray-1 border border-gray-6 rounded-lg p-3">
+                  <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-64 overflow-auto bg-dls-surface border border-dls-border rounded-lg p-3">
                     {runtimeDebugReportJson()}
                   </pre>
                   <Show when={debugReportStatus()}>
                     {(status) => (
-                      <div class="text-xs text-gray-10">{status()}</div>
+                      <div class="text-xs text-dls-secondary">{status()}</div>
                     )}
                   </Show>
                 </div>
 
-                <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-3">
+                <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-3">
                   <div class="flex items-start justify-between gap-3">
                     <div>
-                      <div class="text-sm font-medium text-gray-12">
+                      <div class="text-sm font-medium text-dls-text">
                         {translate("settings.debug_sandbox_probe_title")}
                       </div>
-                      <div class="text-xs text-gray-10">
+                      <div class="text-xs text-dls-secondary">
                         {translate("settings.debug_sandbox_probe_description")}
                       </div>
                     </div>
@@ -2735,7 +2735,7 @@ export default function SettingsView(props: SettingsViewProps) {
                   </div>
                   <Show when={sandboxProbeResult()}>
                     {(result) => (
-                      <div class="text-xs text-gray-11 space-y-1">
+                      <div class="text-xs text-dls-secondary space-y-1">
                         <div>
                           {translate("settings.sandbox_run_id")}:{" "}
                           <span class="font-mono">{result().runId}</span>
@@ -2749,10 +2749,10 @@ export default function SettingsView(props: SettingsViewProps) {
                   </Show>
                   <Show when={sandboxProbeStatus()}>
                     {(status) => (
-                      <div class="text-xs text-gray-10">{status()}</div>
+                      <div class="text-xs text-dls-secondary">{status()}</div>
                     )}
                   </Show>
-                  <div class="text-[11px] text-gray-7">
+                  <div class="text-[11px] text-dls-secondary">
                     {translate("settings.debug_sandbox_probe_export_hint")}
                   </div>
                 </div>
@@ -2760,10 +2760,10 @@ export default function SettingsView(props: SettingsViewProps) {
 
 
 
-                <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-3">
-                  <div class="text-sm font-medium text-gray-12">{translate("settings.debug_startup_title")}</div>
+                <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-3">
+                  <div class="text-sm font-medium text-dls-text">{translate("settings.debug_startup_title")}</div>
 
-                  <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6">
+                  <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border">
                     <div class="flex items-center gap-3">
                       <div
                         class={`p-2 rounded-lg ${
@@ -2779,7 +2779,7 @@ export default function SettingsView(props: SettingsViewProps) {
                           <HardDrive size={18} />
                         </Show>
                       </div>
-                      <span class="text-sm font-medium text-gray-12">
+                      <span class="text-sm font-medium text-dls-text">
                         {startupLabel()}
                       </span>
                     </div>
@@ -2805,7 +2805,7 @@ export default function SettingsView(props: SettingsViewProps) {
                     />
                   </Button>
 
-                  <p class="text-xs text-gray-7">
+                  <p class="text-xs text-dls-secondary">
                     {translate("settings.debug_reset_startup_hint")}
                   </p>
                 </div>
@@ -2816,10 +2816,10 @@ export default function SettingsView(props: SettingsViewProps) {
                     (isLocalPreference() || props.developerMode)
                   }
                 >
-                  <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-4">
+                  <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-4">
                     <div>
-                      <div class="text-sm font-medium text-gray-12">{translate("settings.debug_engine_title")}</div>
-                      <div class="text-xs text-gray-10">
+                      <div class="text-sm font-medium text-dls-text">{translate("settings.debug_engine_title")}</div>
+                      <div class="text-xs text-dls-secondary">
                         {translate("settings.debug_engine_description")}
                       </div>
                     </div>
@@ -2831,7 +2831,7 @@ export default function SettingsView(props: SettingsViewProps) {
                     </Show>
 
                     <div class="space-y-3">
-                      <div class="text-xs text-gray-10">{translate("settings.debug_engine_source")}</div>
+                      <div class="text-xs text-dls-secondary">{translate("settings.debug_engine_source")}</div>
                       <div
                         class={
                           props.developerMode
@@ -2875,7 +2875,7 @@ export default function SettingsView(props: SettingsViewProps) {
                           </Button>
                         </Show>
                       </div>
-                      <div class="text-[11px] text-gray-7">
+                      <div class="text-[11px] text-dls-secondary">
                         {translate("settings.debug_engine_bundled_hint")}
                       </div>
                     </div>
@@ -2886,12 +2886,12 @@ export default function SettingsView(props: SettingsViewProps) {
                       }
                     >
                       <div class="space-y-2">
-                        <div class="text-xs text-gray-10">
+                        <div class="text-xs text-dls-secondary">
                           {translate("settings.debug_engine_custom_binary")}
                         </div>
                         <div class="flex items-center gap-2">
                           <div
-                            class="flex-1 min-w-0 text-[11px] text-gray-7 font-mono truncate bg-gray-1 p-3 rounded-xl border border-gray-6"
+                            class="flex-1 min-w-0 text-[11px] text-dls-secondary font-mono truncate bg-dls-surface p-3 rounded-xl border border-dls-border"
                             title={engineCustomBinPathLabel()}
                           >
                             {engineCustomBinPathLabel()}
@@ -2920,7 +2920,7 @@ export default function SettingsView(props: SettingsViewProps) {
                             {translate("settings.debug_engine_clear")}
                           </Button>
                         </div>
-                        <div class="text-[11px] text-gray-7">
+                        <div class="text-[11px] text-dls-secondary">
                           {translate("settings.debug_engine_custom_hint")}
                         </div>
                       </div>
@@ -2928,7 +2928,7 @@ export default function SettingsView(props: SettingsViewProps) {
 
                     <Show when={props.developerMode}>
                       <div class="space-y-3">
-                        <div class="text-xs text-gray-10">{translate("settings.debug_engine_runtime")}</div>
+                        <div class="text-xs text-dls-secondary">{translate("settings.debug_engine_runtime")}</div>
                         <div class="grid grid-cols-2 gap-2">
                           <Button
                             variant={
@@ -2955,7 +2955,7 @@ export default function SettingsView(props: SettingsViewProps) {
                             {translate("settings.debug_engine_orchestrator")}
                           </Button>
                         </div>
-                        <div class="text-[11px] text-gray-7">
+                        <div class="text-[11px] text-dls-secondary">
                           {translate("settings.debug_engine_applies_hint")}
                         </div>
                       </div>
@@ -2963,20 +2963,20 @@ export default function SettingsView(props: SettingsViewProps) {
                   </div>
                 </Show>
 
-                <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-4">
+                <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-4">
                   <div>
-                    <div class="text-sm font-medium text-gray-12">
+                    <div class="text-sm font-medium text-dls-text">
                       {translate("settings.debug_reset_recovery_title")}
                     </div>
-                    <div class="text-xs text-gray-10">
+                    <div class="text-xs text-dls-secondary">
                       {translate("settings.debug_reset_recovery_description")}
                     </div>
                   </div>
 
-                  <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+                  <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
                     <div class="min-w-0">
-                      <div class="text-sm text-gray-12">{translate("settings.debug_reset_onboarding")}</div>
-                      <div class="text-xs text-gray-7">
+                      <div class="text-sm text-dls-text">{translate("settings.debug_reset_onboarding")}</div>
+                      <div class="text-xs text-dls-secondary">
                         {translate("settings.debug_reset_onboarding_hint")}
                       </div>
                     </div>
@@ -2997,10 +2997,10 @@ export default function SettingsView(props: SettingsViewProps) {
                     </Button>
                   </div>
 
-                  <div class="flex items-center justify-between bg-gray-1 p-3 rounded-xl border border-gray-6 gap-3">
+                  <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
                     <div class="min-w-0">
-                      <div class="text-sm text-gray-12">{translate("settings.debug_reset_app_data")}</div>
-                      <div class="text-xs text-gray-7">
+                      <div class="text-sm text-dls-text">{translate("settings.debug_reset_app_data")}</div>
+                      <div class="text-xs text-dls-secondary">
                         {translate("settings.debug_reset_app_data_hint")}
                       </div>
                     </div>
@@ -3021,25 +3021,25 @@ export default function SettingsView(props: SettingsViewProps) {
                     </Button>
                   </div>
 
-                  <div class="text-xs text-gray-7">
+                  <div class="text-xs text-dls-secondary">
                     {translate("settings.debug_reset_requires_hint")}
                   </div>
                 </div>
 
-                <div class="bg-gray-2/30 border border-gray-6/50 rounded-2xl p-5 space-y-4">
+                <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-4">
                   <div>
-                    <div class="text-sm font-medium text-gray-12">{translate("settings.debug_devtools_title")}</div>
-                    <div class="text-xs text-gray-10">
+                    <div class="text-sm font-medium text-dls-text">{translate("settings.debug_devtools_title")}</div>
+                    <div class="text-xs text-dls-secondary">
                       {translate("settings.debug_devtools_description")}
                     </div>
                   </div>
 
-                  <div class="bg-gray-1 p-4 rounded-xl border border-gray-6 space-y-3">
+                  <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
                     <div>
-                      <div class="text-sm font-medium text-gray-12">
+                      <div class="text-sm font-medium text-dls-text">
                         {translate("settings.debug_service_restarts_title")}
                       </div>
-                      <div class="text-xs text-gray-10">
+                      <div class="text-xs text-dls-secondary">
                         {translate("settings.debug_service_restarts_description")}
                       </div>
                     </div>
@@ -3128,44 +3128,44 @@ export default function SettingsView(props: SettingsViewProps) {
                   </div>
 
                   <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <div class="bg-gray-1 p-4 rounded-xl border border-gray-6 space-y-3">
+                    <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
                       <div>
-                        <div class="text-sm font-medium text-gray-12">
+                        <div class="text-sm font-medium text-dls-text">
                           {translate("settings.debug_versions_title")}
                         </div>
-                        <div class="text-xs text-gray-10">
+                        <div class="text-xs text-dls-secondary">
                           {translate("settings.debug_versions_description")}
                         </div>
                       </div>
                       <div class="space-y-1">
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.debug_desktop_app_label")}: {appVersionLabel()}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.debug_commit_label")}: {appCommitLabel()}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.debug_orchestrator_label")}: {orchestratorVersionLabel()}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.debug_opencode_label")}: {opencodeVersionLabel()}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.debug_aurowork_server_label")}: {auroworkServerVersionLabel()}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.debug_opencode_router_label")}: {opencodeRouterVersionLabel()}
                         </div>
                       </div>
                     </div>
 
-                    <div class="bg-gray-1 p-4 rounded-xl border border-gray-6 space-y-3">
+                    <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
                       <div class="flex items-center justify-between gap-3">
                         <div>
-                          <div class="text-sm font-medium text-gray-12">
+                          <div class="text-sm font-medium text-dls-text">
                             {translate("settings.debug_opencode_engine_card_title")}
                           </div>
-                          <div class="text-xs text-gray-10">
+                          <div class="text-xs text-dls-secondary">
                             {translate("settings.debug_opencode_engine_card_description")}
                           </div>
                         </div>
@@ -3176,44 +3176,44 @@ export default function SettingsView(props: SettingsViewProps) {
                         </div>
                       </div>
                       <div class="space-y-1">
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {props.engineInfo?.baseUrl ?? translate("settings.base_url_unavailable")}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {props.engineInfo?.projectDir ??
                             translate("settings.no_project_directory")}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.label_pid")}: {props.engineInfo?.pid ?? "—"}
                         </div>
                       </div>
                       <div class="grid gap-2">
                         <div>
-                          <div class="text-[11px] text-gray-9 mb-1">
+                          <div class="text-[11px] text-dls-secondary mb-1">
                             {translate("settings.last_stdout")}
                           </div>
-                          <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-24 overflow-auto bg-gray-2/50 border border-gray-6 rounded-lg p-2">
+                          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-24 overflow-auto bg-dls-hover/50 border border-dls-border rounded-lg p-2">
                             {engineStdout()}
                           </pre>
                         </div>
                         <div>
-                          <div class="text-[11px] text-gray-9 mb-1">
+                          <div class="text-[11px] text-dls-secondary mb-1">
                             {translate("settings.last_stderr")}
                           </div>
-                          <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-24 overflow-auto bg-gray-2/50 border border-gray-6 rounded-lg p-2">
+                          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-24 overflow-auto bg-dls-hover/50 border border-dls-border rounded-lg p-2">
                             {engineStderr()}
                           </pre>
                         </div>
                       </div>
                     </div>
 
-                    <div class="bg-gray-1 p-4 rounded-xl border border-gray-6 space-y-3">
+                    <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
                       <div class="flex items-center justify-between gap-3">
                         <div>
-                          <div class="text-sm font-medium text-gray-12">
+                          <div class="text-sm font-medium text-dls-text">
                             {translate("settings.debug_orchestrator_card_title")}
                           </div>
-                          <div class="text-xs text-gray-10">
+                          <div class="text-xs text-dls-secondary">
                             {translate("settings.debug_orchestrator_card_description")}
                           </div>
                         </div>
@@ -3224,26 +3224,26 @@ export default function SettingsView(props: SettingsViewProps) {
                         </div>
                       </div>
                       <div class="space-y-1">
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {props.orchestratorStatus?.dataDir ??
                             translate("settings.data_directory_unavailable")}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.label_daemon")}:{" "}
                           {props.orchestratorStatus?.daemon?.baseUrl ?? "—"}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.label_opencode")}:{" "}
                           {props.orchestratorStatus?.opencode?.baseUrl ?? "—"}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.label_version")}: {props.orchestratorStatus?.cliVersion ?? "—"}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.label_sidecar")}: {orchestratorSidecarSummary()}
                         </div>
                         <div
-                          class="text-[11px] text-gray-7 font-mono truncate"
+                          class="text-[11px] text-dls-secondary font-mono truncate"
                           title={orchestratorBinaryPath()}
                         >
                           {translate("settings.label_opencode_binary")}:{" "}
@@ -3252,30 +3252,30 @@ export default function SettingsView(props: SettingsViewProps) {
                               null,
                           )}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.label_runtime_workspace")}:{" "}
                           {props.orchestratorStatus?.activeId ?? "—"}
                         </div>
                       </div>
                       <Show when={props.orchestratorStatus?.lastError}>
                         <div>
-                          <div class="text-[11px] text-gray-9 mb-1">
+                          <div class="text-[11px] text-dls-secondary mb-1">
                             {translate("settings.last_error")}
                           </div>
-                          <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-24 overflow-auto bg-gray-2/50 border border-gray-6 rounded-lg p-2">
+                          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-24 overflow-auto bg-dls-hover/50 border border-dls-border rounded-lg p-2">
                             {props.orchestratorStatus?.lastError}
                           </pre>
                         </div>
                       </Show>
                     </div>
 
-                    <div class="bg-gray-1 p-4 rounded-xl border border-gray-6 space-y-3">
+                    <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
                       <div class="flex items-center justify-between gap-3">
                         <div>
-                          <div class="text-sm font-medium text-gray-12">
+                          <div class="text-sm font-medium text-dls-text">
                             {translate("settings.debug_opencode_sdk_card_title")}
                           </div>
-                          <div class="text-xs text-gray-10">
+                          <div class="text-xs text-dls-secondary">
                             {translate("settings.debug_opencode_sdk_card_description")}
                           </div>
                         </div>
@@ -3286,25 +3286,25 @@ export default function SettingsView(props: SettingsViewProps) {
                         </div>
                       </div>
                       <div class="space-y-1">
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {props.opencodeConnectStatus?.baseUrl ??
                             translate("settings.base_url_unavailable")}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {props.opencodeConnectStatus?.directory ??
                             translate("settings.no_project_directory")}
                         </div>
-                        <div class="text-[11px] text-gray-7">
+                        <div class="text-[11px] text-dls-secondary">
                           {translate("settings.sdk_last_attempt")}: {opencodeConnectTimestamp() ?? "—"}
                         </div>
                         <Show when={props.opencodeConnectStatus?.reason}>
-                          <div class="text-[11px] text-gray-7">
+                          <div class="text-[11px] text-dls-secondary">
                             {translate("settings.sdk_reason")}: {props.opencodeConnectStatus?.reason}
                           </div>
                         </Show>
                         <Show when={props.opencodeConnectStatus?.metrics}>
                           {(metrics) => (
-                            <div class="pt-1 space-y-1 text-[11px] text-gray-7">
+                            <div class="pt-1 space-y-1 text-[11px] text-dls-secondary">
                               <Show when={metrics().healthyMs != null}>
                                 <div>
                                   {translate("settings.sdk_healthy")}:{" "}
@@ -3350,23 +3350,23 @@ export default function SettingsView(props: SettingsViewProps) {
                       </div>
                       <Show when={props.opencodeConnectStatus?.error}>
                         <div>
-                          <div class="text-[11px] text-gray-9 mb-1">
+                          <div class="text-[11px] text-dls-secondary mb-1">
                             {translate("settings.last_error")}
                           </div>
-                          <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-24 overflow-auto bg-gray-2/50 border border-gray-6 rounded-lg p-2">
+                          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-24 overflow-auto bg-dls-hover/50 border border-dls-border rounded-lg p-2">
                             {props.opencodeConnectStatus?.error}
                           </pre>
                         </div>
                       </Show>
                     </div>
 
-                    <div class="bg-gray-1 p-4 rounded-xl border border-gray-6 space-y-3">
+                    <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
                       <div class="flex items-center justify-between gap-3">
                         <div>
-                          <div class="text-sm font-medium text-gray-12">
+                          <div class="text-sm font-medium text-dls-text">
                             {translate("settings.debug_aurowork_server_card_title")}
                           </div>
-                          <div class="text-xs text-gray-10">
+                          <div class="text-xs text-dls-secondary">
                             {translate("settings.debug_aurowork_server_card_description")}
                           </div>
                         </div>
@@ -3377,42 +3377,42 @@ export default function SettingsView(props: SettingsViewProps) {
                         </div>
                       </div>
                       <div class="space-y-1">
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {(props.auroworkServerHostInfo?.baseUrl ??
                             props.auroworkServerUrl) ||
                             translate("settings.base_url_unavailable")}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.label_pid")}: {props.auroworkServerHostInfo?.pid ?? "—"}
                         </div>
                       </div>
                       <div class="grid gap-2">
                         <div>
-                          <div class="text-[11px] text-gray-9 mb-1">
+                          <div class="text-[11px] text-dls-secondary mb-1">
                             {translate("settings.last_stdout")}
                           </div>
-                          <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-24 overflow-auto bg-gray-2/50 border border-gray-6 rounded-lg p-2">
+                          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-24 overflow-auto bg-dls-hover/50 border border-dls-border rounded-lg p-2">
                             {auroworkStdout()}
                           </pre>
                         </div>
                         <div>
-                          <div class="text-[11px] text-gray-9 mb-1">
+                          <div class="text-[11px] text-dls-secondary mb-1">
                             {translate("settings.last_stderr")}
                           </div>
-                          <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-24 overflow-auto bg-gray-2/50 border border-gray-6 rounded-lg p-2">
+                          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-24 overflow-auto bg-dls-hover/50 border border-dls-border rounded-lg p-2">
                             {auroworkStderr()}
                           </pre>
                         </div>
                       </div>
                     </div>
 
-                    <div class="bg-gray-1 p-4 rounded-xl border border-gray-6 space-y-3">
+                    <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
                       <div class="flex items-center justify-between gap-3">
                         <div>
-                          <div class="text-sm font-medium text-gray-12">
+                          <div class="text-sm font-medium text-dls-text">
                             {translate("settings.debug_opencode_router_card_title")}
                           </div>
-                          <div class="text-xs text-gray-10">
+                          <div class="text-xs text-dls-secondary">
                             {translate("settings.debug_opencode_router_card_description")}
                           </div>
                         </div>
@@ -3423,19 +3423,19 @@ export default function SettingsView(props: SettingsViewProps) {
                         </div>
                       </div>
                       <div class="space-y-1">
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {props.opencodeRouterInfo?.opencodeUrl?.trim() ||
                             translate("settings.opencode_url_unavailable")}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {props.opencodeRouterInfo?.workspacePath?.trim() ||
                             translate("settings.no_worker_directory")}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.label_health_port")}:{" "}
                           {props.opencodeRouterInfo?.healthPort ?? "—"}
                         </div>
-                        <div class="text-[11px] text-gray-7 font-mono truncate">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.label_pid")}: {props.opencodeRouterInfo?.pid ?? "—"}
                         </div>
                       </div>
@@ -3473,18 +3473,18 @@ export default function SettingsView(props: SettingsViewProps) {
                       </Show>
                       <div class="grid gap-2">
                         <div>
-                          <div class="text-[11px] text-gray-9 mb-1">
+                          <div class="text-[11px] text-dls-secondary mb-1">
                             {translate("settings.last_stdout")}
                           </div>
-                          <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-24 overflow-auto bg-gray-2/50 border border-gray-6 rounded-lg p-2">
+                          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-24 overflow-auto bg-dls-hover/50 border border-dls-border rounded-lg p-2">
                             {opencodeRouterStdout()}
                           </pre>
                         </div>
                         <div>
-                          <div class="text-[11px] text-gray-9 mb-1">
+                          <div class="text-[11px] text-dls-secondary mb-1">
                             {translate("settings.last_stderr")}
                           </div>
-                          <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-24 overflow-auto bg-gray-2/50 border border-gray-6 rounded-lg p-2">
+                          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-24 overflow-auto bg-dls-hover/50 border border-dls-border rounded-lg p-2">
                             {opencodeRouterStderr()}
                           </pre>
                         </div>
@@ -3492,25 +3492,25 @@ export default function SettingsView(props: SettingsViewProps) {
                     </div>
                   </div>
 
-                  <div class="bg-gray-1 p-4 rounded-xl border border-gray-6 space-y-3">
+                  <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
                     <div class="flex items-center justify-between gap-3">
-                      <div class="text-sm font-medium text-gray-12">
+                      <div class="text-sm font-medium text-dls-text">
                         {translate("settings.debug_diagnostics_title")}
                       </div>
-                      <div class="text-[11px] text-gray-8 font-mono truncate">
+                      <div class="text-[11px] text-dls-secondary font-mono truncate">
                         {props.auroworkServerDiagnostics?.version ?? "—"}
                       </div>
                     </div>
                     <Show
                       when={props.auroworkServerDiagnostics}
                       fallback={
-                        <div class="text-xs text-gray-9">
+                        <div class="text-xs text-dls-secondary">
                           {translate("settings.debug_diagnostics_unavailable")}
                         </div>
                       }
                     >
                       {(diag) => (
-                        <div class="grid md:grid-cols-2 gap-2 text-xs text-gray-11">
+                        <div class="grid md:grid-cols-2 gap-2 text-xs text-dls-secondary">
                           <div>{translate("settings.diag_started")}: {formatUptime(diag().uptimeMs)}</div>
                           <div>
                             {translate("settings.diag_read_only")}: {diag().readOnly ? "true" : "false"}
@@ -3538,12 +3538,12 @@ export default function SettingsView(props: SettingsViewProps) {
                     </Show>
                   </div>
 
-                  <div class="bg-gray-1 p-4 rounded-xl border border-gray-6 space-y-3">
+                  <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
                     <div class="flex items-center justify-between gap-3">
-                      <div class="text-sm font-medium text-gray-12">
+                      <div class="text-sm font-medium text-dls-text">
                         {translate("settings.debug_capabilities_title")}
                       </div>
-                      <div class="text-[11px] text-gray-8 font-mono truncate">
+                      <div class="text-[11px] text-dls-secondary font-mono truncate">
                         {props.runtimeWorkspaceId
                           ? `Worker ${props.runtimeWorkspaceId}`
                           : translate("settings.worker_unresolved")}
@@ -3552,13 +3552,13 @@ export default function SettingsView(props: SettingsViewProps) {
                     <Show
                       when={props.auroworkServerCapabilities}
                       fallback={
-                        <div class="text-xs text-gray-9">
+                        <div class="text-xs text-dls-secondary">
                           {translate("settings.debug_capabilities_unavailable")}
                         </div>
                       }
                     >
                       {(caps) => (
-                        <div class="grid md:grid-cols-2 gap-2 text-xs text-gray-11">
+                        <div class="grid md:grid-cols-2 gap-2 text-xs text-dls-secondary">
                           <div>{translate("settings.cap_skills")}: {formatCapability(caps().skills)}</div>
                           <div>{translate("settings.cap_plugins")}: {formatCapability(caps().plugins)}</div>
                           <div>{translate("settings.cap_mcp")}: {formatCapability(caps().mcp)}</div>
@@ -3607,25 +3607,25 @@ export default function SettingsView(props: SettingsViewProps) {
                   </div>
 
                   <div class="grid md:grid-cols-2 gap-4">
-                    <div class="bg-gray-1 border border-gray-6 rounded-xl p-4">
-                      <div class="text-xs text-gray-10 mb-2">
+                    <div class="bg-dls-surface border border-dls-border rounded-xl p-4">
+                      <div class="text-xs text-dls-secondary mb-2">
                         {translate("settings.debug_pending_permissions")}
                       </div>
-                      <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-64 overflow-auto">
+                      <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-64 overflow-auto">
                         {props.safeStringify(props.pendingPermissions)}
                       </pre>
                     </div>
-                    <div class="bg-gray-1 border border-gray-6 rounded-xl p-4">
-                      <div class="text-xs text-gray-10 mb-2">{translate("settings.debug_recent_events")}</div>
-                      <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-64 overflow-auto">
+                    <div class="bg-dls-surface border border-dls-border rounded-xl p-4">
+                      <div class="text-xs text-dls-secondary mb-2">{translate("settings.debug_recent_events")}</div>
+                      <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-64 overflow-auto">
                         {props.safeStringify(props.events)}
                       </pre>
                     </div>
                   </div>
 
-                  <div class="bg-gray-1 border border-gray-6 rounded-xl p-4">
+                  <div class="bg-dls-surface border border-dls-border rounded-xl p-4">
                     <div class="flex items-center justify-between gap-3 mb-2">
-                      <div class="text-xs text-gray-10">
+                      <div class="text-xs text-dls-secondary">
                         {translate("settings.debug_workspace_events")}
                       </div>
                       <Button
@@ -3637,14 +3637,14 @@ export default function SettingsView(props: SettingsViewProps) {
                         {translate("settings.debug_clear")}
                       </Button>
                     </div>
-                    <pre class="text-xs text-gray-12 whitespace-pre-wrap break-words max-h-64 overflow-auto">
+                    <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-64 overflow-auto">
                       {props.safeStringify(props.workspaceDebugEvents)}
                     </pre>
                   </div>
 
-                  <div class="bg-gray-1 p-4 rounded-xl border border-gray-6 space-y-3">
+                  <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
                     <div class="flex items-center justify-between gap-3">
-                      <div class="text-sm font-medium text-gray-12">
+                      <div class="text-sm font-medium text-dls-text">
                         {translate("settings.debug_audit_log")}
                       </div>
                       <div
@@ -3661,25 +3661,25 @@ export default function SettingsView(props: SettingsViewProps) {
                     <Show
                       when={props.auroworkAuditEntries.length > 0}
                       fallback={
-                        <div class="text-xs text-gray-9">
+                        <div class="text-xs text-dls-secondary">
                           {translate("settings.debug_no_audit")}
                         </div>
                       }
                     >
-                      <div class="divide-y divide-gray-6/50">
+                      <div class="divide-y divide-dls-border/50">
                         <For each={props.auroworkAuditEntries}>
                           {(entry) => (
                             <div class="flex items-start justify-between gap-4 py-2">
                               <div class="min-w-0">
-                                <div class="text-sm text-gray-12 truncate">
+                                <div class="text-sm text-dls-text truncate">
                                   {entry.summary}
                                 </div>
-                                <div class="text-[11px] text-gray-9 truncate">
+                                <div class="text-[11px] text-dls-secondary truncate">
                                   {entry.action} · {entry.target} ·{" "}
                                   {formatActor(entry)}
                                 </div>
                               </div>
-                              <div class="text-[11px] text-gray-9 whitespace-nowrap">
+                              <div class="text-[11px] text-dls-secondary whitespace-nowrap">
                                 {entry.timestamp
                                   ? formatRelativeTime(entry.timestamp)
                                   : "—"}
@@ -3695,10 +3695,10 @@ export default function SettingsView(props: SettingsViewProps) {
                     <div class="rounded-2xl border border-red-7/30 bg-red-3/10 p-5 space-y-4">
                       <div class="flex items-start justify-between gap-3">
                         <div>
-                          <div class="text-sm font-medium text-gray-12">
+                          <div class="text-sm font-medium text-dls-text">
                             {translate("settings.debug_nuke_title")}
                           </div>
-                          <div class="text-xs text-gray-10">
+                          <div class="text-xs text-dls-secondary">
                             {translate("settings.debug_nuke_description")} {opencodeDevModeEnabled()
                               ? translate("settings.debug_nuke_dev_hint")
                               : translate("settings.debug_nuke_prod_hint")}
@@ -3707,7 +3707,7 @@ export default function SettingsView(props: SettingsViewProps) {
                         <div
                           class={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${opencodeDevModeEnabled()
                             ? "border-blue-7/35 bg-blue-3/25 text-blue-11"
-                            : "border-gray-6 bg-gray-2 text-gray-10"}`}
+                            : "border-dls-border bg-dls-hover text-dls-secondary"}`}
                         >
                           {opencodeDevModeEnabled()
                             ? translate("settings.debug_nuke_dev_mode_label")
@@ -3715,7 +3715,7 @@ export default function SettingsView(props: SettingsViewProps) {
                         </div>
                       </div>
 
-                      <div class="text-[11px] text-gray-8">
+                      <div class="text-[11px] text-dls-secondary">
                         {translate("settings.debug_nuke_quit_hint")}
                       </div>
 
@@ -3733,7 +3733,7 @@ export default function SettingsView(props: SettingsViewProps) {
                             ? translate("settings.debug_nuke_busy")
                             : translate("settings.debug_nuke_action")}
                         </button>
-                        <div class="text-xs text-gray-10">
+                        <div class="text-xs text-dls-secondary">
                           {translate("settings.debug_nuke_use_hint")}
                         </div>
                       </div>

@@ -37,16 +37,16 @@ export default function StatusToast(props: StatusToastProps) {
           <div class="min-w-0 flex-1">
             <div class="flex items-start justify-between gap-3">
               <div>
-                <div class="text-sm font-semibold text-gray-12">{props.title}</div>
+                <div class="text-sm font-semibold text-dls-text">{props.title}</div>
                 <Show when={props.description?.trim()}>
-                  <p class="mt-1 text-sm leading-relaxed text-gray-10">{props.description}</p>
+                  <p class="mt-1 text-sm leading-relaxed text-dls-secondary">{props.description}</p>
                 </Show>
               </div>
 
               <button
                 type="button"
                 onClick={props.onDismiss}
-                class="rounded-full p-1 text-gray-9 transition hover:bg-gray-3 hover:text-gray-12"
+                class="rounded-full p-1 text-dls-secondary transition hover:bg-dls-hover hover:text-dls-text"
                 aria-label={props.dismissLabel ?? "Dismiss"}
               >
                 <X size={16} />

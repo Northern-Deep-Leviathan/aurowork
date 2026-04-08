@@ -69,7 +69,7 @@ export default function ProviderIcon(props: ProviderIconProps) {
         </svg>
       ) : (
         <div
-          class="flex h-full w-full items-center justify-center rounded bg-gray-3 text-[10px] font-bold tracking-tight text-gray-11"
+          class="flex h-full w-full items-center justify-center rounded bg-dls-hover text-[10px] font-bold tracking-tight text-dls-secondary"
           style={{ "font-size": `${Math.max(8, size() * 0.45)}px` }}
         >
           {fallbackLetters()}

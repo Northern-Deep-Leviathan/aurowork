@@ -3985,7 +3985,7 @@ export default function SessionView(props: SessionViewProps) {
     applyStarterPrompt(starter.prompt);
   };
   return (
-    <div class="h-[100dvh] min-h-screen w-full overflow-hidden bg-[var(--dls-app-bg)] p-3 md:p-4 text-gray-12 font-sans">
+    <div class="h-[100dvh] min-h-screen w-full overflow-hidden bg-[var(--dls-app-bg)] p-3 md:p-4 text-dls-text font-sans">
       <div class="flex h-full w-full gap-3 md:gap-4">
         <aside
           class="relative hidden lg:flex shrink-0 flex-col overflow-hidden rounded-[24px] border border-dls-border bg-dls-sidebar p-2.5"
@@ -4059,7 +4059,7 @@ export default function SessionView(props: SessionViewProps) {
             />
           </div>
           <div
-            class="absolute right-0 top-3 hidden h-[calc(100%-24px)] w-2 translate-x-1/2 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-gray-6/40 lg:block"
+            class="absolute right-0 top-3 hidden h-[calc(100%-24px)] w-2 translate-x-1/2 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-dls-border/40 lg:block"
             onPointerDown={startLeftSidebarResize}
             title={translate("session.resize_workspace_column")}
             aria-label={translate("session.resize_workspace_column")}
@@ -4124,10 +4124,10 @@ export default function SessionView(props: SessionViewProps) {
               </Show>
             </div>
 
-            <div class="flex items-center gap-1.5 text-gray-10">
+            <div class="flex items-center gap-1.5 text-dls-secondary">
               <button
                 type="button"
-                class="hidden items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors sm:flex text-gray-10 hover:bg-gray-2/70 hover:text-dls-text disabled:cursor-not-allowed disabled:opacity-60"
+                class="hidden items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors sm:flex text-dls-secondary hover:bg-dls-hover/70 hover:text-dls-text disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => void props.createSessionAndOpen()}
                 disabled={props.newTaskDisabled}
                 title={translate("session.new_task")}
@@ -4140,8 +4140,8 @@ export default function SessionView(props: SessionViewProps) {
                 type="button"
                 class={`flex h-9 w-9 items-center justify-center rounded-md transition-colors ${
                   searchOpen()
-                    ? "bg-gray-2 text-dls-text"
-                    : "text-gray-10 hover:bg-gray-2/70 hover:text-dls-text"
+                    ? "bg-dls-hover text-dls-text"
+                    : "text-dls-secondary hover:bg-dls-hover/70 hover:text-dls-text"
                 }`}
                 onClick={() => {
                   if (searchOpen()) {
@@ -4161,8 +4161,8 @@ export default function SessionView(props: SessionViewProps) {
                 type="button"
                 class={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
                   codeEditorExpanded()
-                    ? "bg-gray-2 text-dls-text"
-                    : "text-gray-10 hover:bg-gray-2/70 hover:text-dls-text"
+                    ? "bg-dls-hover text-dls-text"
+                    : "text-dls-secondary hover:bg-dls-hover/70 hover:text-dls-text"
                 }`}
                 onClick={() => setCodeEditorExpanded((prev) => !prev)}
                 title="Work Files"
@@ -4182,7 +4182,7 @@ export default function SessionView(props: SessionViewProps) {
           <Show when={searchOpen()}>
             <div class="border-b border-dls-border bg-dls-sidebar/70 px-4 py-2 md:px-6">
               <div class="mx-auto flex w-full max-w-[800px] items-center gap-2 rounded-[16px] border border-dls-border bg-dls-surface px-3 py-2 shadow-[var(--dls-card-shadow)]">
-                <Search size={14} class="text-gray-9" />
+                <Search size={14} class="text-dls-secondary" />
                 <input
                   ref={(el) => (searchInputEl = el)}
                   type="text"
@@ -4202,16 +4202,16 @@ export default function SessionView(props: SessionViewProps) {
                       closeSearch();
                     }
                   }}
-                  class="min-w-0 flex-1 bg-transparent text-sm text-gray-11 placeholder:text-gray-9 focus:outline-none"
+                  class="min-w-0 flex-1 bg-transparent text-sm text-dls-secondary placeholder:text-dls-secondary focus:outline-none"
                   placeholder={translate("session.search_in_chat")}
                   aria-label={translate("session.search_in_chat")}
                 />
-                <span class="text-[11px] text-gray-10 tabular-nums">
+                <span class="text-[11px] text-dls-secondary tabular-nums">
                   {activeSearchPositionLabel()}
                 </span>
                 <button
                   type="button"
-                  class="rounded-md border border-dls-border px-2 py-1 text-[11px] text-gray-10 transition-colors hover:bg-gray-2 hover:text-gray-12 disabled:opacity-60"
+                  class="rounded-md border border-dls-border px-2 py-1 text-[11px] text-dls-secondary transition-colors hover:bg-dls-hover hover:text-dls-text disabled:opacity-60"
                   disabled={searchHits().length === 0}
                   onClick={() => moveSearchHit(-1)}
                   aria-label={translate("session.previous_match")}
@@ -4220,7 +4220,7 @@ export default function SessionView(props: SessionViewProps) {
                 </button>
                 <button
                   type="button"
-                  class="rounded-md border border-dls-border px-2 py-1 text-[11px] text-gray-10 transition-colors hover:bg-gray-2 hover:text-gray-12 disabled:opacity-60"
+                  class="rounded-md border border-dls-border px-2 py-1 text-[11px] text-dls-secondary transition-colors hover:bg-dls-hover hover:text-dls-text disabled:opacity-60"
                   disabled={searchHits().length === 0}
                   onClick={() => moveSearchHit(1)}
                   aria-label={translate("session.next_match")}
@@ -4229,7 +4229,7 @@ export default function SessionView(props: SessionViewProps) {
                 </button>
                 <button
                   type="button"
-                  class="flex h-7 w-7 items-center justify-center rounded-md text-gray-10 transition-colors hover:bg-gray-2 hover:text-gray-12"
+                  class="flex h-7 w-7 items-center justify-center rounded-md text-dls-secondary transition-colors hover:bg-dls-hover hover:text-dls-text"
                   onClick={closeSearch}
                   aria-label={translate("session.close_search")}
                 >
@@ -4256,7 +4256,7 @@ export default function SessionView(props: SessionViewProps) {
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                       <div class="flex items-center gap-2">
-                        <span class="truncate text-sm font-semibold text-gray-12">{props.reloadBannerTitle}</span>
+                        <span class="truncate text-sm font-semibold text-dls-text">{props.reloadBannerTitle}</span>
                         <Show when={props.reloadBannerBlocked}>
                           <span class="inline-flex items-center gap-1 rounded-full bg-amber-4 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-11">
                             {translate("session.reload_active_tasks")}
@@ -4264,7 +4264,7 @@ export default function SessionView(props: SessionViewProps) {
                         </Show>
                       </div>
 
-                      <div class="mt-1 space-y-1 text-sm leading-relaxed text-gray-10">
+                      <div class="mt-1 space-y-1 text-sm leading-relaxed text-dls-secondary">
                         <div>
                           <Show
                             when={props.reloadBannerBlocked}
@@ -4292,7 +4292,7 @@ export default function SessionView(props: SessionViewProps) {
                     <button
                       type="button"
                       onClick={props.dismissReloadBanner}
-                      class="rounded-full p-1 text-gray-9 transition hover:bg-gray-3 hover:text-gray-12"
+                      class="rounded-full p-1 text-dls-secondary transition hover:bg-dls-hover hover:text-dls-text"
                       aria-label={translate("session.dismiss_reload")}
                     >
                       <X size={16} />
@@ -4360,13 +4360,13 @@ export default function SessionView(props: SessionViewProps) {
                       <div class="rounded-[28px] border border-dls-border bg-dls-surface p-6 sm:p-8">
                         <div class="flex flex-col gap-6">
                           <div class="flex flex-col items-center text-center">
-                            <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-dls-border bg-dls-sidebar text-gray-11 shadow-[var(--dls-card-shadow)]">
+                            <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-dls-border bg-dls-sidebar text-dls-secondary shadow-[var(--dls-card-shadow)]">
                               <HardDrive size={24} />
                             </div>
                             <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-dls-secondary">
                               {translate("session.workspace_setup_label")}
                             </div>
-                            <h3 class="mt-3 text-3xl font-semibold tracking-tight text-gray-12">
+                            <h3 class="mt-3 text-3xl font-semibold tracking-tight text-dls-text">
                               {translate("session.setup_first_workspace")}
                             </h3>
                             <p class="mt-3 max-w-xl text-sm leading-6 text-dls-secondary sm:text-[15px]">
@@ -4395,11 +4395,11 @@ export default function SessionView(props: SessionViewProps) {
 
                             <button
                               type="button"
-                              class="group rounded-[24px] border border-dls-border bg-dls-sidebar px-5 py-5 text-left text-gray-12 transition-all hover:-translate-y-0.5 hover:border-gray-7 hover:bg-gray-2/80"
+                              class="group rounded-[24px] border border-dls-border bg-dls-sidebar px-5 py-5 text-left text-dls-text transition-all hover:-translate-y-0.5 hover:border-dls-border hover:bg-dls-hover/80"
                               onClick={() => void props.pickFolderWorkspace()}
                             >
                               <div class="flex items-start gap-4">
-                                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-dls-border bg-dls-surface text-gray-11">
+                                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-dls-border bg-dls-surface text-dls-secondary">
                                   <FolderOpen size={18} />
                                 </div>
                                 <div class="min-w-0">
@@ -4439,7 +4439,7 @@ export default function SessionView(props: SessionViewProps) {
                             {(starter) => (
                               <button
                                 type="button"
-                                class="rounded-2xl border border-dls-border bg-dls-hover p-4 transition-all hover:bg-dls-active hover:border-gray-7"
+                                class="rounded-2xl border border-dls-border bg-dls-hover p-4 transition-all hover:bg-dls-active hover:border-dls-border"
                                 onClick={() => handleEmptyStateStarter(starter)}
                               >
                                 <div class="text-sm font-semibold text-dls-text">
@@ -4508,7 +4508,7 @@ export default function SessionView(props: SessionViewProps) {
                         <div class="flex justify-start">
                           <div class="w-full max-w-[760px]">
                             <div
-                              class={`mt-3 flex items-center gap-2 py-1 text-xs ${runPhase() === "error" ? "text-red-11" : "text-gray-9"}`}
+                              class={`mt-3 flex items-center gap-2 py-1 text-xs ${runPhase() === "error" ? "text-red-11" : "text-dls-secondary"}`}
                               role="status"
                               aria-live="polite"
                             >
@@ -4523,7 +4523,7 @@ export default function SessionView(props: SessionViewProps) {
                                 {thinkingStatus() || runLabel()}
                               </span>
                               <Show when={props.developerMode}>
-                                <span class="text-[10px] text-gray-8 ml-auto shrink-0">
+                                <span class="text-[10px] text-dls-secondary ml-auto shrink-0">
                                   {runElapsedLabel()}
                                 </span>
                               </Show>
@@ -4549,7 +4549,7 @@ export default function SessionView(props: SessionViewProps) {
                     <Show when={Boolean(topClippedMessageId())}>
                       <button
                         type="button"
-                        class="rounded-full px-3 py-1.5 text-xs text-gray-11 transition-colors hover:bg-gray-2"
+                        class="rounded-full px-3 py-1.5 text-xs text-dls-secondary transition-colors hover:bg-dls-hover"
                         onClick={() => {
                           suppressJumpControlsTemporarily();
                           jumpToStartOfMessage("smooth");
@@ -4561,7 +4561,7 @@ export default function SessionView(props: SessionViewProps) {
                     <Show when={!isViewingLatest()}>
                       <button
                         type="button"
-                        class="rounded-full px-3 py-1.5 text-xs text-gray-11 transition-colors hover:bg-gray-2"
+                        class="rounded-full px-3 py-1.5 text-xs text-dls-secondary transition-colors hover:bg-dls-hover"
                         onClick={() => {
                           suppressJumpControlsTemporarily();
                           jumpToLatest("smooth");
@@ -4581,16 +4581,16 @@ export default function SessionView(props: SessionViewProps) {
               <div class="rounded-t-[20px] border border-b-0 border-dls-border bg-dls-surface shadow-[var(--dls-card-shadow)]">
                 <button
                   type="button"
-                  class="flex w-full items-center justify-between rounded-t-[20px] px-4 py-3 text-xs text-gray-9 transition-colors hover:bg-gray-2/50"
+                  class="flex w-full items-center justify-between rounded-t-[20px] px-4 py-3 text-xs text-dls-secondary transition-colors hover:bg-dls-hover/50"
                   onClick={() => setTodoExpanded((prev) => !prev)}
                 >
                   <div class="flex items-center gap-2">
-                    <ListTodo size={14} class="text-gray-8" />
-                    <span class="text-gray-11 font-medium">{todoLabel()}</span>
+                    <ListTodo size={14} class="text-dls-secondary" />
+                    <span class="text-dls-secondary font-medium">{todoLabel()}</span>
                   </div>
                   <Minimize2
                     size={12}
-                    class={`text-gray-8 transition-transform ${todoExpanded() ? "" : "rotate-180"}`}
+                    class={`text-dls-secondary transition-transform ${todoExpanded() ? "" : "rotate-180"}`}
                   />
                 </button>
                 <Show when={todoExpanded()}>
@@ -4610,8 +4610,8 @@ export default function SessionView(props: SessionViewProps) {
                                     : active()
                                       ? "border-amber-6 bg-amber-2 text-amber-11"
                                       : cancelled()
-                                        ? "border-gray-6 bg-gray-2 text-gray-8"
-                                        : "border-gray-6 bg-gray-1 text-gray-8"
+                                        ? "border-dls-border bg-dls-hover text-dls-secondary"
+                                        : "border-dls-border bg-dls-surface text-dls-secondary"
                                 }`}
                               >
                                 <Show when={done()}>
@@ -4625,11 +4625,11 @@ export default function SessionView(props: SessionViewProps) {
                             <div
                               class={`flex-1 text-sm leading-relaxed ${
                                 cancelled()
-                                  ? "text-gray-9 line-through"
-                                  : "text-gray-12"
+                                  ? "text-dls-secondary line-through"
+                                  : "text-dls-text"
                               }`}
                             >
-                              <span class="text-gray-9 mr-1.5">
+                              <span class="text-dls-secondary mr-1.5">
                                 {index() + 1}.
                               </span>
                               {todo.content}
@@ -4717,7 +4717,7 @@ export default function SessionView(props: SessionViewProps) {
                 ? "bg-green-9"
                 : props.selectedSessionId
                   ? "bg-green-9"
-                  : "bg-gray-8"
+                  : "bg-dls-secondary"
             }
             statusPingClass={
               showRunIndicator()
@@ -4732,7 +4732,7 @@ export default function SessionView(props: SessionViewProps) {
         <Show when={codeEditorExpanded()}>
           {/* Right splitter — 右侧拖拽调节条 */}
           <div
-            class="hidden lg:block w-[6px] shrink-0 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-gray-6/40 active:bg-blue-8/60"
+            class="hidden lg:block w-[6px] shrink-0 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-dls-border/40 active:bg-[rgba(var(--dls-accent-rgb),0.4)]"
             onPointerDown={startRightPanelResize}
             title="Resize Work Files panel"
             aria-label="Resize Work Files panel"
@@ -4748,7 +4748,7 @@ export default function SessionView(props: SessionViewProps) {
 
       <Show when={commandPaletteOpen()}>
         <div
-          class="fixed inset-0 z-50 bg-gray-1/60 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto"
+          class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto"
           onClick={closeCommandPalette}
         >
           <div
@@ -4944,8 +4944,8 @@ export default function SessionView(props: SessionViewProps) {
       />
 
       <Show when={props.activePermission}>
-        <div class="absolute inset-0 z-50 bg-gray-1/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div class="bg-gray-2 border border-amber-7/30 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+        <div class="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-dls-hover border border-amber-7/30 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
             <div class="p-6">
               <div class="flex items-start gap-4 mb-4">
                 <div class="p-3 bg-amber-7/10 rounded-full text-amber-6">
@@ -4954,30 +4954,30 @@ export default function SessionView(props: SessionViewProps) {
                   </Show>
                 </div>
                 <div>
-                  <h3 class="text-lg font-semibold text-gray-12">
+                  <h3 class="text-lg font-semibold text-dls-text">
                     {activePermissionPresentation().title}
                   </h3>
-                  <p class="text-sm text-gray-11 mt-1">
+                  <p class="text-sm text-dls-secondary mt-1">
                     {activePermissionPresentation().message}
                   </p>
                 </div>
               </div>
 
-              <div class="bg-gray-1/50 rounded-xl p-4 border border-gray-6 mb-6">
-                <div class="text-xs text-gray-10 uppercase tracking-wider mb-2 font-semibold">
+              <div class="bg-dls-surface/50 rounded-xl p-4 border border-dls-border mb-6">
+                <div class="text-xs text-dls-secondary uppercase tracking-wider mb-2 font-semibold">
                   {translate("session.permission_label")}
                 </div>
-                <div class="text-sm text-gray-12 font-mono">
+                <div class="text-sm text-dls-text font-mono">
                   {activePermissionPresentation().permissionLabel}
                 </div>
 
                 <Show when={activePermissionPresentation().note}>
-                  <p class="mt-2 text-sm text-gray-11">
+                  <p class="mt-2 text-sm text-dls-secondary">
                     {activePermissionPresentation().note}
                   </p>
                 </Show>
 
-                <div class="text-xs text-gray-10 uppercase tracking-wider mt-4 mb-2 font-semibold">
+                <div class="text-xs text-dls-secondary uppercase tracking-wider mt-4 mb-2 font-semibold">
                   {activePermissionPresentation().scopeLabel}
                 </div>
                 <div class="flex items-center gap-2 text-sm font-mono text-amber-12 bg-amber-1/30 px-2 py-1 rounded border border-amber-7/20">
@@ -4991,11 +4991,11 @@ export default function SessionView(props: SessionViewProps) {
                     0
                   }
                 >
-                  <details class="mt-4 rounded-lg bg-gray-1/20 p-2">
-                    <summary class="cursor-pointer text-xs text-gray-11">
+                  <details class="mt-4 rounded-lg bg-dls-surface/20 p-2">
+                    <summary class="cursor-pointer text-xs text-dls-secondary">
                       {translate("session.details")}
                     </summary>
-                    <pre class="mt-2 whitespace-pre-wrap break-words text-xs text-gray-12">
+                    <pre class="mt-2 whitespace-pre-wrap break-words text-xs text-dls-text">
                       {props.safeStringify(props.activePermission?.metadata)}
                     </pre>
                   </details>
@@ -5028,7 +5028,7 @@ export default function SessionView(props: SessionViewProps) {
                   </Button>
                   <Button
                     variant="primary"
-                    class="text-xs font-bold bg-amber-7 hover:bg-amber-8 text-gray-12 border-none shadow-amber-6/20"
+                    class="text-xs font-bold bg-amber-7 hover:bg-amber-8 text-dls-text border-none shadow-amber-6/20"
                     onClick={() =>
                       props.activePermission &&
                       props.respondPermissionAndRemember(

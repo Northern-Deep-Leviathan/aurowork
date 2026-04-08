@@ -126,8 +126,8 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
     return (
       <aside class="relative hidden lg:flex h-full w-[400px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-[24px] border border-dls-border bg-dls-sidebar p-8 text-center">
         <div>
-          <div class="text-sm font-medium text-gray-11">Desktop Only</div>
-          <p class="mt-2 text-xs text-gray-9">
+          <div class="text-sm font-medium text-dls-secondary">Desktop Only</div>
+          <p class="mt-2 text-xs text-dls-secondary">
             Work Files requires the AuroWork desktop app.
           </p>
         </div>
@@ -144,9 +144,9 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
       {/* Header */}
       <div class="flex h-12 items-center gap-2 border-b border-dls-border px-4 shrink-0">
         <span class="text-[13px] font-semibold text-dls-text shrink-0">Work Files</span>
-        <div class="min-w-0 flex-1 truncate text-xs text-gray-9">
+        <div class="min-w-0 flex-1 truncate text-xs text-dls-secondary">
           <Show when={selectedFilePath()}>
-            <span class="text-gray-10">{breadcrumb()}</span>
+            <span class="text-dls-secondary">{breadcrumb()}</span>
           </Show>
         </div>
         <Show when={isDirty()}>
@@ -158,7 +158,7 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
         <Show when={selectedFilePath()}>
           <button
             type="button"
-            class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-gray-10 transition-colors hover:bg-gray-2 hover:text-gray-12 disabled:opacity-50"
+            class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-dls-secondary transition-colors hover:bg-dls-hover hover:text-dls-text disabled:opacity-50"
             onClick={saveFile}
             disabled={!isDirty()}
             title="Save (Cmd+S)"
@@ -169,7 +169,7 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
         </Show>
         <button
           type="button"
-          class="flex h-6 w-6 items-center justify-center rounded-md text-gray-9 transition-colors hover:bg-gray-2 hover:text-gray-12"
+          class="flex h-6 w-6 items-center justify-center rounded-md text-dls-secondary transition-colors hover:bg-dls-hover hover:text-dls-text"
           onClick={props.onClose}
           title="Close panel"
         >
@@ -188,10 +188,10 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
             when={effectiveRoot()}
             fallback={
               <div class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
-                <p class="text-xs text-gray-9">No workspace folder</p>
+                <p class="text-xs text-dls-secondary">No workspace folder</p>
                 <button
                   type="button"
-                  class="flex items-center gap-1.5 rounded-md bg-gray-3 px-3 py-1.5 text-[12px] font-medium text-gray-11 transition-colors hover:bg-gray-4"
+                  class="flex items-center gap-1.5 rounded-md bg-dls-hover px-3 py-1.5 text-[12px] font-medium text-dls-secondary transition-colors hover:bg-dls-active"
                   onClick={handlePickFolder}
                 >
                   <FolderOpen size={14} />
@@ -211,7 +211,7 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
         {/* Splitter */}
         <div
           class={`w-[3px] shrink-0 cursor-col-resize transition-colors ${
-            dragging() ? "bg-blue-8" : "bg-transparent hover:bg-gray-5"
+            dragging() ? "bg-blue-8" : "bg-transparent hover:bg-dls-border"
           }`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -222,7 +222,7 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
         {/* Editor area */}
         <div class="min-w-0 flex-1 overflow-hidden">
           <Show when={isLoading()}>
-            <div class="flex h-full items-center justify-center text-xs text-gray-9">
+            <div class="flex h-full items-center justify-center text-xs text-dls-secondary">
               Loading file...
             </div>
           </Show>
@@ -235,7 +235,7 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
             when={selectedFilePath() && !isLoading() && !loadError()}
             fallback={
               <Show when={!isLoading() && !loadError()}>
-                <div class="flex h-full items-center justify-center text-xs text-gray-9">
+                <div class="flex h-full items-center justify-center text-xs text-dls-secondary">
                   Select a file to edit
                 </div>
               </Show>

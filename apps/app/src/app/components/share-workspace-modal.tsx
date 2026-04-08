@@ -166,7 +166,7 @@ export default function ShareWorkspaceModal(props: {
     const revealed = () => Boolean(revealedByIndex()[index()]);
     return (
       <div class="group">
-        <label class="text-[11px] uppercase tracking-wider font-medium text-gray-10 mb-1.5 block">
+        <label class="text-[11px] uppercase tracking-wider font-medium text-dls-secondary mb-1.5 block">
           {displayFieldLabel(field)}
         </label>
         <div class="relative flex items-center">
@@ -186,7 +186,7 @@ export default function ShareWorkspaceModal(props: {
                   }))
                 }
                 disabled={!field.value}
-                class="p-1.5 text-gray-10 hover:text-gray-12 hover:bg-gray-3 rounded-md transition-colors disabled:opacity-50"
+                class="p-1.5 text-dls-secondary hover:text-dls-text hover:bg-dls-hover rounded-md transition-colors disabled:opacity-50"
                 title={revealed() ? "Hide password" : "Reveal password"}
               >
                 <Show when={revealed()} fallback={<Eye size={14} />}>
@@ -197,7 +197,7 @@ export default function ShareWorkspaceModal(props: {
             <button
               onClick={() => handleCopy(field.value, key())}
               disabled={!field.value}
-              class="p-1.5 text-gray-10 hover:text-gray-12 hover:bg-gray-3 rounded-md transition-colors disabled:opacity-50"
+              class="p-1.5 text-dls-secondary hover:text-dls-text hover:bg-dls-hover rounded-md transition-colors disabled:opacity-50"
               title="Copy"
             >
               <Show when={copiedKey() === key()} fallback={<Copy size={14} />}>
@@ -207,7 +207,7 @@ export default function ShareWorkspaceModal(props: {
           </div>
         </div>
         <Show when={field.hint && field.hint.trim()}>
-          <p class="text-[11px] text-gray-9 mt-1.5">{field.hint}</p>
+          <p class="text-[11px] text-dls-secondary mt-1.5">{field.hint}</p>
         </Show>
       </div>
     );
@@ -229,7 +229,7 @@ export default function ShareWorkspaceModal(props: {
         <button
           onClick={() => createAction?.()}
           disabled={Boolean(disabledReason) || !createAction || busy}
-          class="mt-3 w-full rounded-full bg-dls-text px-5 py-3 text-[13px] font-medium text-dls-surface shadow-sm transition-colors hover:bg-gray-12 active:scale-[0.99] disabled:opacity-50"
+          class="mt-3 w-full rounded-full bg-dls-text px-5 py-3 text-[13px] font-medium text-dls-surface shadow-sm transition-colors hover:bg-dls-text active:scale-[0.99] disabled:opacity-50"
         >
           {busy ? "Publishing..." : createLabel}
         </button>
@@ -240,11 +240,11 @@ export default function ShareWorkspaceModal(props: {
           type="text"
           readonly
           value={value!}
-          class="flex-1 bg-transparent border border-dls-border rounded-md py-1.5 px-2.5 text-[12px] font-mono text-gray-11 outline-none focus:border-[rgba(var(--dls-accent-rgb),0.45)] focus:ring-1 focus:ring-[rgba(var(--dls-accent-rgb),0.18)]"
+          class="flex-1 bg-transparent border border-dls-border rounded-md py-1.5 px-2.5 text-[12px] font-mono text-dls-secondary outline-none focus:border-[rgba(var(--dls-accent-rgb),0.45)] focus:ring-1 focus:ring-[rgba(var(--dls-accent-rgb),0.18)]"
         />
         <button
           onClick={() => handleCopy(value ?? "", copyKey)}
-          class="p-1.5 hover:bg-gray-3 text-gray-11 hover:text-gray-12 rounded-md transition-colors"
+          class="p-1.5 hover:bg-dls-hover text-dls-secondary hover:text-dls-text rounded-md transition-colors"
           title="Copy link"
         >
           <Show when={copiedKey() === copyKey} fallback={<Copy size={14} />}>
@@ -255,7 +255,7 @@ export default function ShareWorkspaceModal(props: {
       <button
         onClick={() => regenerate?.()}
         disabled={busy}
-        class="mt-3 w-full rounded-full bg-gray-2 px-4 py-2 text-[12px] font-medium text-gray-11 transition-colors hover:bg-gray-3 hover:text-gray-12"
+        class="mt-3 w-full rounded-full bg-dls-surface px-4 py-2 text-[12px] font-medium text-dls-secondary transition-colors hover:bg-dls-hover hover:text-dls-text"
       >
         {busy ? "Publishing..." : regenerateLabel}
       </button>
@@ -266,14 +266,14 @@ export default function ShareWorkspaceModal(props: {
     <Show when={props.open}>
       <div class="fixed inset-0 z-50 flex items-start justify-center bg-black/45 px-3 pt-[12vh] md:px-6 font-sans animate-in fade-in duration-200">
         <div
-          class="w-full max-w-[580px] rounded-2xl border border-dls-border bg-dls-surface shadow-[0_20px_70px_rgba(0,0,0,0.45)] overflow-hidden animate-in fade-in zoom-in-95 duration-300 relative flex flex-col max-h-[75vh]"
+          class="w-full max-w-[580px] rounded-3xl border border-dls-border bg-dls-surface shadow-[0_20px_70px_rgba(0,0,0,0.45)] overflow-hidden animate-in fade-in zoom-in-95 duration-300 relative flex flex-col max-h-[75vh]"
           role="dialog"
           aria-modal="true"
         >
           <div class="border-b border-dls-border px-4 py-3 relative shrink-0">
             <button
               onClick={props.onClose}
-              class="absolute top-3 right-3 p-1 text-gray-9 hover:text-gray-12 hover:bg-gray-3 rounded-md transition-colors"
+              class="absolute top-3 right-3 p-1 text-dls-secondary hover:text-dls-text hover:bg-dls-hover rounded-md transition-colors"
               aria-label="Close"
               title="Close"
             >
@@ -283,7 +283,7 @@ export default function ShareWorkspaceModal(props: {
             <Show when={activeView() !== "chooser"}>
               <button
                 onClick={goBack}
-                class="absolute top-3 left-3 p-1 text-gray-9 hover:text-gray-12 hover:bg-gray-3 rounded-md transition-colors"
+                class="absolute top-3 left-3 p-1 text-dls-secondary hover:text-dls-text hover:bg-dls-hover rounded-md transition-colors"
                 aria-label="Back"
                 title="Back to share options"
               >
@@ -300,7 +300,7 @@ export default function ShareWorkspaceModal(props: {
                   <Show when={activeView() === "template-team"}>Share with team</Show>
                   <Show when={activeView() === "access"}>Access workspace remotely</Show>
                 </h2>
-                <div class="mt-0.5 text-[12px] text-gray-10 truncate">{props.workspaceName}</div>
+                <div class="mt-0.5 text-[12px] text-dls-secondary truncate">{props.workspaceName}</div>
               </div>
             </div>
           </div>
@@ -313,12 +313,12 @@ export default function ShareWorkspaceModal(props: {
                   onClick={() => setActiveView("template")}
                   class="w-full text-left rounded-xl p-3 hover:bg-dls-hover transition-colors group flex items-start gap-3"
                 >
-                  <div class="mt-0.5 text-gray-10 group-hover:text-gray-12 transition-colors shrink-0">
+                  <div class="mt-0.5 text-dls-secondary group-hover:text-dls-text transition-colors shrink-0">
                     <Rocket size={18} />
                   </div>
                   <div class="flex-1">
                     <h3 class="text-[13px] font-medium text-dls-text">Share a template</h3>
-                    <p class="text-[12px] text-gray-10 leading-snug mt-0.5 pr-4">
+                    <p class="text-[12px] text-dls-secondary leading-snug mt-0.5 pr-4">
                       Share your setup and defaults so someone else can start from the same environment.
                     </p>
                   </div>
@@ -329,12 +329,12 @@ export default function ShareWorkspaceModal(props: {
                   onClick={() => setActiveView("access")}
                   class="w-full text-left rounded-xl p-3 hover:bg-dls-hover transition-colors group flex items-start gap-3"
                 >
-                  <div class="mt-0.5 text-gray-10 group-hover:text-gray-12 transition-colors shrink-0">
+                  <div class="mt-0.5 text-dls-secondary group-hover:text-dls-text transition-colors shrink-0">
                     <MonitorUp size={18} />
                   </div>
                   <div class="flex-1">
                     <h3 class="text-[13px] font-medium text-dls-text">Access workspace remotely</h3>
-                    <p class="text-[12px] text-gray-10 leading-snug mt-0.5 pr-4">
+                    <p class="text-[12px] text-dls-secondary leading-snug mt-0.5 pr-4">
                       Copy the connection details needed to reach this live workspace from another machine or messaging surface.
                     </p>
                   </div>
@@ -344,7 +344,7 @@ export default function ShareWorkspaceModal(props: {
 
             <Show when={activeView() === "template"}>
               <div class="space-y-6 pt-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div class="text-[12px] text-gray-10">
+                <div class="text-[12px] text-dls-secondary">
                   Share a reusable setup without granting live access to this running workspace.
                 </div>
 
@@ -354,12 +354,12 @@ export default function ShareWorkspaceModal(props: {
                     onClick={() => setActiveView("template-public")}
                     class="w-full text-left rounded-xl p-3 hover:bg-dls-hover transition-colors group flex items-start gap-3"
                   >
-                    <div class="mt-0.5 text-gray-10 group-hover:text-gray-12 transition-colors shrink-0">
+                    <div class="mt-0.5 text-dls-secondary group-hover:text-dls-text transition-colors shrink-0">
                       <Rocket size={18} />
                     </div>
                     <div class="flex-1">
                       <h3 class="text-[13px] font-medium text-dls-text">Public</h3>
-                      <p class="text-[12px] text-gray-10 leading-snug mt-0.5 pr-4">
+                      <p class="text-[12px] text-dls-secondary leading-snug mt-0.5 pr-4">
                         Create a public share link anyone can use to start from this template.
                       </p>
                     </div>
@@ -370,12 +370,12 @@ export default function ShareWorkspaceModal(props: {
                     onClick={() => setActiveView("template-team")}
                     class="w-full text-left rounded-xl p-3 hover:bg-dls-hover transition-colors group flex items-start gap-3"
                   >
-                    <div class="mt-0.5 text-gray-10 group-hover:text-gray-12 transition-colors shrink-0">
+                    <div class="mt-0.5 text-dls-secondary group-hover:text-dls-text transition-colors shrink-0">
                       <Users size={18} />
                     </div>
                     <div class="flex-1">
                       <h3 class="text-[13px] font-medium text-dls-text">Share with team</h3>
-                      <p class="text-[12px] text-gray-10 leading-snug mt-0.5 pr-4">
+                      <p class="text-[12px] text-dls-secondary leading-snug mt-0.5 pr-4">
                         Save this workspace template to your active AuroWork Cloud organization.
                       </p>
                     </div>
@@ -386,16 +386,16 @@ export default function ShareWorkspaceModal(props: {
 
             <Show when={activeView() === "template-public"}>
               <div class="space-y-6 pt-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div class="text-[12px] text-gray-10">
+                <div class="text-[12px] text-dls-secondary">
                   Share this workspace as a public template link.
                 </div>
 
                 <div class="space-y-3">
                   <div class="flex items-center gap-2 mb-1">
-                    <FolderCode size={16} class="text-gray-9 shrink-0" />
+                    <FolderCode size={16} class="text-dls-secondary shrink-0" />
                     <div class="flex-1">
                       <h3 class="text-[13px] font-medium text-dls-text">Workspace template</h3>
-                      <p class="text-[12px] text-gray-10 leading-tight mt-0.5">Share the core setup and workspace defaults.</p>
+                      <p class="text-[12px] text-dls-secondary leading-tight mt-0.5">Share the core setup and workspace defaults.</p>
                     </div>
                   </div>
 
@@ -405,7 +405,7 @@ export default function ShareWorkspaceModal(props: {
                     </div>
                   </Show>
                   <Show when={props.shareWorkspaceProfileDisabledReason?.trim()}>
-                    <div class="text-[12px] text-gray-9 mb-2">{props.shareWorkspaceProfileDisabledReason}</div>
+                    <div class="text-[12px] text-dls-secondary mb-2">{props.shareWorkspaceProfileDisabledReason}</div>
                   </Show>
 
                   {renderGeneratedLink(
@@ -424,19 +424,19 @@ export default function ShareWorkspaceModal(props: {
 
             <Show when={activeView() === "template-team"}>
               <div class="space-y-6 pt-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div class="text-[12px] text-gray-10">
+                <div class="text-[12px] text-dls-secondary">
                   Save this template to your active AuroWork Cloud organization so teammates can open it later from Cloud settings.
                 </div>
 
-                <div class="space-y-4 rounded-[20px] border border-dls-border bg-gray-2/30 px-4 py-4">
+                <div class="space-y-4 rounded-[20px] border border-dls-border bg-dls-surface/30 px-4 py-4">
                   <div class="flex flex-wrap items-center gap-2">
-                    <span class="rounded-full border border-gray-6/60 bg-gray-1/40 px-2.5 py-1 text-[11px] font-medium text-gray-11">
+                    <span class="rounded-full border border-dls-border bg-dls-surface/40 px-2.5 py-1 text-[11px] font-medium text-dls-secondary">
                       {props.shareWorkspaceProfileToTeamOrgName?.trim() || "Active Cloud org"}
                     </span>
                   </div>
 
                   <div>
-                    <label class="text-[11px] uppercase tracking-wider font-medium text-gray-10 mb-1.5 block">
+                    <label class="text-[11px] uppercase tracking-wider font-medium text-dls-secondary mb-1.5 block">
                       Template name
                     </label>
                     <input
@@ -461,7 +461,7 @@ export default function ShareWorkspaceModal(props: {
                   </Show>
 
                   <Show when={props.shareWorkspaceProfileToTeamDisabledReason?.trim() && !teamShareNeedsSignIn()}>
-                    <div class="text-[12px] text-gray-9">{props.shareWorkspaceProfileToTeamDisabledReason}</div>
+                    <div class="text-[12px] text-dls-secondary">{props.shareWorkspaceProfileToTeamDisabledReason}</div>
                   </Show>
 
                   <button
@@ -480,7 +480,7 @@ export default function ShareWorkspaceModal(props: {
                           props.shareWorkspaceProfileToTeamBusy ||
                           !teamTemplateName().trim()
                     }
-                    class="w-full rounded-full bg-dls-text px-5 py-3 text-[13px] font-medium text-dls-surface shadow-sm transition-colors hover:bg-gray-12 active:scale-[0.99] disabled:opacity-50"
+                    class="w-full rounded-full bg-dls-text px-5 py-3 text-[13px] font-medium text-dls-surface shadow-sm transition-colors hover:bg-dls-text active:scale-[0.99] disabled:opacity-50"
                   >
                     {teamShareNeedsSignIn()
                       ? "Sign in to share with team"
@@ -490,7 +490,7 @@ export default function ShareWorkspaceModal(props: {
                   </button>
 
                   <Show when={teamShareNeedsSignIn()}>
-                    <div class="text-[11px] text-gray-9">
+                    <div class="text-[11px] text-dls-secondary">
                       AuroWork Cloud opens in your browser and returns here after sign-in.
                     </div>
                   </Show>
@@ -519,11 +519,11 @@ export default function ShareWorkspaceModal(props: {
                     const hasPendingChange = () =>
                       remoteAccessEnabled() !== remoteAccess().enabled;
                     return (
-                      <div class="rounded-[20px] border border-dls-border bg-gray-2/30 px-4 py-4 space-y-4">
+                      <div class="rounded-[20px] border border-dls-border bg-dls-surface/30 px-4 py-4 space-y-4">
                         <div class="flex items-start justify-between gap-3">
                           <div>
                             <h3 class="text-[13px] font-medium text-dls-text">Remote access</h3>
-                            <p class="text-[12px] text-gray-10 mt-0.5 leading-relaxed">
+                            <p class="text-[12px] text-dls-secondary mt-0.5 leading-relaxed">
                               Off by default. Turn this on only when you want this worker reachable from another machine.
                             </p>
                           </div>
@@ -536,12 +536,12 @@ export default function ShareWorkspaceModal(props: {
                                 setRemoteAccessEnabled(event.currentTarget.checked)}
                               disabled={remoteAccess().busy}
                             />
-                            <div class="w-11 h-6 rounded-full bg-gray-6 transition-colors peer-checked:bg-amber-8 peer-disabled:opacity-50 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5" />
+                            <div class="w-11 h-6 rounded-full bg-dls-active transition-colors peer-checked:bg-amber-8 peer-disabled:opacity-50 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5" />
                           </label>
                         </div>
 
                         <div class="flex items-center justify-between gap-3">
-                          <div class="text-[12px] text-gray-10">
+                          <div class="text-[12px] text-dls-secondary">
                             {remoteAccess().enabled
                               ? "Remote access is currently enabled."
                               : "Remote access is currently disabled."}
@@ -550,7 +550,7 @@ export default function ShareWorkspaceModal(props: {
                             type="button"
                             onClick={() => remoteAccess().onSave(remoteAccessEnabled())}
                             disabled={remoteAccess().busy || !hasPendingChange()}
-                            class="px-3 py-1.5 bg-gray-2 hover:bg-gray-3 rounded-md text-[12px] font-medium text-dls-text transition-colors disabled:opacity-50"
+                            class="px-3 py-1.5 bg-dls-surface hover:bg-dls-hover rounded-md text-[12px] font-medium text-dls-text transition-colors disabled:opacity-50"
                           >
                             {remoteAccess().busy ? "Saving..." : "Save"}
                           </button>
@@ -566,18 +566,18 @@ export default function ShareWorkspaceModal(props: {
                   }}
                 </Show>
 
-                <div class="flex items-center justify-between gap-3 rounded-[20px] border border-dls-border bg-gray-2/30 px-3 py-3">
+                <div class="flex items-center justify-between gap-3 rounded-[20px] border border-dls-border bg-dls-surface/30 px-3 py-3">
                   <div class="flex items-center gap-2 min-w-0">
-                    <MessageSquare size={16} class="text-gray-9 shrink-0" />
+                    <MessageSquare size={16} class="text-dls-secondary shrink-0" />
                     <div class="min-w-0">
                       <h4 class="text-[13px] font-medium text-dls-text">Connect messaging</h4>
-                      <p class="text-[12px] text-gray-10 mt-0.5 truncate">Use this workspace from Slack, Telegram, and others.</p>
+                      <p class="text-[12px] text-dls-secondary mt-0.5 truncate">Use this workspace from Slack, Telegram, and others.</p>
                     </div>
                   </div>
                   <button
                     onClick={() => props.onOpenBots?.()}
                     disabled={!props.onOpenBots}
-                    class="px-3 py-1.5 bg-gray-2 hover:bg-gray-3 rounded-md text-[12px] font-medium text-dls-text transition-colors disabled:opacity-50"
+                    class="px-3 py-1.5 bg-dls-surface hover:bg-dls-hover rounded-md text-[12px] font-medium text-dls-text transition-colors disabled:opacity-50"
                   >
                     Setup
                   </button>
@@ -585,7 +585,7 @@ export default function ShareWorkspaceModal(props: {
 
                 <div class="space-y-4">
                   <Show when={primaryAccessFields().length > 0} fallback={
-                    <div class="rounded-[20px] border border-dls-border bg-gray-2/20 px-4 py-4 text-[12px] text-gray-10 leading-relaxed">
+                    <div class="rounded-[20px] border border-dls-border bg-dls-surface/20 px-4 py-4 text-[12px] text-dls-secondary leading-relaxed">
                       Enable remote access and click Save to restart the worker and reveal the live connection details for this workspace.
                     </div>
                   }>
@@ -600,7 +600,7 @@ export default function ShareWorkspaceModal(props: {
                     <div class="pt-1">
                       <button
                         type="button"
-                        class="inline-flex items-center gap-2 rounded-full border border-dls-border/70 bg-gray-2/30 px-3 py-1.5 text-[11px] font-medium text-gray-10 transition-colors hover:border-dls-border hover:bg-gray-2/60 hover:text-gray-11"
+                        class="inline-flex items-center gap-2 rounded-full border border-dls-border/70 bg-dls-surface/30 px-3 py-1.5 text-[11px] font-medium text-dls-secondary transition-colors hover:border-dls-border hover:bg-dls-surface/60 hover:text-dls-secondary"
                         onClick={() => setCollaboratorExpanded((value) => !value)}
                         aria-expanded={collaboratorExpanded()}
                       >
@@ -611,8 +611,8 @@ export default function ShareWorkspaceModal(props: {
                         />
                       </button>
                       <Show when={collaboratorExpanded()}>
-                        <div class="mt-3 rounded-[20px] border border-dls-border bg-gray-2/30 px-3 py-3">
-                          <div class="mb-2 text-[11px] text-gray-9">Routine access without permission approvals.</div>
+                        <div class="mt-3 rounded-[20px] border border-dls-border bg-dls-surface/30 px-3 py-3">
+                          <div class="mb-2 text-[11px] text-dls-secondary">Routine access without permission approvals.</div>
                           {renderCredentialField(field(), () => 0, "collaborator")}
                         </div>
                       </Show>
@@ -621,7 +621,7 @@ export default function ShareWorkspaceModal(props: {
                 </Show>
 
                 <Show when={note()}>
-                  <div class="px-1 text-[11px] text-gray-9">{note()}</div>
+                  <div class="px-1 text-[11px] text-dls-secondary">{note()}</div>
                 </Show>
 
               </div>

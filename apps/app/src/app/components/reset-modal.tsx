@@ -24,18 +24,18 @@ export default function ResetModal(props: ResetModalProps) {
 
   return (
     <Show when={props.open}>
-      <div class="fixed inset-0 z-50 bg-gray-1/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-gray-2 border border-gray-6/70 w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden">
+      <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-dls-surface border border-dls-border w-full max-w-xl rounded-3xl shadow-[var(--dls-shell-shadow)] overflow-hidden">
           <div class="p-6">
             <div class="flex items-start justify-between gap-4">
               <div>
-                <h3 class="text-lg font-semibold text-gray-12">
+                <h3 class="text-lg font-semibold text-dls-text">
                   <Switch>
                     <Match when={props.mode === "onboarding"}>{translate("settings.reset_onboarding_title")}</Match>
                     <Match when={true}>{translate("settings.reset_app_data_title")}</Match>
                   </Switch>
                 </h3>
-                <p class="text-sm text-gray-11 mt-1" innerHTML={translate("settings.reset_confirmation_hint")} />
+                <p class="text-sm text-dls-secondary mt-1" innerHTML={translate("settings.reset_confirmation_hint")} />
               </div>
               <Button
                 variant="ghost"
@@ -48,7 +48,7 @@ export default function ResetModal(props: ResetModalProps) {
             </div>
 
             <div class="mt-6 space-y-4">
-              <div class="rounded-xl bg-gray-1/20 border border-gray-6 p-3 text-xs text-gray-11">
+              <div class="rounded-xl bg-dls-surface/20 border border-dls-border p-3 text-xs text-dls-secondary">
                 <Switch>
                   <Match when={props.mode === "onboarding"}>
                     {translate("settings.reset_onboarding_warning")}

@@ -53,7 +53,7 @@ export default function ExtensionsView(props: ExtensionsViewProps) {
 
   const pillClass = (active: boolean) =>
     `px-3 py-1 rounded-full text-xs font-medium border transition-colors flex items-center gap-2 ${
-      active ? "bg-gray-12/10 text-gray-12 border-gray-6/20" : "text-gray-10 border-gray-6 hover:text-gray-12"
+      active ? "bg-dls-text/10 text-dls-text border-dls-border/20" : "text-dls-secondary border-dls-border hover:text-dls-text"
     }`;
 
   return (
@@ -76,9 +76,9 @@ export default function ExtensionsView(props: ExtensionsViewProps) {
               </div>
             </Show>
             <Show when={pluginCount() > 0}>
-              <div class="inline-flex items-center gap-2 rounded-full bg-gray-3 px-3 py-1">
-                <Cpu size={14} class="text-gray-11" />
-                <span class="text-xs font-medium text-gray-11">
+              <div class="inline-flex items-center gap-2 rounded-full bg-dls-hover px-3 py-1">
+                <Cpu size={14} class="text-dls-secondary" />
+                <span class="text-xs font-medium text-dls-secondary">
                   {pluginCount()} plugin{pluginCount() === 1 ? "" : "s"}
                 </span>
               </div>
@@ -123,8 +123,8 @@ export default function ExtensionsView(props: ExtensionsViewProps) {
 
       <Show when={section() === "all" || section() === "mcp"}>
         <div class="space-y-4">
-          <div class="flex items-center gap-2 text-sm font-medium text-gray-12">
-            <Box size={16} class="text-gray-11" />
+          <div class="flex items-center gap-2 text-sm font-medium text-dls-text">
+            <Box size={16} class="text-dls-secondary" />
             <span>Apps (MCP)</span>
           </div>
           <McpView
@@ -153,8 +153,8 @@ export default function ExtensionsView(props: ExtensionsViewProps) {
 
       <Show when={section() === "all" || section() === "plugins"}>
         <div class="space-y-4">
-          <div class="flex items-center gap-2 text-sm font-medium text-gray-12">
-            <Cpu size={16} class="text-gray-11" />
+          <div class="flex items-center gap-2 text-sm font-medium text-dls-text">
+            <Cpu size={16} class="text-dls-secondary" />
             <span>Plugins (OpenCode)</span>
           </div>
           <PluginsView

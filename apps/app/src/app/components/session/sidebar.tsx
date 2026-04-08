@@ -262,7 +262,7 @@ export default function SessionSidebar(props: SidebarProps) {
     <div class="flex flex-col h-full overflow-hidden">
       <div class="px-4 pt-4 shrink-0">
         <button
-          class="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gray-12 text-gray-1 text-sm font-medium shadow-lg shadow-gray-12/10 hover:bg-gray-11 transition-colors"
+          class="w-full flex items-center gap-2 px-3 py-2.5 rounded-full bg-dls-accent text-white text-sm font-medium shadow-[0_2px_8px_rgba(var(--dls-accent-rgb),0.2)] hover:bg-dls-accent/90 transition-colors"
           onClick={props.onCreateSession}
           disabled={props.newTaskDisabled}
         >
@@ -274,13 +274,13 @@ export default function SessionSidebar(props: SidebarProps) {
       <div class="flex-1 overflow-y-auto px-4 py-4 space-y-6">
         <div>
           <div class="flex items-center justify-between px-2 mb-2">
-            <div class="text-xs text-gray-10 font-semibold uppercase tracking-wider">Workspaces</div>
+            <div class="text-xs text-dls-secondary font-semibold uppercase tracking-wider">Workspaces</div>
           </div>
           <div class="space-y-4">
             <Show
               when={props.workspaceGroups.length > 0}
               fallback={
-                <div class="px-3 py-2 rounded-lg border border-dashed border-gray-6 text-xs text-gray-9">
+                <div class="px-3 py-2 rounded-lg border border-dashed border-dls-border text-xs text-dls-secondary">
                   No workspaces in this session yet. Add one to get started.
                 </div>
               }
@@ -312,7 +312,7 @@ export default function SessionSidebar(props: SidebarProps) {
                     if (connectionStatus() === "connected") return "bg-green-9";
                     if (connectionStatus() === "connecting") return "bg-amber-9 animate-pulse";
                     if (connectionStatus() === "error") return "bg-red-9";
-                    return "bg-gray-7";
+                    return "bg-dls-secondary";
                   };
                   const collapsed = () => isWorkspaceCollapsed(group.workspace.id);
                   const dragOver = () => dragOverWorkspaceId() === group.workspace.id;
@@ -325,9 +325,9 @@ export default function SessionSidebar(props: SidebarProps) {
                     <div
                       class={`space-y-2 rounded-lg border transition-colors overflow-hidden ${
                         isActive()
-                          ? "border-indigo-7/40 bg-indigo-2/20"
-                          : "border-gray-6/40 bg-transparent"
-                      } ${isConnecting() ? "opacity-70" : ""} ${dragOver() ? "ring-1 ring-indigo-7/50" : ""}`.trim()}
+                          ? "border-[rgba(var(--dls-accent-rgb),0.3)] bg-[rgba(var(--dls-accent-rgb),0.08)]"
+                          : "border-dls-border/40 bg-transparent"
+                      } ${isConnecting() ? "opacity-70" : ""} ${dragOver() ? "ring-1 ring-[rgba(var(--dls-accent-rgb),0.4)]" : ""}`.trim()}
                       onDragOver={(event) => handleDragOver(event, group.workspace.id)}
                       onDragLeave={() => handleDragLeave(group.workspace.id)}
                       onDrop={(event) => handleDrop(event, group.workspace.id)}
@@ -337,8 +337,8 @@ export default function SessionSidebar(props: SidebarProps) {
                           type="button"
                           class={`flex-1 text-left rounded-md px-1.5 py-1 transition-colors ${
                             isActive()
-                              ? "text-gray-12"
-                              : "text-gray-11 hover:text-gray-12 hover:bg-gray-2"
+                              ? "text-dls-text"
+                              : "text-dls-secondary hover:text-dls-text hover:bg-dls-hover"
                           }`}
                           onClick={() => {
                             if (isActivelyConnecting()) return;
@@ -356,28 +356,28 @@ export default function SessionSidebar(props: SidebarProps) {
                                   {workspaceLabel(group.workspace)}
                                 </span>
                                 <Show when={group.workspace.workspaceType === "remote"}>
-                                  <span class="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-gray-3 text-gray-11">
+                                  <span class="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-dls-hover text-dls-secondary">
                                     {isSandboxWorkspace() ? "Sandbox" : "Remote"}
                                   </span>
                                 </Show>
                               </div>
                               <Show when={pathLabel()}>
-                                <div class="text-[9px] text-gray-8/80 font-mono truncate">{pathLabel()}</div>
+                                <div class="text-[9px] text-dls-secondary/80 font-mono truncate">{pathLabel()}</div>
                               </Show>
                               <Show when={detailLabel() && detailLabel() !== pathLabel()}>
-                                <div class="text-[9px] text-gray-7/80 truncate">{detailLabel()}</div>
+                                <div class="text-[9px] text-dls-secondary/80 truncate">{detailLabel()}</div>
                               </Show>
                             </div>
                             <div class="flex items-center gap-2 text-[10px] shrink-0">
                               <Show when={isConnecting() || connectionStatus() === "connecting"}>
-                                <Loader2 size={12} class="text-gray-10 animate-spin" />
+                                <Loader2 size={12} class="text-dls-secondary animate-spin" />
                               </Show>
                               <Show when={!isConnecting() && connectionStatus() !== "connecting"}>
                                 <Show when={connectionStatus() === "error"}>
                                   <span class="text-red-11 font-medium">Needs attention</span>
                                 </Show>
                                 <Show when={connectionStatus() !== "error"}>
-                                  <Show when={isActive()} fallback={<span class="text-gray-9">Switch</span>}>
+                                  <Show when={isActive()} fallback={<span class="text-dls-secondary">Switch</span>}>
                                     <span class="text-green-11 font-medium">Active</span>
                                   </Show>
                                 </Show>
@@ -388,7 +388,7 @@ export default function SessionSidebar(props: SidebarProps) {
                         <div class="flex flex-col items-center gap-1">
                           <button
                             type="button"
-                            class="p-1 rounded-md text-gray-9 hover:text-gray-12 hover:bg-gray-2"
+                            class="p-1 rounded-md text-dls-secondary hover:text-dls-text hover:bg-dls-hover"
                             onClick={() => toggleWorkspaceCollapse(group.workspace.id)}
                             title={collapsed() ? "Expand" : "Collapse"}
                           >
@@ -399,7 +399,7 @@ export default function SessionSidebar(props: SidebarProps) {
                           </button>
                           <button
                             type="button"
-                            class="p-1 rounded-md text-gray-9 hover:text-gray-12 hover:bg-gray-2 cursor-grab"
+                            class="p-1 rounded-md text-dls-secondary hover:text-dls-text hover:bg-dls-hover cursor-grab"
                             title="Drag to reorder"
                             draggable
                             onDragStart={(event) => handleDragStart(event, group.workspace.id)}
@@ -420,7 +420,7 @@ export default function SessionSidebar(props: SidebarProps) {
                             <Show when={group.workspace.workspaceType === "remote"}>
                               <button
                                 type="button"
-                                class="inline-flex items-center gap-1.5 rounded-md border border-gray-6 px-2 py-1 text-[10px] text-gray-10 hover:text-gray-12 hover:border-gray-7 hover:bg-gray-2 transition-colors"
+                                class="inline-flex items-center gap-1.5 rounded-md border border-dls-border px-2 py-1 text-[10px] text-dls-secondary hover:text-dls-text hover:border-dls-border hover:bg-dls-hover transition-colors"
                                 onClick={() => props.onEditWorkspace(group.workspace.id)}
                                 disabled={isActivelyConnecting()}
                               >
@@ -429,7 +429,7 @@ export default function SessionSidebar(props: SidebarProps) {
                               </button>
                               <button
                                 type="button"
-                                class="inline-flex items-center gap-1.5 rounded-md border border-gray-6 px-2 py-1 text-[10px] text-gray-10 hover:text-gray-12 hover:border-gray-7 hover:bg-gray-2 transition-colors"
+                                class="inline-flex items-center gap-1.5 rounded-md border border-dls-border px-2 py-1 text-[10px] text-dls-secondary hover:text-dls-text hover:border-dls-border hover:bg-dls-hover transition-colors"
                                 onClick={() => props.onTestWorkspaceConnection(group.workspace.id)}
                                 disabled={isActivelyConnecting()}
                               >
@@ -440,7 +440,7 @@ export default function SessionSidebar(props: SidebarProps) {
                             <Show when={group.workspace.sandboxContainerName?.trim() && props.onStopSandbox}>
                               <button
                                 type="button"
-                                class="inline-flex items-center gap-1.5 rounded-md border border-gray-6 px-2 py-1 text-[10px] text-gray-10 hover:text-gray-12 hover:border-gray-7 hover:bg-gray-2 transition-colors"
+                                class="inline-flex items-center gap-1.5 rounded-md border border-dls-border px-2 py-1 text-[10px] text-dls-secondary hover:text-dls-text hover:border-dls-border hover:bg-dls-hover transition-colors"
                                 onClick={() => props.onStopSandbox?.(group.workspace.id)}
                                 disabled={isActivelyConnecting()}
                               >
@@ -450,7 +450,7 @@ export default function SessionSidebar(props: SidebarProps) {
                             </Show>
                             <button
                               type="button"
-                              class="inline-flex items-center gap-1.5 rounded-md border border-gray-6 px-2 py-1 text-[10px] text-gray-10 hover:text-gray-12 hover:border-gray-7 hover:bg-gray-2 transition-colors"
+                              class="inline-flex items-center gap-1.5 rounded-md border border-dls-border px-2 py-1 text-[10px] text-dls-secondary hover:text-dls-text hover:border-dls-border hover:bg-dls-hover transition-colors"
                               onClick={() => props.onForgetWorkspace(group.workspace.id)}
                               disabled={isActivelyConnecting()}
                             >
@@ -461,7 +461,7 @@ export default function SessionSidebar(props: SidebarProps) {
                           <Show
                             when={sessions().length > 0}
                             fallback={
-                              <div class="px-3 py-2 rounded-lg border border-dashed border-gray-6 text-xs text-gray-9">
+                              <div class="px-3 py-2 rounded-lg border border-dashed border-dls-border text-xs text-dls-secondary">
                                 No sessions yet.
                               </div>
                             }
@@ -471,8 +471,8 @@ export default function SessionSidebar(props: SidebarProps) {
                                 <button
                                   class={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                                     session.id === props.selectedSessionId
-                                      ? "bg-gray-3 text-gray-12 font-medium"
-                                      : "text-gray-11 hover:text-gray-12 hover:bg-gray-2"
+                                      ? "bg-dls-hover text-dls-text font-medium"
+                                      : "text-dls-secondary hover:text-dls-text hover:bg-dls-hover"
                                   } ${!allowActions() ? "opacity-70" : ""}`}
                                   onClick={() => {
                                     if (!allowActions()) return;
@@ -496,14 +496,14 @@ export default function SessionSidebar(props: SidebarProps) {
                                         class={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1 ${
                                           props.sessionStatusById[session.id] === "running"
                                             ? "border-amber-7/50 text-amber-11 bg-amber-2/50"
-                                            : "border-gray-7/50 text-gray-10 bg-gray-2/50"
+                                            : "border-dls-border/50 text-dls-secondary bg-dls-hover/50"
                                         }`}
                                       >
                                         <div
                                           class={`w-1 h-1 rounded-full ${
                                             props.sessionStatusById[session.id] === "running"
                                               ? "bg-amber-9 animate-pulse"
-                                              : "bg-gray-9"
+                                              : "bg-dls-secondary"
                                           }`}
                                         />
                                       </span>
@@ -515,7 +515,7 @@ export default function SessionSidebar(props: SidebarProps) {
                             <Show when={hasMoreSessions()}>
                               <button
                                 type="button"
-                                class="w-full px-3 py-2 rounded-lg text-xs text-gray-9 hover:text-gray-12 hover:bg-gray-2 transition-colors"
+                                class="w-full px-3 py-2 rounded-lg text-xs text-dls-secondary hover:text-dls-text hover:bg-dls-hover transition-colors"
                                 onClick={() => toggleShowAllSessions(group.workspace.id)}
                               >
                                 {showingAll()
@@ -534,7 +534,7 @@ export default function SessionSidebar(props: SidebarProps) {
             <div>
               <button
                 type="button"
-                class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-gray-11 border border-dashed border-gray-6 hover:border-gray-7 hover:text-gray-12 hover:bg-gray-2 transition-colors"
+                class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-dls-secondary border border-dashed border-dls-border hover:border-dls-border hover:text-dls-text hover:bg-dls-hover transition-colors"
                 onClick={() => props.onCreateWorkspace()}
                 onDragOver={(event) => handleDragOver(event, null)}
                 onDragLeave={() => handleDragLeave(null)}
@@ -549,15 +549,15 @@ export default function SessionSidebar(props: SidebarProps) {
 
         <div class="space-y-4">
           <Show when={realTodos().length > 0}>
-            <div class="rounded-2xl border border-gray-6 bg-gray-2/30" id="sidebar-progress">
+            <div class="rounded-2xl border border-dls-border bg-dls-hover/30" id="sidebar-progress">
               <button
-                class="w-full px-4 py-3 flex items-center justify-between text-sm text-gray-12 font-medium"
+                class="w-full px-4 py-3 flex items-center justify-between text-sm text-dls-text font-medium"
                 onClick={() => props.onToggleSection("progress")}
               >
                 <span>Progress</span>
                 <ChevronDown
                   size={16}
-                  class={`transition-transform text-gray-10 ${
+                  class={`transition-transform text-dls-secondary ${
                     props.expandedSections.progress ? "rotate-180" : ""
                   }`.trim()}
                 />
@@ -571,7 +571,7 @@ export default function SessionSidebar(props: SidebarProps) {
                           class={`h-6 w-6 rounded-full border flex items-center justify-center transition-colors ${
                             done
                               ? "border-green-6 bg-green-2 text-green-11"
-                              : "border-gray-6 bg-gray-1 text-gray-8"
+                              : "border-dls-border bg-dls-surface text-dls-secondary"
                           }`}
                         >
                           <Show when={done}>
@@ -599,14 +599,14 @@ export default function SessionSidebar(props: SidebarProps) {
             }}
           >
             <div
-              class="fixed w-44 rounded-xl border border-gray-6 bg-gray-1 shadow-2xl shadow-gray-12/10 p-1"
+              class="fixed w-44 rounded-xl border border-dls-border bg-dls-surface shadow-2xl shadow-dls-text/10 p-1"
               style={contextMenuStyle()}
               role="menu"
               onClick={(event) => event.stopPropagation()}
               ref={(el) => (contextMenuRef = el)}
             >
               <button
-                class="w-full text-left px-3 py-2 text-sm rounded-lg text-gray-12 hover:bg-gray-2 transition-colors"
+                class="w-full text-left px-3 py-2 text-sm rounded-lg text-dls-text hover:bg-dls-hover transition-colors"
                 role="menuitem"
                 onClick={() => {
                   props.onCreateSession();

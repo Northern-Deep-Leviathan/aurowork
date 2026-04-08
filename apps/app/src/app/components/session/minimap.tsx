@@ -86,7 +86,7 @@ export default function Minimap(props: MinimapProps) {
   });
 
   return (
-    <div class="hidden lg:flex w-6 bg-gray-1/50 border-l border-gray-3 flex-col items-center justify-start relative group/rail z-10 overflow-hidden py-2 h-full backdrop-blur-sm">
+    <div class="hidden lg:flex w-6 bg-dls-surface/50 border-l border-dls-border flex-col items-center justify-start relative group/rail z-10 overflow-hidden py-2 h-full backdrop-blur-sm">
       <For each={lines()}>
         {(line, idx) => {
           const isActive = () => line.id === activeId();
@@ -97,11 +97,11 @@ export default function Minimap(props: MinimapProps) {
               type="button"
               aria-label={`${isUser ? "User" : "Agent"} message ${idx() + 1}`}
               aria-current={isActive() ? "true" : undefined}
-              class={`absolute left-1/2 -translate-x-1/2 rounded-full transition-all duration-300 ease-out cursor-pointer appearance-none border-none p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-12/70
+              class={`absolute left-1/2 -translate-x-1/2 rounded-full transition-all duration-300 ease-out cursor-pointer appearance-none border-none p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dls-text/70
                 ${
                   isActive()
-                    ? "w-4 h-1.5 opacity-100 z-20 bg-gray-12 shadow-sm"
-                    : `w-2 h-1 ${isUser ? "bg-gray-11 opacity-60" : "bg-gray-6 opacity-40"} hover:w-3 hover:opacity-100`
+                    ? "w-4 h-1.5 opacity-100 z-20 bg-dls-text shadow-sm"
+                    : `w-2 h-1 ${isUser ? "bg-dls-secondary opacity-60" : "bg-dls-border opacity-40"} hover:w-3 hover:opacity-100`
                 }
               `}
               style={{

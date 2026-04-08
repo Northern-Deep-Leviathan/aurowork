@@ -92,7 +92,7 @@ export default function ReloadWorkspaceToast(props: ReloadWorkspaceToastProps) {
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
-                  <span class="text-sm font-semibold text-gray-12 truncate">{props.title}</span>
+                  <span class="text-sm font-semibold text-dls-text truncate">{props.title}</span>
                   <Show when={props.hasActiveRuns}>
                     <span class="inline-flex items-center gap-1 rounded-full bg-amber-4 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-11">
                       Active tasks
@@ -101,7 +101,7 @@ export default function ReloadWorkspaceToast(props: ReloadWorkspaceToastProps) {
                 </div>
 
                 <Show when={props.description || props.error || props.warning || props.blockedReason}>
-                  <div class="mt-1 space-y-1 text-sm leading-relaxed text-gray-10">
+                  <div class="mt-1 space-y-1 text-sm leading-relaxed text-dls-secondary">
                     <div>
                       {props.hasActiveRuns ? (
                         <span class="font-medium text-amber-11">Reloading will stop active tasks.</span>
@@ -118,7 +118,7 @@ export default function ReloadWorkspaceToast(props: ReloadWorkspaceToastProps) {
                       </div>
                     </Show>
                     <Show when={props.blockedReason}>
-                      <div class="text-xs text-gray-9">Blocked: {props.blockedReason}</div>
+                      <div class="text-xs text-dls-secondary">Blocked: {props.blockedReason}</div>
                     </Show>
                   </div>
                 </Show>
@@ -127,7 +127,7 @@ export default function ReloadWorkspaceToast(props: ReloadWorkspaceToastProps) {
               <button
                 type="button"
                 onClick={() => props.onDismiss()}
-                class="rounded-full p-1 text-gray-9 transition hover:bg-gray-3 hover:text-gray-12"
+                class="rounded-full p-1 text-dls-secondary transition hover:bg-dls-hover hover:text-dls-text"
                 aria-label={props.dismissLabel}
               >
                 <X size={16} />

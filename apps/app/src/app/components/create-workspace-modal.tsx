@@ -1,6 +1,6 @@
 import { Show, createEffect, createSignal } from "solid-js";
 
-import { FolderPlus, Loader2, X } from "lucide-solid";
+import { AlertTriangle, FolderPlus, Loader2, X } from "lucide-solid";
 import { t, currentLocale } from "../../i18n";
 import type { WorkspacePreset } from "../types";
 
@@ -9,6 +9,7 @@ export default function CreateWorkspaceModal(props: {
   onClose: () => void;
   onConfirm: (preset: WorkspacePreset, folder: string | null) => void;
   onPickFolder: () => Promise<string | null>;
+  onCheckFolder?: (folder: string) => Promise<{ writable: boolean; error: string | null }>;
   submitting?: boolean;
   inline?: boolean;
   showClose?: boolean;
@@ -23,10 +24,13 @@ export default function CreateWorkspaceModal(props: {
   const [preset, setPreset] = createSignal<WorkspacePreset>(props.defaultPreset ?? "starter");
   const [selectedFolder, setSelectedFolder] = createSignal<string | null>(null);
   const [pickingFolder, setPickingFolder] = createSignal(false);
+  const [folderError, setFolderError] = createSignal<string | null>(null);
 
   createEffect(() => {
     if (props.open) {
       setPreset(props.defaultPreset ?? "starter");
+      setSelectedFolder(null);
+      setFolderError(null);
       requestAnimationFrame(() => pickFolderRef?.focus());
     }
   });
@@ -34,10 +38,22 @@ export default function CreateWorkspaceModal(props: {
   const handlePickFolder = async () => {
     if (pickingFolder()) return;
     setPickingFolder(true);
+    setFolderError(null);
     try {
       await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
       const next = await props.onPickFolder();
-      if (next) setSelectedFolder(next);
+      if (next) {
+        // Check folder permissions before accepting
+        if (props.onCheckFolder) {
+          const check = await props.onCheckFolder(next);
+          if (!check.writable) {
+            setFolderError(check.error || translate("dashboard.folder_not_writable"));
+            setSelectedFolder(null);
+            return;
+          }
+        }
+        setSelectedFolder(next);
+      }
     } finally {
       setPickingFolder(false);
     }
@@ -75,7 +91,7 @@ export default function CreateWorkspaceModal(props: {
           <div class="mb-1 flex items-center justify-between gap-3">
             <div class="text-[15px] font-semibold text-dls-text">Workspace folder</div>
           </div>
-          <div class="mb-4 text-[13px] text-gray-11">
+          <div class="mb-4 text-[13px] text-dls-secondary">
             <Show when={hasSelectedFolder()} fallback={translate("dashboard.choose_folder_next")}>
               <span class="font-mono text-xs">{selectedFolder()}</span>
             </Show>
@@ -85,13 +101,19 @@ export default function CreateWorkspaceModal(props: {
             ref={pickFolderRef}
             onClick={handlePickFolder}
             disabled={pickingFolder() || submitting()}
-            class="flex items-center gap-2 rounded-full border border-dls-border bg-dls-surface px-4 py-2 text-center text-xs font-medium text-dls-text transition-colors hover:border-gray-8 hover:bg-gray-2 disabled:cursor-wait disabled:opacity-70"
+            class="flex items-center gap-2 rounded-full border border-dls-border bg-dls-surface px-4 py-2 text-center text-xs font-medium text-dls-text transition-colors hover:border-dls-border hover:bg-dls-hover disabled:cursor-wait disabled:opacity-70"
           >
             <Show when={pickingFolder()} fallback={<FolderPlus size={14} />}>
               <Loader2 size={14} class="animate-spin" />
             </Show>
             {hasSelectedFolder() ? translate("dashboard.change") : "Select folder"}
           </button>
+          <Show when={folderError()}>
+            <div class="mt-3 flex items-start gap-2 rounded-lg bg-red-500/10 px-3 py-2.5 text-xs text-red-600 dark:text-red-400">
+              <AlertTriangle size={14} class="mt-0.5 shrink-0" />
+              <span>{folderError()}</span>
+            </div>
+          </Show>
         </div>
       </div>
 
@@ -132,7 +154,7 @@ export default function CreateWorkspaceModal(props: {
         class={
           isInline()
             ? "w-full"
-            : "fixed inset-0 z-50 flex items-center justify-center bg-gray-1/60 p-4 animate-in fade-in duration-200"
+            : "fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-in fade-in duration-200"
         }
       >
         {content}

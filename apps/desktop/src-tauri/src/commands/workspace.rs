@@ -290,6 +290,67 @@ pub fn workspace_register(
     Ok(build_workspace_list(state))
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderCheck {
+    pub writable: bool,
+    pub exists: bool,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub fn workspace_check_folder(folder_path: String) -> Result<FolderCheck, String> {
+    let folder = folder_path.trim().to_string();
+    if folder.is_empty() {
+        return Err("folderPath is required".to_string());
+    }
+
+    let path = PathBuf::from(&folder);
+    let exists = path.exists();
+
+    // Try to create a temporary probe directory inside the target folder.
+    // If the folder itself doesn't exist yet we first try to create it; either
+    // way we then attempt to write inside it. This mirrors what workspace_create
+    // will do later (create_dir_all + ensure_workspace_files).
+    let probe_dir = path.join(".opencode-probe");
+    match fs::create_dir_all(&probe_dir) {
+        Ok(_) => {
+            // Also verify we can write a file (not just create dirs)
+            let probe_file = probe_dir.join("probe");
+            let write_ok = fs::write(&probe_file, b"ok").is_ok();
+            let _ = fs::remove_file(&probe_file);
+            let _ = fs::remove_dir(&probe_dir);
+
+            if write_ok {
+                Ok(FolderCheck {
+                    writable: true,
+                    exists,
+                    error: None,
+                })
+            } else {
+                Ok(FolderCheck {
+                    writable: false,
+                    exists,
+                    error: Some("Cannot write files in this folder — check permissions.".to_string()),
+                })
+            }
+        }
+        Err(e) => {
+            let kind = e.kind();
+            let message = if kind == std::io::ErrorKind::PermissionDenied {
+                "This folder is protected by the system. Choose a folder you own, for example inside your home directory.".to_string()
+            } else {
+                format!("Cannot use this folder: {e}")
+            };
+            Ok(FolderCheck {
+                writable: false,
+                exists,
+                error: Some(message),
+            })
+        }
+    }
+}
+
 #[tauri::command]
 pub fn workspace_create(
     app: tauri::AppHandle,

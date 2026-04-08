@@ -198,10 +198,10 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
         }}
         class={`group w-full text-left rounded-xl px-3 py-2.5 transition-colors cursor-pointer ${
           active()
-            ? "bg-gray-3 text-gray-12"
+            ? "bg-dls-hover text-dls-text"
             : index === activeIndex()
-              ? "bg-gray-2 text-gray-12"
-              : "text-gray-10 hover:bg-gray-1/70 hover:text-gray-11"
+              ? "bg-dls-surface text-dls-text"
+              : "text-dls-secondary hover:bg-dls-surface/70 hover:text-dls-secondary"
         }`}
         onMouseEnter={() => {
           setActiveIndex(index);
@@ -223,23 +223,23 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
         }}
       >
         <div class="flex items-start gap-3">
-          <ProviderIcon providerId={opt.providerID} size={16} class={`mt-[1px] shrink-0 transition-colors ${active() ? 'text-gray-12' : 'text-gray-10 group-hover:text-gray-11'}`} />
+          <ProviderIcon providerId={opt.providerID} size={16} class={`mt-[1px] shrink-0 transition-colors ${active() ? 'text-dls-text' : 'text-dls-secondary group-hover:text-dls-secondary'}`} />
           <div class="flex-1 min-w-0">
-            <div class={`text-[13px] flex items-center justify-between gap-2 ${active() ? 'font-medium text-gray-12' : 'text-current'}`}>
+            <div class={`text-[13px] flex items-center justify-between gap-2 ${active() ? 'font-medium text-dls-text' : 'text-current'}`}>
               <span class="truncate">{opt.title}</span>
             </div>
-            <div class={`mt-0.5 flex items-center gap-3 text-[11px] ${active() ? 'text-gray-10' : 'text-gray-9 group-hover:text-gray-10'}`}>
+            <div class={`mt-0.5 flex items-center gap-3 text-[11px] ${active() ? 'text-dls-secondary' : 'text-dls-secondary group-hover:text-dls-secondary'}`}>
               <span class="truncate">{opt.description ?? opt.providerID}</span>
               <span class="ml-auto opacity-70 font-mono">
                 {opt.providerID}/{opt.modelID}
               </span>
             </div>
             <Show when={opt.footer}>
-              <div class={`text-[11px] mt-1 ${active() ? 'text-gray-10' : 'text-gray-8 group-hover:text-gray-9'}`}>{opt.footer}</div>
+              <div class={`text-[11px] mt-1 ${active() ? 'text-dls-secondary' : 'text-dls-secondary/60 group-hover:text-dls-secondary'}`}>{opt.footer}</div>
             </Show>
             <Show when={active() && (opt.behaviorOptions?.length ?? 0) > 0}>
               <div class="mt-3 flex items-center gap-2" onKeyDown={(e) => e.stopPropagation()}>
-                <span class="text-[11px] font-medium text-gray-10 mr-1">{opt.behaviorTitle}:</span>
+                <span class="text-[11px] font-medium text-dls-secondary mr-1">{opt.behaviorTitle}:</span>
                 <div class="flex flex-wrap items-center gap-3" onClick={(e) => e.stopPropagation()}>
                   <For each={opt.behaviorOptions}>
                     {(option) => (
@@ -247,8 +247,8 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
                         type="button"
                         class={`text-[11px] transition-colors ${
                           opt.behaviorValue === option.value
-                            ? "text-gray-12 font-semibold"
-                            : "text-gray-10 hover:text-gray-12"
+                            ? "text-dls-text font-semibold"
+                            : "text-dls-secondary hover:text-dls-text"
                         }`}
                         onClick={(event) => {
                           event.preventDefault();
@@ -281,8 +281,8 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
       }}
       class={`group w-full text-left rounded-xl px-3 py-2.5 transition-colors cursor-pointer ${
         index === activeIndex()
-          ? "bg-gray-2 text-gray-12"
-          : "text-gray-10 hover:bg-gray-1/70 hover:text-gray-11"
+          ? "bg-dls-surface text-dls-text"
+          : "text-dls-secondary hover:bg-dls-surface/70 hover:text-dls-secondary"
       }`}
       onMouseEnter={() => {
         setActiveIndex(index);
@@ -300,12 +300,12 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
       }}
     >
       <div class="flex items-start gap-3">
-        <ProviderIcon providerId={provider.providerID} size={16} class={`mt-[1px] shrink-0 transition-colors ${index === activeIndex() ? 'text-gray-12' : 'text-gray-10 group-hover:text-gray-11'}`} />
+        <ProviderIcon providerId={provider.providerID} size={16} class={`mt-[1px] shrink-0 transition-colors ${index === activeIndex() ? 'text-dls-text' : 'text-dls-secondary group-hover:text-dls-secondary'}`} />
         <div class="flex-1 min-w-0">
           <div class={`text-[13px] flex items-center justify-between gap-2 text-current`}>
             <span class="truncate">{provider.title}</span>
           </div>
-          <div class={`mt-0.5 flex items-center gap-3 text-[11px] ${index === activeIndex() ? 'text-gray-10' : 'text-gray-9 group-hover:text-gray-10'}`}>
+          <div class={`mt-0.5 flex items-center gap-3 text-[11px] ${index === activeIndex() ? 'text-dls-secondary' : 'text-dls-secondary group-hover:text-dls-secondary'}`}>
             <span class="truncate">Connect this provider to browse and save models</span>
             <span class="ml-auto opacity-70">
               {provider.matchCount} {provider.matchCount === 1 ? "model" : "models"}
@@ -318,15 +318,15 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
 
   return (
     <Show when={props.open}>
-      <div class="fixed inset-0 z-50 bg-gray-1/60 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
+      <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
         <div class="bg-dls-surface border border-dls-border w-full max-w-lg rounded-[24px] shadow-[var(--dls-shell-shadow)] overflow-hidden max-h-[calc(100vh-2rem)] flex flex-col">
           <div class="p-6 flex flex-col min-h-0">
             <div class="flex items-start justify-between gap-4">
               <div>
-                <h3 class="text-lg font-semibold text-gray-12">
+                <h3 class="text-lg font-semibold text-dls-text">
                   {props.target === "default" ? "Default model" : "Chat model"}
                 </h3>
-                <p class="text-sm text-gray-11 mt-1">
+                <p class="text-sm text-dls-secondary mt-1">
                   {props.target === "default"
                     ? "Choose the default model for new chats. If a model supports reasoning profiles, configure them on its card."
                     : "Choose the model for this chat. If a model supports reasoning profiles, configure them on its card."}
@@ -363,7 +363,7 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
             <div class="mt-4 space-y-4 overflow-y-auto pr-1 -mr-1 min-h-0">
               <Show when={recommendedOptions().length > 0}>
                 <section class="space-y-2">
-                  <div class="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-9">
+                  <div class="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-dls-secondary">
                     Recommended
                   </div>
                   <For each={recommendedOptions()}>{({ opt, index }) => renderOption(opt, index)}</For>
@@ -372,7 +372,7 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
 
               <Show when={otherEnabledOptions().length > 0}>
                 <section class="space-y-2">
-                  <div class="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-9">
+                  <div class="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-dls-secondary">
                     Other connected models
                   </div>
                   <For each={otherEnabledOptions()}>{({ opt, index }) => renderOption(opt, index)}</For>
@@ -381,7 +381,7 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
 
               <Show when={otherOptions().length > 0}>
                 <section class="space-y-2">
-                  <div class="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-9">
+                  <div class="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-dls-secondary">
                     More providers
                   </div>
                   <For each={otherOptions()}>
@@ -391,7 +391,7 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
               </Show>
 
               <Show when={renderedItems().length === 0}>
-                <div class="rounded-2xl border border-gray-6/70 bg-gray-1/40 px-4 py-6 text-sm text-gray-10">
+                <div class="rounded-2xl border border-dls-border bg-dls-surface/40 px-4 py-6 text-sm text-dls-secondary">
                   No models match your search.
                 </div>
               </Show>

@@ -22,8 +22,8 @@ export default function ConfirmModal(props: ConfirmModalProps) {
 
   return (
     <Show when={props.open}>
-      <div class="fixed inset-0 z-[60] bg-gray-1/70 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-gray-2 border border-gray-6/70 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+      <div class="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-dls-surface border border-dls-border w-full max-w-md rounded-3xl shadow-[var(--dls-shell-shadow)] overflow-hidden">
           <div class="p-6">
             <div class="flex items-start gap-4">
               <div
@@ -36,8 +36,8 @@ export default function ConfirmModal(props: ConfirmModalProps) {
                 <AlertTriangle size={20} />
               </div>
               <div class="min-w-0">
-                <h3 class="text-base font-semibold text-gray-12">{props.title}</h3>
-                <p class="mt-2 text-sm text-gray-11">{props.message}</p>
+                <h3 class="text-base font-semibold text-dls-text">{props.title}</h3>
+                <p class="mt-2 text-sm text-dls-secondary">{props.message}</p>
               </div>
             </div>
 

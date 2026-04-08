@@ -242,7 +242,7 @@ const createMentionSpan = (part: Extract<ComposerPart, { type: "agent" | "file" 
   span.dataset.mentionValue = part.type === "agent" ? part.name : part.path;
   span.dataset.mentionLabel = label;
   span.className =
-    "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-gray-3 text-gray-11 border border-gray-6";
+    "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-dls-hover text-dls-secondary border border-dls-border";
   return span;
 };
 
@@ -520,7 +520,7 @@ export default function Composer(props: ComposerProps) {
     span.dataset.pasteLines = String(part.lines);
     span.title = "Click to expand pasted text";
     span.className =
-      "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-gray-3 text-gray-10 border border-gray-6 cursor-pointer hover:bg-gray-4 hover:text-gray-11";
+      "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-dls-hover text-dls-secondary border border-dls-border cursor-pointer hover:bg-dls-active hover:text-dls-secondary";
     return span;
   };
 
@@ -1589,7 +1589,7 @@ export default function Composer(props: ComposerProps) {
                 <div class="max-h-64 overflow-y-auto bg-dls-surface p-2" onMouseDown={(event: MouseEvent) => event.preventDefault()}>
                   <Show
                     when={mentionVisible().length}
-                    fallback={<div class="px-3 py-2 text-xs text-gray-10">No matches found.</div>}
+                    fallback={<div class="px-3 py-2 text-xs text-dls-secondary">No matches found.</div>}
                   >
                     <For each={mentionVisible()}>
                       {(option: MentionOption) => {
@@ -1598,7 +1598,7 @@ export default function Composer(props: ComposerProps) {
                         return (
                           <button
                             type="button"
-                            class={`w-full flex items-center gap-2 rounded-[16px] px-3 py-2.5 text-left transition-colors ${active() ? "bg-gray-2 text-gray-12" : "text-gray-11 hover:bg-gray-2/70"
+                            class={`w-full flex items-center gap-2 rounded-[16px] px-3 py-2.5 text-left transition-colors ${active() ? "bg-dls-hover text-dls-text" : "text-dls-secondary hover:bg-dls-hover/70"
                               }`}
                             onMouseDown={(event: MouseEvent) => {
                               event.preventDefault();
@@ -1610,7 +1610,7 @@ export default function Composer(props: ComposerProps) {
                               when={option.kind === "agent"}
                               fallback={
                                 <>
-                                  <FileIcon size={14} class="text-gray-9" />
+                                  <FileIcon size={14} class="text-dls-secondary" />
                                   <div class="flex items-center min-w-0 text-xs">
                                     {(() => {
                                       const value = option.value;
@@ -1619,9 +1619,9 @@ export default function Composer(props: ComposerProps) {
                                       const name = slash === -1 ? value : value.slice(slash + 1);
                                       return (
                                         <>
-                                          <span class="text-gray-9 truncate">{dir}</span>
+                                          <span class="text-dls-secondary truncate">{dir}</span>
                                           <Show when={name}>
-                                            <span class="text-gray-11 font-semibold">{name}</span>
+                                            <span class="text-dls-secondary font-semibold">{name}</span>
                                           </Show>
                                         </>
                                       );
@@ -1630,8 +1630,8 @@ export default function Composer(props: ComposerProps) {
                                 </>
                               }
                             >
-                              <AtSign size={14} class="text-gray-9" />
-                              <span class="text-xs font-semibold text-gray-11">@{option.label}</span>
+                              <AtSign size={14} class="text-dls-secondary" />
+                              <span class="text-xs font-semibold text-dls-secondary">@{option.label}</span>
                             </Show>
                           </button>
                         );
@@ -1651,7 +1651,7 @@ export default function Composer(props: ComposerProps) {
                   <Show
                     when={slashFiltered().length}
                     fallback={
-                      <div class="px-3 py-2 text-xs text-gray-10">
+                      <div class="px-3 py-2 text-xs text-dls-secondary">
                         {slashLoading() ? "Loading commands..." : "No commands found."}
                       </div>
                     }
@@ -1662,7 +1662,7 @@ export default function Composer(props: ComposerProps) {
                         return (
                           <button
                             type="button"
-                            class={`w-full flex items-center justify-between gap-4 rounded-[16px] px-3 py-2.5 text-left transition-colors ${active() ? "bg-gray-2 text-gray-12" : "text-gray-11 hover:bg-gray-2/70"
+                            class={`w-full flex items-center justify-between gap-4 rounded-[16px] px-3 py-2.5 text-left transition-colors ${active() ? "bg-dls-hover text-dls-text" : "text-dls-secondary hover:bg-dls-hover/70"
                               }`}
                             onMouseDown={(event: MouseEvent) => {
                               event.preventDefault();
@@ -1671,14 +1671,14 @@ export default function Composer(props: ComposerProps) {
                             onMouseEnter={() => setSlashIndex(index())}
                           >
                             <div class="flex items-center gap-2 min-w-0">
-                              <Terminal size={14} class="text-gray-9 shrink-0" />
-                              <span class="text-xs font-semibold text-gray-11 whitespace-nowrap">/{cmd.name}</span>
+                              <Terminal size={14} class="text-dls-secondary shrink-0" />
+                              <span class="text-xs font-semibold text-dls-secondary whitespace-nowrap">/{cmd.name}</span>
                               <Show when={cmd.description}>
-                                <span class="text-xs text-gray-10 truncate">{cmd.description}</span>
+                                <span class="text-xs text-dls-secondary truncate">{cmd.description}</span>
                               </Show>
                             </div>
                             <Show when={cmd.source && cmd.source !== "command"}>
-                              <span class="text-[10px] uppercase tracking-wider text-gray-10 shrink-0">
+                              <span class="text-[10px] uppercase tracking-wider text-dls-secondary shrink-0">
                                 {cmd.source === "skill" ? "Skill" : cmd.source === "mcp" ? "MCP" : ""}
                               </span>
                             </Show>
@@ -1696,7 +1696,7 @@ export default function Composer(props: ComposerProps) {
             <Show when={props.showNotionBanner}>
               <button
                 type="button"
-                class="w-full mb-2 flex items-center justify-between gap-3 rounded-xl border border-green-7/20 bg-green-7/10 px-3 py-2 text-left text-sm text-green-12 transition-colors hover:bg-green-7/15"
+                class="w-full mb-2 flex items-center justify-between gap-3 rounded-2xl border border-green-7/20 bg-green-7/10 px-3 py-2 text-left text-sm text-green-12 transition-colors hover:bg-green-7/15"
                 onClick={props.onNotionBannerClick}
               >
                 <span>Try it now: set up my CRM in Notion</span>
@@ -1708,12 +1708,12 @@ export default function Composer(props: ComposerProps) {
               <div class="mb-3 flex flex-wrap gap-2">
                 <For each={attachments()}>
                   {(attachment: ComposerAttachment) => (
-                    <div class="flex items-center gap-2 rounded-2xl border border-gray-6 bg-gray-2 px-3 py-2 text-xs text-gray-10">
+                    <div class="flex items-center gap-2 rounded-2xl border border-dls-border bg-dls-hover px-3 py-2 text-xs text-dls-secondary">
                       <Show
                         when={attachment.kind === "image"}
-                        fallback={<FileIcon size={14} class="text-gray-9" />}
+                        fallback={<FileIcon size={14} class="text-dls-secondary" />}
                       >
-                        <div class="h-10 w-10 rounded-xl bg-gray-1 overflow-hidden border border-gray-6">
+                        <div class="h-10 w-10 rounded-2xl bg-dls-surface overflow-hidden border border-dls-border">
                           <img
                             src={attachment.previewUrl!}
                             alt={attachment.name}
@@ -1723,14 +1723,14 @@ export default function Composer(props: ComposerProps) {
                         </div>
                       </Show>
                       <div class="max-w-[160px]">
-                        <div class="truncate text-gray-11">{attachment.name}</div>
-                        <div class="text-[10px] text-gray-10">
+                        <div class="truncate text-dls-secondary">{attachment.name}</div>
+                        <div class="text-[10px] text-dls-secondary">
                           {attachment.kind === "image" ? "Image" : attachment.mimeType || "File"}
                         </div>
                       </div>
                       <button
                         type="button"
-                        class="ml-1 rounded-full p-1 text-gray-10 hover:text-gray-11 hover:bg-gray-4"
+                        class="ml-1 rounded-full p-1 text-dls-secondary hover:text-dls-secondary hover:bg-dls-active"
                         onClick={() => removeAttachment(attachment.id)}
                       >
                         <X size={12} />
@@ -1743,13 +1743,13 @@ export default function Composer(props: ComposerProps) {
 
             <div class="relative min-h-[120px]">
               <Show when={props.toast}>
-                <div class="absolute bottom-full right-0 mb-2 z-30 rounded-xl border border-gray-6 bg-gray-1 px-3 py-2 text-xs text-gray-11 shadow-lg backdrop-blur-md">
+                <div class="absolute bottom-full right-0 mb-2 z-30 rounded-2xl border border-dls-border bg-dls-surface px-3 py-2 text-xs text-dls-secondary shadow-lg backdrop-blur-md">
                   <div class="flex items-center gap-3">
                     <span>{props.toast}</span>
                     <Show when={showInboxUploadAction() && props.onUploadInboxFiles}>
                       <button
                         type="button"
-                        class="shrink-0 rounded-md border border-gray-6 bg-gray-2 px-2 py-1 text-[10px] text-gray-11 hover:bg-gray-3"
+                        class="shrink-0 rounded-md border border-dls-border bg-dls-hover px-2 py-1 text-[10px] text-dls-secondary hover:bg-dls-hover"
                         onClick={() => inboxFileInputRef?.click()}
                       >
                         Upload to shared folder
@@ -1763,7 +1763,7 @@ export default function Composer(props: ComposerProps) {
                 <div class="flex-1 min-w-0">
                   <div class="relative">
                     <Show when={!hasDraftContent()}>
-                    <div class="absolute left-0 top-0 text-gray-9 text-[15px] leading-relaxed pointer-events-none">
+                    <div class="absolute left-0 top-0 text-dls-secondary text-[15px] leading-relaxed pointer-events-none">
                         Describe your task...
                     </div>
                   </Show>
@@ -1776,10 +1776,10 @@ export default function Composer(props: ComposerProps) {
                       onKeyDown={handleKeyDown}
                       onPaste={handlePaste}
                       onClick={handleEditorClick}
-                      class="bg-transparent border-none p-0 pb-8 pr-4 text-gray-12 focus:ring-0 text-[15px] leading-relaxed resize-none min-h-[24px] max-h-40 overflow-y-auto outline-none relative z-10"
+                      class="bg-transparent border-none p-0 pb-8 pr-4 text-dls-text focus:ring-0 text-[15px] leading-relaxed resize-none min-h-[24px] max-h-40 overflow-y-auto outline-none relative z-10"
                     />
                     <div class="mt-2 flex min-h-9 items-center justify-between px-1 pb-1">
-                      <div class="flex min-w-0 items-center gap-1.5 text-gray-10 sm:gap-2.5">
+                      <div class="flex min-w-0 items-center gap-1.5 text-dls-secondary sm:gap-2.5">
                         <input
                           ref={inboxFileInputRef}
                           type="file"
@@ -1809,7 +1809,7 @@ export default function Composer(props: ComposerProps) {
                         />
                         <button
                           type="button"
-                          class={`rounded-md p-1.5 text-gray-10 transition-colors hover:bg-gray-3 ${attachmentsDisabled() ? "cursor-not-allowed" : ""
+                          class={`rounded-md p-1.5 text-dls-secondary transition-colors hover:bg-dls-hover ${attachmentsDisabled() ? "cursor-not-allowed" : ""
                             }`}
                           onClick={() => {
                             if (attachmentsDisabled()) return;
@@ -1834,7 +1834,7 @@ export default function Composer(props: ComposerProps) {
                               disabled={!hasDraftContent()}
                               onClick={sendDraft}
                               class={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium transition-colors ${!hasDraftContent()
-                                ? "bg-gray-4 text-gray-10"
+                                ? "bg-dls-active text-dls-secondary"
                                 : "bg-dls-accent text-white hover:bg-[var(--dls-accent-hover)]"
                                 }`}
                               title="Run task"
@@ -1847,7 +1847,7 @@ export default function Composer(props: ComposerProps) {
                           <button
                             type="button"
                             onClick={() => props.onStop()}
-                            class="inline-flex items-center gap-2 rounded-full bg-gray-12 px-4 py-2 text-[13px] font-medium text-gray-1 transition-colors hover:bg-gray-11"
+                            class="inline-flex items-center gap-2 rounded-full bg-dls-text px-4 py-2 text-[13px] font-medium text-dls-surface transition-colors hover:bg-dls-secondary"
                             title="Stop"
                           >
                             <Square size={12} fill="currentColor" />
@@ -1864,11 +1864,11 @@ export default function Composer(props: ComposerProps) {
         </div>
 
         <div class="mt-1 flex items-center justify-between px-1">
-          <div class="flex flex-wrap items-center gap-1.5 text-gray-10 sm:gap-2.5">
+          <div class="flex flex-wrap items-center gap-1.5 text-dls-secondary sm:gap-2.5">
             <div class="relative" ref={(el) => props.setAgentPickerRef(el)}>
               <button
                 type="button"
-                class="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-gray-10 transition-colors hover:bg-gray-3 hover:text-gray-12"
+                class="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-dls-secondary transition-colors hover:bg-dls-hover hover:text-dls-text"
                 onClick={props.onToggleAgentPicker}
                 disabled={props.busy}
                 aria-expanded={props.agentPickerOpen}
@@ -1880,7 +1880,7 @@ export default function Composer(props: ComposerProps) {
 
               <Show when={props.agentPickerOpen}>
                 <div class="absolute left-0 bottom-full z-40 mb-2 w-64 overflow-hidden rounded-[18px] border border-dls-border bg-dls-surface shadow-[var(--dls-shell-shadow)]">
-                  <div class="border-b border-dls-border px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-10">
+                  <div class="border-b border-dls-border px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-dls-secondary">
                     Agent
                   </div>
 
@@ -1888,7 +1888,7 @@ export default function Composer(props: ComposerProps) {
                     <Show
                       when={!props.agentPickerBusy}
                       fallback={
-                        <div class="px-3 py-2 text-xs text-gray-10">Loading agents...</div>
+                        <div class="px-3 py-2 text-xs text-dls-secondary">Loading agents...</div>
                       }
                     >
                       <Show when={!props.agentPickerError}>
@@ -1898,9 +1898,9 @@ export default function Composer(props: ComposerProps) {
                             return (
                               <button
                                 type="button"
-                                class={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors ${active()
-                                  ? "bg-gray-2 text-gray-12"
-                                  : "text-gray-11 hover:bg-gray-2/70"
+                                class={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition-colors ${active()
+                                  ? "bg-dls-hover text-dls-text"
+                                  : "text-dls-secondary hover:bg-dls-hover/70"
                                     }`}
                                 onMouseDown={(event: MouseEvent) => {
                                   event.preventDefault();
@@ -1909,7 +1909,7 @@ export default function Composer(props: ComposerProps) {
                               >
                                 <span class="truncate">{agent.name.charAt(0).toUpperCase() + agent.name.slice(1)}</span>
                                 <Show when={active()}>
-                                  <Check size={14} class="text-gray-10" />
+                                  <Check size={14} class="text-dls-secondary" />
                                 </Show>
                               </button>
                             );
@@ -1930,7 +1930,7 @@ export default function Composer(props: ComposerProps) {
 
             <button
               type="button"
-              class="flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-gray-10 transition-colors hover:bg-gray-3 hover:text-gray-12"
+              class="flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-dls-secondary transition-colors hover:bg-dls-hover hover:text-dls-text"
               onClick={props.onModelClick}
               disabled={props.busy}
             >
@@ -1942,7 +1942,7 @@ export default function Composer(props: ComposerProps) {
               <div class="relative" ref={(el) => (variantPickerRef = el)}>
                 <button
                   type="button"
-                  class="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-gray-10 transition-colors hover:bg-gray-3 hover:text-gray-12"
+                  class="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] font-medium text-dls-secondary transition-colors hover:bg-dls-hover hover:text-dls-text"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -1956,7 +1956,7 @@ export default function Composer(props: ComposerProps) {
                 </button>
                 <Show when={variantMenuOpen()}>
                   <div class="absolute left-0 bottom-full z-40 mb-2 w-48 overflow-hidden rounded-[18px] border border-dls-border bg-dls-surface shadow-[var(--dls-shell-shadow)]">
-                    <div class="border-b border-dls-border px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-10">
+                    <div class="border-b border-dls-border px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-dls-secondary">
                       Behavior
                     </div>
                     <div class="p-2 space-y-1">
@@ -1964,9 +1964,9 @@ export default function Composer(props: ComposerProps) {
                         {(option) => (
                           <button
                             type="button"
-                            class={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors ${props.modelVariant === option.value
-                              ? "bg-gray-2 text-gray-12"
-                              : "text-gray-11 hover:bg-gray-2/70"
+                            class={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-left text-xs transition-colors ${props.modelVariant === option.value
+                              ? "bg-dls-hover text-dls-text"
+                              : "text-dls-secondary hover:bg-dls-hover/70"
                                 }`}
                             onClick={(e) => {
                               e.preventDefault();
@@ -1977,7 +1977,7 @@ export default function Composer(props: ComposerProps) {
                           >
                             <span>{option.label}</span>
                             <Show when={props.modelVariant === option.value}>
-                              <Check size={14} class="text-gray-10" />
+                              <Check size={14} class="text-dls-secondary" />
                             </Show>
                           </button>
                         )}
