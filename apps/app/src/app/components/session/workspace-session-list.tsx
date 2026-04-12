@@ -59,7 +59,6 @@ type Props = {
 };
 
 const MAX_SESSIONS_PREVIEW = 6;
-const COLLAPSED_SESSIONS_PREVIEW = 1;
 
 type SessionListItem = WorkspaceSessionGroup["sessions"][number];
 type FlattenedSessionRow = { session: SessionListItem; depth: number };
@@ -282,11 +281,7 @@ export default function WorkspaceSessionList(props: Props) {
   );
 
   const previewCount = (workspaceId: string) => {
-    const base =
-      previewCountByWorkspaceId()[workspaceId] ?? MAX_SESSIONS_PREVIEW;
-    return isWorkspaceExpanded(workspaceId)
-      ? base
-      : Math.min(COLLAPSED_SESSIONS_PREVIEW, base);
+    return previewCountByWorkspaceId()[workspaceId] ?? MAX_SESSIONS_PREVIEW;
   };
 
   const previewSessions = (
@@ -752,126 +747,105 @@ export default function WorkspaceSessionList(props: Props) {
                   </Show>
                 </div>
 
-                <div class="mt-3 px-1 pb-1">
-                  <div class="relative flex flex-col gap-1 pl-2.5 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-[2px] before:bg-dls-hover before:content-['']">
-                  <Show
-                    when={isWorkspaceExpanded(workspace().id)}
-                    fallback={
-                      <Show when={group.sessions.length > 0}>
-                        <For
-                          each={previewSessions(
-                            workspace().id,
-                            group.sessions,
-                            tree,
-                            forcedExpandedSessionIds,
-                          )}
-                        >
-                          {(row) =>
-                            renderSessionRow(
-                              workspace().id,
-                              row,
-                              tree,
-                              forcedExpandedSessionIds,
-                            )}
-                        </For>
-                      </Show>
-                    }
-                  >
-                    <Show
-                      when={
-                        group.status === "loading" &&
-                        group.sessions.length === 0
-                      }
-                      fallback={
-                        <Show
-                          when={group.sessions.length > 0}
-                          fallback={
-                            <Show when={group.status === "error"}>
-                              <div
-                                class={`w-full rounded-[15px] border px-3 py-2.5 text-left text-[11px] ${
-                                  taskLoadError().tone === "offline"
-                                    ? "border-amber-7/35 bg-amber-2/50 text-amber-11"
-                                    : "border-red-7/35 bg-red-1/40 text-red-11"
-                                }`}
-                                title={taskLoadError().title}
-                              >
-                                {taskLoadError().message}
-                              </div>
-                            </Show>
-                          }
-                        >
-                          <For
-                            each={previewSessions(
-                              workspace().id,
-                              group.sessions,
-                              tree,
-                              forcedExpandedSessionIds,
-                            )}
+                {/* Session list — hidden when workspace is collapsed */}
+                <Show when={isWorkspaceExpanded(workspace().id)}>
+                  <div class="mt-3 px-1 pb-1">
+                    <div class="relative flex flex-col gap-1 pl-2.5 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-[2px] before:bg-dls-hover before:content-['']">
+                      <Show
+                        when={
+                          group.status === "loading" &&
+                          group.sessions.length === 0
+                        }
+                        fallback={
+                          <Show
+                            when={group.sessions.length > 0}
+                            fallback={
+                              <Show when={group.status === "error"}>
+                                <div
+                                  class={`w-full rounded-[15px] border px-3 py-2.5 text-left text-[11px] ${
+                                    taskLoadError().tone === "offline"
+                                      ? "border-amber-7/35 bg-amber-2/50 text-amber-11"
+                                      : "border-red-7/35 bg-red-1/40 text-red-11"
+                                  }`}
+                                  title={taskLoadError().title}
+                                >
+                                  {taskLoadError().message}
+                                </div>
+                              </Show>
+                            }
                           >
-                            {(row) =>
-                              renderSessionRow(
+                            <For
+                              each={previewSessions(
                                 workspace().id,
-                                row,
+                                group.sessions,
                                 tree,
                                 forcedExpandedSessionIds,
                               )}
-                          </For>
-
-                          <Show
-                            when={
-                              group.sessions.length === 0 &&
-                              group.status === "ready"
-                            }
-                          >
-                            <button
-                              type="button"
-                              class="group/empty w-full rounded-[15px] border border-transparent px-3 py-2.5 text-left text-[11px] text-dls-secondary transition-colors hover:bg-dls-hover/60 hover:text-dls-secondary"
-                              onClick={() =>
-                                props.onCreateTaskInWorkspace(workspace().id)
-                              }
-                              disabled={props.newTaskDisabled}
                             >
-                              <span class="group-hover/empty:hidden">
-                                No tasks yet.
-                              </span>
-                              <span class="hidden group-hover/empty:inline font-medium">
-                                + New task
-                              </span>
-                            </button>
-                          </Show>
+                              {(row) =>
+                                renderSessionRow(
+                                  workspace().id,
+                                  row,
+                                  tree,
+                                  forcedExpandedSessionIds,
+                                )}
+                            </For>
 
-                          <Show
-                            when={
-                              getRootSessions(group.sessions).length >
-                              previewCount(workspace().id)
-                            }
-                          >
-                            <button
-                              type="button"
-                              class="w-full rounded-[15px] border border-transparent px-3 py-2.5 text-left text-[11px] text-dls-secondary transition-colors hover:bg-dls-hover/60 hover:text-dls-secondary"
-                              onClick={() =>
-                                showMoreSessions(
+                            <Show
+                              when={
+                                group.sessions.length === 0 &&
+                                group.status === "ready"
+                              }
+                            >
+                              <button
+                                type="button"
+                                class="group/empty w-full rounded-[15px] border border-transparent px-3 py-2.5 text-left text-[11px] text-dls-secondary transition-colors hover:bg-dls-hover/60 hover:text-dls-secondary"
+                                onClick={() =>
+                                  props.onCreateTaskInWorkspace(workspace().id)
+                                }
+                                disabled={props.newTaskDisabled}
+                              >
+                                <span class="group-hover/empty:hidden">
+                                  No tasks yet.
+                                </span>
+                                <span class="hidden group-hover/empty:inline font-medium">
+                                  + New task
+                                </span>
+                              </button>
+                            </Show>
+
+                            <Show
+                              when={
+                                getRootSessions(group.sessions).length >
+                                previewCount(workspace().id)
+                              }
+                            >
+                              <button
+                                type="button"
+                                class="w-full rounded-[15px] border border-transparent px-3 py-2.5 text-left text-[11px] text-dls-secondary transition-colors hover:bg-dls-hover/60 hover:text-dls-secondary"
+                                onClick={() =>
+                                  showMoreSessions(
+                                    workspace().id,
+                                    getRootSessions(group.sessions).length,
+                                  )
+                                }
+                              >
+                                {showMoreLabel(
                                   workspace().id,
                                   getRootSessions(group.sessions).length,
-                                )
-                              }
-                            >
-                              {showMoreLabel(
-                                workspace().id,
-                                getRootSessions(group.sessions).length,
-                              )}
-                            </button>
+                                )}
+                              </button>
+                            </Show>
                           </Show>
-                        </Show>
-                      }
-                    >
-                      <div class="w-full rounded-[15px] px-3 py-2.5 text-left text-[11px] text-dls-secondary">
-                        Loading tasks...
-                      </div>
-                    </Show>
-                  </Show>
+                        }
+                      >
+                        <div class="w-full rounded-[15px] px-3 py-2.5 text-left text-[11px] text-dls-secondary">
+                          Loading tasks...
+                        </div>
+                      </Show>
+                    </div>
                   </div>
-                </div>
+                </Show>
               </div>
             );
           }}
