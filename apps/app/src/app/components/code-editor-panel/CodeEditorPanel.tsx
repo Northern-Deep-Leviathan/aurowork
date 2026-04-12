@@ -1,6 +1,7 @@
-import { Show, createEffect, createSignal } from "solid-js";
+import { Show, createEffect, createSignal, on } from "solid-js";
 import { X, Save, FolderOpen } from "lucide-solid";
 import CodeEditorView from "./CodeEditorView";
+import MarkdownPreview from "./MarkdownPreview";
 import FileTree from "./FileTree";
 import { fsReadTextFile, fsWriteTextFile } from "../../lib/tauri-fs";
 import { isTauriRuntime } from "../../utils";
@@ -23,12 +24,24 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
   const [loadError, setLoadError] = createSignal<string | null>(null);
   const [splitPosition, setSplitPosition] = createSignal(280);
   const [effectiveRoot, setEffectiveRoot] = createSignal<string | null>(null);
+  const [viewMode, setViewMode] = createSignal<"edit" | "preview">("edit");
+
+  const isMarkdown = () => {
+    const p = selectedFilePath();
+    if (!p) return false;
+    return /\.mdx?$/i.test(p);
+  };
 
   // Sync rootPath from props
   createEffect(() => {
     const root = props.rootPath;
     if (root) setEffectiveRoot(root);
   });
+
+  // Reset view mode when switching files
+  createEffect(
+    on(() => selectedFilePath(), () => setViewMode("edit"), { defer: true }),
+  );
 
   // ---------- file operations ----------
 
@@ -181,34 +194,72 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
       {/* Body */}
       <div class="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Editor area (left) */}
-        <div class="min-w-0 flex-1 overflow-hidden">
-          <Show when={isLoading()}>
-            <div class="flex h-full items-center justify-center text-xs text-dls-secondary">
-              Loading file...
+        <div class="min-w-0 flex-1 flex flex-col overflow-hidden">
+          {/* Edit / Preview tabs — only shown for markdown files */}
+          <Show when={isMarkdown() && selectedFilePath() && !isLoading() && !loadError()}>
+            <div class="flex items-center gap-0.5 border-b border-dls-border px-3 shrink-0">
+              <button
+                type="button"
+                class={`px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                  viewMode() === "edit"
+                    ? "text-dls-text border-b-2 border-dls-text"
+                    : "text-dls-secondary hover:text-dls-text"
+                }`}
+                onClick={() => setViewMode("edit")}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                class={`px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                  viewMode() === "preview"
+                    ? "text-dls-text border-b-2 border-dls-text"
+                    : "text-dls-secondary hover:text-dls-text"
+                }`}
+                onClick={() => setViewMode("preview")}
+              >
+                Preview
+              </button>
             </div>
           </Show>
-          <Show when={loadError()}>
-            <div class="flex h-full items-center justify-center p-4 text-xs text-red-11">
-              {loadError()}
-            </div>
-          </Show>
-          <Show
-            when={selectedFilePath() && !isLoading() && !loadError()}
-            fallback={
-              <Show when={!isLoading() && !loadError()}>
-                <div class="flex h-full items-center justify-center text-xs text-dls-secondary">
-                  Select a file to edit
-                </div>
+
+          {/* Content area */}
+          <div class="min-h-0 flex-1 overflow-hidden">
+            <Show when={isLoading()}>
+              <div class="flex h-full items-center justify-center text-xs text-dls-secondary">
+                Loading file...
+              </div>
+            </Show>
+            <Show when={loadError()}>
+              <div class="flex h-full items-center justify-center p-4 text-xs text-red-11">
+                {loadError()}
+              </div>
+            </Show>
+            <Show
+              when={selectedFilePath() && !isLoading() && !loadError()}
+              fallback={
+                <Show when={!isLoading() && !loadError()}>
+                  <div class="flex h-full items-center justify-center text-xs text-dls-secondary">
+                    Select a file to edit
+                  </div>
+                </Show>
+              }
+            >
+              <Show
+                when={isMarkdown() && viewMode() === "preview"}
+                fallback={
+                  <CodeEditorView
+                    content={fileContent()}
+                    filePath={selectedFilePath()}
+                    onContentChange={handleContentChange}
+                    onSave={saveFile}
+                  />
+                }
+              >
+                <MarkdownPreview content={fileContent()} />
               </Show>
-            }
-          >
-            <CodeEditorView
-              content={fileContent()}
-              filePath={selectedFilePath()}
-              onContentChange={handleContentChange}
-              onSave={saveFile}
-            />
-          </Show>
+            </Show>
+          </div>
         </div>
 
         {/* Splitter */}
