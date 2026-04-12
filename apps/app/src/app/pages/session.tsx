@@ -3990,8 +3990,8 @@ export default function SessionView(props: SessionViewProps) {
     applyStarterPrompt(starter.prompt);
   };
   return (
-    <div class="h-[100dvh] min-h-screen w-full overflow-hidden bg-[var(--dls-app-bg)] p-3 md:p-4 text-dls-text font-sans">
-      <div class="flex h-full w-full gap-3 md:gap-4">
+    <div class="h-[100dvh] min-h-screen w-full overflow-hidden bg-[var(--dls-app-bg)] p-2 md:p-2.5 text-dls-text font-sans">
+      <div class="flex h-full w-full gap-2 md:gap-2.5">
         <aside
           class={`relative hidden lg:flex shrink-0 flex-col overflow-hidden rounded-[24px] border border-dls-border bg-dls-sidebar transition-[width,min-width] duration-200 ease-out ${leftSidebarCollapsed() ? "p-1.5" : "p-2.5"}`}
           style={{
@@ -4751,19 +4751,21 @@ export default function SessionView(props: SessionViewProps) {
 
         {/* Work Files — 文件区 (独占竖版面板) */}
         <Show when={codeEditorExpanded()}>
-          {/* Right splitter — 右侧拖拽调节条 */}
-          <div
-            class="hidden lg:block w-[6px] shrink-0 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-dls-border/40 active:bg-[rgba(var(--dls-accent-rgb),0.4)]"
-            onPointerDown={startRightPanelResize}
-            title="Resize Work Files panel"
-            aria-label="Resize Work Files panel"
-          />
-          <CodeEditorPanel
-            expanded={codeEditorExpanded()}
-            onClose={() => setCodeEditorExpanded(false)}
-            rootPath={currentWorkspacePath()}
-            width={rightPanelWidth()}
-          />
+          <div class="relative hidden lg:flex shrink-0">
+            {/* Right splitter — 右侧拖拽调节条 */}
+            <div
+              class="absolute left-0 top-3 bottom-3 z-10 w-2 -translate-x-1/2 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-dls-border/40 active:bg-[rgba(var(--dls-accent-rgb),0.4)]"
+              onPointerDown={startRightPanelResize}
+              title="Resize Work Files panel"
+              aria-label="Resize Work Files panel"
+            />
+            <CodeEditorPanel
+              expanded={codeEditorExpanded()}
+              onClose={() => setCodeEditorExpanded(false)}
+              rootPath={currentWorkspacePath()}
+              width={rightPanelWidth()}
+            />
+          </div>
         </Show>
       </div>
 

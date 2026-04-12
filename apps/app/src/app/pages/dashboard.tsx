@@ -1161,8 +1161,8 @@ export default function DashboardView(props: DashboardViewProps) {
   };
 
   return (
-    <div class="h-[100dvh] min-h-screen w-full overflow-hidden bg-[var(--dls-app-bg)] p-3 md:p-4 text-dls-text font-sans">
-      <div class="flex h-full w-full gap-3 md:gap-4">
+    <div class="h-[100dvh] min-h-screen w-full overflow-hidden bg-[var(--dls-app-bg)] p-2 md:p-2.5 text-dls-text font-sans">
+      <div class="flex h-full w-full gap-2 md:gap-2.5">
       <aside
         class={`relative hidden md:flex shrink-0 flex-col overflow-hidden rounded-[24px] border border-dls-border bg-dls-sidebar transition-[width,min-width] duration-200 ease-out ${leftSidebarCollapsed() ? "p-1.5" : "p-2.5"}`}
         style={{
