@@ -2577,12 +2577,15 @@ export default function SessionView(props: SessionViewProps) {
   };
 
   const openSearch = () => {
+    setSearchQuery("");
+    setSearchQueryDebounced("");
     setSearchOpen(true);
     focusSearchInput();
   };
 
   const closeSearch = () => {
     setSearchOpen(false);
+    setSearchQuery("");
     setSearchQueryDebounced("");
   };
 

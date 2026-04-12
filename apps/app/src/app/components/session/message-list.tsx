@@ -939,15 +939,15 @@ export default function MessageList(props: MessageListProps) {
   const renderBlock = (block: MessageBlockItem, blockIndex: number) => {
     const blockMessageIds =
       block.kind === "steps-cluster" ? block.messageIds : [block.messageId];
-    const hasSearchMatch = blockMessageIds.some((id) =>
+    const hasSearchMatch = () => blockMessageIds.some((id) =>
       props.searchMatchMessageIds?.has(id),
     );
-    const hasActiveSearchMatch = blockMessageIds.some(
+    const hasActiveSearchMatch = () => blockMessageIds.some(
       (id) => id === props.activeSearchMessageId,
     );
-    const searchOutlineClass = hasActiveSearchMatch
+    const searchOutlineClass = () => hasActiveSearchMatch()
       ? "outline outline-2 outline-amber-8/70 outline-offset-2 rounded-2xl"
-      : hasSearchMatch
+      : hasSearchMatch()
         ? "outline outline-1 outline-amber-7/50 outline-offset-1 rounded-2xl"
         : "";
 
@@ -968,7 +968,7 @@ export default function MessageList(props: MessageListProps) {
                 : isNestedVariant()
                   ? "w-full relative text-[14px] leading-[1.65] text-dls-text group"
                   : "w-full relative max-w-[760px] text-[15px] leading-[1.7] text-dls-text group"
-            } ${searchOutlineClass}`}
+            } ${searchOutlineClass()}`}
           >
             <StepsContainer
               id={block.id}
@@ -1003,7 +1003,7 @@ export default function MessageList(props: MessageListProps) {
           data-message-id={block.messageId}
           style={blockPerfStyle(blockIndex)}
         >
-          <div class={`w-full relative ${isNestedVariant() ? "" : "max-w-[650px]"} ${searchOutlineClass}`}>
+          <div class={`w-full relative ${isNestedVariant() ? "" : "max-w-[650px]"} ${searchOutlineClass()}`}>
             <div
               class="inline-flex max-w-full items-start gap-2 rounded-[18px] border border-red-7/20 bg-red-1/35 px-3 py-2 text-[13px] leading-5 text-red-12 shadow-sm"
               role="alert"
@@ -1032,7 +1032,7 @@ export default function MessageList(props: MessageListProps) {
               : isNestedVariant()
                 ? "w-full relative text-[14px] leading-[1.65] text-dls-text antialiased group"
                 : "w-full relative max-w-[760px] text-[15px] leading-[1.72] text-dls-text antialiased group"
-          } ${searchOutlineClass}`}
+          } ${searchOutlineClass()}`}
         >
           <Show when={block.attachments.length > 0}>
             <div
@@ -1104,7 +1104,7 @@ export default function MessageList(props: MessageListProps) {
                         renderMarkdown={!block.isUser}
                         markdownThrottleMs={markdownThrottleMs}
                         highlightQuery={
-                          hasSearchMatch
+                          hasSearchMatch()
                             ? props.searchHighlightQuery
                             : undefined
                         }

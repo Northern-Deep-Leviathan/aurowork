@@ -328,7 +328,11 @@ const applyTextHighlights = (root: HTMLElement, query: string) => {
 
       const mark = document.createElement("mark");
       mark.setAttribute(SEARCH_HIGHLIGHT_MARK_ATTR, "true");
-      mark.className = "rounded px-0.5 bg-amber-4/70 text-current";
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      mark.style.backgroundColor = isDark ? "rgba(251, 229, 119, 0.25)" : "rgba(251, 229, 119, 0.7)";
+      mark.style.color = "inherit";
+      mark.style.borderRadius = "2px";
+      mark.style.padding = "0 2px";
       mark.textContent = text.slice(matchIndex, matchIndex + needle.length);
       fragment.appendChild(mark);
       searchIndex = matchIndex + needle.length;
