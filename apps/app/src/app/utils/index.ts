@@ -65,7 +65,7 @@ export function formatModelLabel(model: ModelRef, providers: ProviderListItem[] 
   const providerLabel = provider?.name ?? humanizeModelLabel(model.providerID);
   const modelLabel = modelInfo?.name ?? humanizeModelLabel(model.modelID);
 
-  return `${providerLabel} · ${modelLabel}`;
+  return modelLabel;
 }
 
 export function isTauriRuntime() {

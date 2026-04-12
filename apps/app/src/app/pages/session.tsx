@@ -4155,7 +4155,6 @@ export default function SessionView(props: SessionViewProps) {
                 aria-label={translate("session.new_task")}
               >
                 <SquarePen size={15} />
-                <span>{translate("session.new_task")}</span>
               </button>
               <button
                 type="button"
@@ -4176,27 +4175,19 @@ export default function SessionView(props: SessionViewProps) {
               >
                 <Search size={16} />
               </button>
-              {/* Separator + Work Files toggle */}
-              <div class="hidden h-4 w-px bg-dls-border sm:block" />
-              <button
-                type="button"
-                class={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
-                  codeEditorExpanded()
-                    ? "bg-dls-hover text-dls-text"
-                    : "text-dls-secondary hover:bg-dls-hover/70 hover:text-dls-text"
-                }`}
-                onClick={() => setCodeEditorExpanded((prev) => !prev)}
-                title="Work Files"
-                aria-label="Toggle Work Files"
-              >
-                <Show
-                  when={codeEditorExpanded()}
-                  fallback={<PanelRightOpen size={16} />}
+              {/* Separator + Work Files toggle — hidden when panel is open */}
+              <Show when={!codeEditorExpanded()}>
+                <div class="hidden h-4 w-px bg-dls-border sm:block" />
+                <button
+                  type="button"
+                  class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors text-dls-secondary hover:bg-dls-hover/70 hover:text-dls-text"
+                  onClick={() => setCodeEditorExpanded(true)}
+                  title="Work Files"
+                  aria-label="Toggle Work Files"
                 >
-                  <PanelRightClose size={16} />
-                </Show>
-                <span class="hidden lg:inline">Work Files</span>
-              </button>
+                  <PanelRightOpen size={16} />
+                </button>
+              </Show>
             </div>
           </header>
 

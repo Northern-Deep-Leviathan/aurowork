@@ -26,53 +26,20 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
   let searchInputRef: HTMLInputElement | undefined;
   const translate = (key: string) => t(key, currentLocale());
 
-  type RenderedItem =
-    | { kind: "model"; opt: ModelOption }
-    | { kind: "provider"; providerID: string; title: string; matchCount: number };
+  type RenderedItem = { kind: "model"; opt: ModelOption };
 
   const [activeIndex, setActiveIndex] = createSignal(0);
   const optionRefs: HTMLButtonElement[] = [];
 
-  const otherProviderLinks = createMemo(() => {
-    const seen = new Set<string>();
-    const items: { providerID: string; title: string; matchCount: number }[] = [];
-    const counts = new Map<string, number>();
-
-    for (const opt of props.filteredOptions) {
-      if (opt.isConnected) continue;
-      counts.set(opt.providerID, (counts.get(opt.providerID) ?? 0) + 1);
-      if (seen.has(opt.providerID)) continue;
-      seen.add(opt.providerID);
-      items.push({
-        providerID: opt.providerID,
-        title: opt.description ?? opt.providerID,
-        matchCount: 1,
-      });
-    }
-
-    return items.map((item) => ({
-      ...item,
-      matchCount: counts.get(item.providerID) ?? 1,
-    }));
-  });
-
   const renderedItems = createMemo<RenderedItem[]>(() => {
     const models = props.filteredOptions.filter((opt) => opt.isConnected);
-    const recommended = models.filter((opt) => opt.isRecommended);
-    const others = models.filter((opt) => !opt.isRecommended);
-
-    return [
-      ...recommended.map((opt) => ({ kind: "model" as const, opt })),
-      ...others.map((opt) => ({ kind: "model" as const, opt })),
-      ...otherProviderLinks().map((item) => ({ kind: "provider" as const, ...item })),
-    ];
+    return models.map((opt) => ({ kind: "model" as const, opt }));
   });
 
   const activeModelIndex = createMemo(() => {
     const list = renderedItems();
     return list.findIndex(
       (item) =>
-        item.kind === "model" &&
         modelEquals(props.current, {
           providerID: item.opt.providerID,
           modelID: item.opt.modelID,
@@ -80,24 +47,8 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
     );
   });
 
-  const recommendedOptions = createMemo(() =>
-    renderedItems().flatMap((item, index) =>
-      item.kind === "model" && item.opt.isRecommended ? [{ opt: item.opt, index }] : [],
-    ),
-  );
-
-  const otherEnabledOptions = createMemo(() =>
-    renderedItems().flatMap((item, index) =>
-      item.kind === "model" && !item.opt.isRecommended ? [{ opt: item.opt, index }] : [],
-    ),
-  );
-
-  const otherOptions = createMemo(() =>
-    renderedItems().flatMap((item, index) =>
-      item.kind === "provider"
-        ? [{ providerID: item.providerID, title: item.title, matchCount: item.matchCount, index }]
-        : [],
-    ),
+  const allConnectedOptions = createMemo(() =>
+    renderedItems().map((item, index) => ({ opt: item.opt, index })),
   );
 
   const clampIndex = (next: number) => {
@@ -169,11 +120,6 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
         if (!item) return;
         event.preventDefault();
         event.stopPropagation();
-        if (item.kind === "provider") {
-          props.onClose({ restorePromptFocus: false });
-          props.onOpenSettings();
-          return;
-        }
         props.onSelect({ providerID: item.opt.providerID, modelID: item.opt.modelID });
       }
     };
@@ -272,50 +218,6 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
     );
   };
 
-  const renderProviderLink = (provider: { providerID: string; title: string; matchCount: number }, index: number) => (
-    <div
-      role="button"
-      tabIndex={0}
-      ref={(el) => {
-        optionRefs[index] = el as unknown as HTMLButtonElement;
-      }}
-      class={`group w-full text-left rounded-xl px-3 py-2.5 transition-colors cursor-pointer ${
-        index === activeIndex()
-          ? "bg-dls-surface text-dls-text"
-          : "text-dls-secondary hover:bg-dls-surface/70 hover:text-dls-secondary"
-      }`}
-      onMouseEnter={() => {
-        setActiveIndex(index);
-      }}
-      onClick={() => {
-        props.onClose({ restorePromptFocus: false });
-        props.onOpenSettings();
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        if (event.isComposing || event.keyCode === 229) return;
-        event.preventDefault();
-        props.onClose({ restorePromptFocus: false });
-        props.onOpenSettings();
-      }}
-    >
-      <div class="flex items-start gap-3">
-        <ProviderIcon providerId={provider.providerID} size={16} class={`mt-[1px] shrink-0 transition-colors ${index === activeIndex() ? 'text-dls-text' : 'text-dls-secondary group-hover:text-dls-secondary'}`} />
-        <div class="flex-1 min-w-0">
-          <div class={`text-[13px] flex items-center justify-between gap-2 text-current`}>
-            <span class="truncate">{provider.title}</span>
-          </div>
-          <div class={`mt-0.5 flex items-center gap-3 text-[11px] ${index === activeIndex() ? 'text-dls-secondary' : 'text-dls-secondary group-hover:text-dls-secondary'}`}>
-            <span class="truncate">Connect this provider to browse and save models</span>
-            <span class="ml-auto opacity-70">
-              {provider.matchCount} {provider.matchCount === 1 ? "model" : "models"}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <Show when={props.open}>
       <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
@@ -328,8 +230,18 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
                 </h3>
                 <p class="text-sm text-dls-secondary mt-1">
                   {props.target === "default"
-                    ? "Choose the default model for new chats. If a model supports reasoning profiles, configure them on its card."
-                    : "Choose the model for this chat. If a model supports reasoning profiles, configure them on its card."}
+                    ? "Choose the default model for new chats. If a model supports reasoning profiles, configure them on its card. "
+                    : "Choose the model for this chat. If a model supports reasoning profiles, configure them on its card. "}
+                  <button
+                    type="button"
+                    class="text-dls-accent hover:underline cursor-pointer"
+                    onClick={() => {
+                      props.onClose({ restorePromptFocus: false });
+                      props.onOpenSettings();
+                    }}
+                  >
+                    Add new provider
+                  </button>
                 </p>
               </div>
               <Button
@@ -355,40 +267,17 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
               </div>
               <Show when={props.query.trim()}>
                 <div class="mt-2 text-xs text-dls-secondary">
-                  {translate("settings.showing_models").replace("{count}", String(props.filteredOptions.length)).replace("{total}", String(props.options.length))}
+                  {translate("settings.showing_models").replace("{count}", String(props.filteredOptions.filter(o => o.isConnected).length)).replace("{total}", String(props.options.filter(o => o.isConnected).length))}
                 </div>
               </Show>
             </div>
 
-            <div class="mt-4 space-y-4 overflow-y-auto pr-1 -mr-1 min-h-0">
-              <Show when={recommendedOptions().length > 0}>
-                <section class="space-y-2">
-                  <div class="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-dls-secondary">
-                    Recommended
-                  </div>
-                  <For each={recommendedOptions()}>{({ opt, index }) => renderOption(opt, index)}</For>
-                </section>
+            <div class="mt-4 space-y-1 overflow-y-auto pr-1 -mr-1 min-h-0">
+              <Show when={allConnectedOptions().length > 0}>
+                <For each={allConnectedOptions()}>{({ opt, index }) => renderOption(opt, index)}</For>
               </Show>
 
-              <Show when={otherEnabledOptions().length > 0}>
-                <section class="space-y-2">
-                  <div class="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-dls-secondary">
-                    Other connected models
-                  </div>
-                  <For each={otherEnabledOptions()}>{({ opt, index }) => renderOption(opt, index)}</For>
-                </section>
-              </Show>
-
-              <Show when={otherOptions().length > 0}>
-                <section class="space-y-2">
-                  <div class="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-dls-secondary">
-                    More providers
-                  </div>
-                  <For each={otherOptions()}>
-                    {(provider) => renderProviderLink(provider, provider.index)}
-                  </For>
-                </section>
-              </Show>
+              {/* Disconnected providers hidden — users can connect via Settings */}
 
               <Show when={renderedItems().length === 0}>
                 <div class="rounded-2xl border border-dls-border bg-dls-surface/40 px-4 py-6 text-sm text-dls-secondary">
