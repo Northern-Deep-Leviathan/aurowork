@@ -1,12 +1,14 @@
 import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 
 const LEFT_SIDEBAR_WIDTH_KEY = "aurowork.workspace-shell.left-width.v1";
+const LEFT_SIDEBAR_COLLAPSED_KEY = "aurowork.workspace-shell.left-collapsed.v1";
 const RIGHT_SIDEBAR_EXPANDED_KEY = "aurowork.workspace-shell.right-expanded.v3";
 const RIGHT_PANEL_WIDTH_KEY = "aurowork.workspace-shell.right-width.v1";
 
 export const DEFAULT_WORKSPACE_LEFT_SIDEBAR_WIDTH = 260;
 export const MIN_WORKSPACE_LEFT_SIDEBAR_WIDTH = 220;
 export const MAX_WORKSPACE_LEFT_SIDEBAR_WIDTH = 420;
+export const LEFT_SIDEBAR_COLLAPSED_WIDTH = 56;
 export const DEFAULT_WORKSPACE_RIGHT_SIDEBAR_COLLAPSED_WIDTH = 72;
 export const DEFAULT_RIGHT_PANEL_WIDTH = 420;
 export const MIN_RIGHT_PANEL_WIDTH = 280;
@@ -76,12 +78,22 @@ export function createWorkspaceShellLayout(options: WorkspaceShellLayoutOptions)
     return clampNumber(parsed, MIN_RIGHT_PANEL_WIDTH, MAX_RIGHT_PANEL_WIDTH);
   };
 
+  const readLeftSidebarCollapsed = () => {
+    const raw = readStorage(LEFT_SIDEBAR_COLLAPSED_KEY);
+    return raw === "1";
+  };
+
   const [leftSidebarWidth, setLeftSidebarWidth] = createSignal(readLeftSidebarWidth());
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = createSignal(readLeftSidebarCollapsed());
   const [rightSidebarExpanded, setRightSidebarExpanded] = createSignal(readRightSidebarExpanded());
   const [rightPanelWidth, setRightPanelWidth] = createSignal(readRightPanelWidth());
 
   createEffect(() => {
     writeStorage(LEFT_SIDEBAR_WIDTH_KEY, String(clampNumber(leftSidebarWidth(), minLeftWidth, maxLeftWidth)));
+  });
+
+  createEffect(() => {
+    writeStorage(LEFT_SIDEBAR_COLLAPSED_KEY, leftSidebarCollapsed() ? "1" : "0");
   });
 
   createEffect(() => {
@@ -96,6 +108,12 @@ export function createWorkspaceShellLayout(options: WorkspaceShellLayoutOptions)
     rightSidebarExpanded() ? expandedRightWidth : collapsedRightWidth,
   );
 
+  const effectiveLeftSidebarWidth = createMemo(() =>
+    leftSidebarCollapsed() ? LEFT_SIDEBAR_COLLAPSED_WIDTH : leftSidebarWidth(),
+  );
+
+  const toggleLeftSidebarCollapsed = () => setLeftSidebarCollapsed((c) => !c);
+
   let dragCleanup: (() => void) | null = null;
 
   const stopLeftSidebarResize = () => {
@@ -108,6 +126,7 @@ export function createWorkspaceShellLayout(options: WorkspaceShellLayoutOptions)
 
   const startLeftSidebarResize = (event: PointerEvent) => {
     if (event.button !== 0 || typeof window === "undefined") return;
+    if (leftSidebarCollapsed()) return;
 
     stopLeftSidebarResize();
     const initialX = event.clientX;
@@ -194,6 +213,9 @@ export function createWorkspaceShellLayout(options: WorkspaceShellLayoutOptions)
 
   return {
     leftSidebarWidth,
+    leftSidebarCollapsed,
+    effectiveLeftSidebarWidth,
+    toggleLeftSidebarCollapsed,
     rightSidebarExpanded,
     rightSidebarWidth,
     rightPanelWidth,

@@ -30,6 +30,7 @@ import {
 } from "../../utils";
 
 type Props = {
+  collapsed?: boolean;
   workspaceSessionGroups: WorkspaceSessionGroup[];
   selectedWorkspaceId: string;
   developerMode: boolean;
@@ -172,7 +173,20 @@ const workspaceKindLabel = (workspace: WorkspaceInfo) =>
       : "Remote"
     : "Local";
 
-const WORKSPACE_SWATCHES = ["#2563eb", "#5a67d8", "#f97316", "#10b981"];
+const WORKSPACE_COLORS = [
+  { name: "Terracotta", light: "#C4745B", dark: "#D98B6E" },
+  { name: "Amber", light: "#B8915A", dark: "#CDA76D" },
+  { name: "Olive", light: "#7D8B6A", dark: "#96A580" },
+  { name: "Slate Teal", light: "#6B8A8E", dark: "#83A3A7" },
+  { name: "Steel Blue", light: "#7181A4", dark: "#8A9ABD" },
+  { name: "Lavender", light: "#8E7BA8", dark: "#A794C1" },
+  { name: "Dusty Rose", light: "#A8707E", dark: "#C18896" },
+];
+
+const isDarkTheme = () => {
+  if (typeof document === "undefined") return false;
+  return document.documentElement.getAttribute("data-theme") === "dark";
+};
 
 const workspaceSwatchColor = (seed: string) => {
   const value = seed.trim() || "workspace";
@@ -181,7 +195,8 @@ const workspaceSwatchColor = (seed: string) => {
     hash = (hash << 5) - hash + value.charCodeAt(index);
     hash |= 0;
   }
-  return WORKSPACE_SWATCHES[Math.abs(hash) % WORKSPACE_SWATCHES.length];
+  const entry = WORKSPACE_COLORS[Math.abs(hash) % WORKSPACE_COLORS.length];
+  return isDarkTheme() ? entry.dark : entry.light;
 };
 
 export default function WorkspaceSessionList(props: Props) {
@@ -189,6 +204,26 @@ export default function WorkspaceSessionList(props: Props) {
     ? "Reveal in Explorer"
     : "Reveal in Finder";
   const newWorkspaceDesktopOnly = getAuroWorkDeployment() === "web";
+
+  // Reactive dark mode tracking for warm palette colors
+  const [darkMode, setDarkMode] = createSignal(isDarkTheme());
+  onMount(() => {
+    if (typeof document === "undefined") return;
+    const observer = new MutationObserver(() => {
+      setDarkMode(isDarkTheme());
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    onCleanup(() => observer.disconnect());
+  });
+
+  const getSwatchColor = (seed: string) => {
+    // Access darkMode() to make this reactive
+    darkMode();
+    return workspaceSwatchColor(seed);
+  };
   const [expandedWorkspaceIds, setExpandedWorkspaceIds] = createSignal<
     Set<string>
   >(new Set());
@@ -512,7 +547,146 @@ export default function WorkspaceSessionList(props: Props) {
     );
   };
 
+  // ---------- collapsed icon-rail renderer ----------
+  const renderCollapsedRail = () => {
+    return (
+      <div class="flex h-full min-h-0 min-w-0 flex-1 flex-col items-center">
+        <div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto w-full">
+          <div class="flex flex-col items-center gap-2 pb-3 pt-1">
+            <For each={props.workspaceSessionGroups}>
+              {(group) => {
+                const tree = buildSessionTreeState(
+                  group.sessions,
+                  props.sessionStatusById,
+                );
+                const forcedExpandedSessionIds = new Set(
+                  (props.selectedSessionId
+                    ? tree.ancestorIdsBySessionId.get(props.selectedSessionId) ?? []
+                    : []
+                  ).filter((id) => !userCollapsedSessionIds().has(id)),
+                );
+                const workspace = () => group.workspace;
+                const swatchColor = () =>
+                  getSwatchColor(workspace().id || workspaceLabel(workspace()));
+                const isSelected = () =>
+                  props.selectedWorkspaceId === workspace().id;
+                const label = () => workspaceLabel(workspace());
+                const expanded = () => isWorkspaceExpanded(workspace().id);
+
+                return (
+                  <div class="flex flex-col items-center gap-1 w-full">
+                    {/* Workspace block */}
+                    <button
+                      type="button"
+                      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors"
+                      style={{
+                        "background-color": `${swatchColor()}${isSelected() ? "40" : "26"}`,
+                        ...(isSelected()
+                          ? { border: `2px solid ${swatchColor()}66` }
+                          : {}),
+                      }}
+                      title={label()}
+                      aria-label={label()}
+                      onClick={() => {
+                        if (isSelected()) {
+                          // Already selected → toggle sessions expand/collapse
+                          toggleWorkspaceExpanded(workspace().id);
+                        } else {
+                          // Not selected → select and expand
+                          expandWorkspace(workspace().id);
+                          void Promise.resolve(
+                            props.onSelectWorkspace(workspace().id),
+                          );
+                        }
+                      }}
+                    >
+                      <Show
+                        when={expanded()}
+                        fallback={<ChevronRight size={13} class="text-dls-secondary" />}
+                      >
+                        <ChevronDown size={13} class="text-dls-secondary" />
+                      </Show>
+                    </button>
+
+                    {/* Session initials when expanded */}
+                    <Show when={expanded()}>
+                      <For
+                        each={previewSessions(
+                          workspace().id,
+                          group.sessions,
+                          tree,
+                          forcedExpandedSessionIds,
+                        )}
+                      >
+                        {(row) => {
+                          const session = () => row.session;
+                          const displayTitle = () =>
+                            getDisplaySessionTitle(
+                              session().title,
+                              DEFAULT_SESSION_TITLE,
+                            );
+                          const initial = () => {
+                            const t = displayTitle().trim();
+                            return t ? t[0].toUpperCase() : "?";
+                          };
+                          const isSessionSelected = () =>
+                            props.selectedSessionId === session().id;
+
+                          return (
+                            <button
+                              type="button"
+                              class={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[12px] font-medium transition-colors ${
+                                isSessionSelected()
+                                  ? "bg-dls-hover text-dls-text"
+                                  : "text-dls-secondary hover:bg-dls-surface/70 hover:text-dls-secondary"
+                              }`}
+                              title={displayTitle()}
+                              aria-label={displayTitle()}
+                              onClick={() =>
+                                props.onOpenSession(
+                                  workspace().id,
+                                  session().id,
+                                )
+                              }
+                            >
+                              {initial()}
+                            </button>
+                          );
+                        }}
+                      </For>
+                    </Show>
+                  </div>
+                );
+              }}
+            </For>
+          </div>
+        </div>
+
+        {/* Collapsed add workspace button */}
+        <div class="relative mt-auto border-t border-dls-border/80 bg-dls-sidebar pt-3 w-full flex justify-center">
+          <button
+            type="button"
+            class={`flex h-9 w-9 items-center justify-center rounded-lg border border-dls-border bg-dls-surface text-dls-secondary shadow-[var(--dls-card-shadow)] transition-colors hover:bg-dls-hover ${
+              newWorkspaceDesktopOnly ? "cursor-not-allowed opacity-70" : ""
+            }`}
+            disabled={newWorkspaceDesktopOnly}
+            title={
+              newWorkspaceDesktopOnly
+                ? "Create local workspaces in the desktop app."
+                : "Add workspace"
+            }
+            onClick={() => props.onOpenCreateWorkspace()}
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ---------- main return ----------
   return (
+    <Show when={!props.collapsed} fallback={renderCollapsedRail()}>
     <div class="flex h-full min-h-0 min-w-0 flex-1 flex-col">
       <div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
         <div class="space-y-2 pb-3">
@@ -566,11 +740,11 @@ export default function WorkspaceSessionList(props: Props) {
                   <div
                     role="button"
                     tabIndex={0}
-                    class={`w-full flex items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-[13px] transition-colors ${
-                      props.selectedWorkspaceId === workspace().id
-                        ? "bg-dls-hover/70 text-dls-text"
-                        : "text-dls-secondary hover:bg-dls-surface/70 hover:text-dls-text"
-                    } ${isConnecting() ? "opacity-75" : ""}`}
+                    class={`w-full flex items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-[13px] transition-colors ${isConnecting() ? "opacity-75" : ""}`}
+                    style={{
+                      "background-color": `${getSwatchColor(workspace().id || workspaceLabel(workspace()))}${props.selectedWorkspaceId === workspace().id ? "1F" : "14"}`,
+                      "border-left": `3px solid ${getSwatchColor(workspace().id || workspaceLabel(workspace()))}66`,
+                    }}
                     onClick={() => {
                       expandWorkspace(workspace().id);
                       void Promise.resolve(
@@ -587,17 +761,9 @@ export default function WorkspaceSessionList(props: Props) {
                       );
                     }}
                    >
-                     <div class="flex min-w-0 items-center gap-3.5">
-                        <div
-                          class="flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full"
-                         style={{
-                           "background-color": workspaceSwatchColor(
-                             workspace().id || workspaceLabel(workspace()),
-                           ),
-                         }}
-                       />
+                     <div class="flex min-w-0 items-center gap-2.5">
                        <div class="min-w-0 flex-1">
-                         <div class="min-w-0 truncate text-[14px] font-normal text-dls-text">
+                         <div class={`min-w-0 truncate text-[14px] font-normal ${props.selectedWorkspaceId === workspace().id ? "text-dls-text" : "text-dls-secondary"}`}>
                            {workspaceLabel(workspace())}
                          </div>
                          <Show when={statusLabel()}>
@@ -877,5 +1043,6 @@ export default function WorkspaceSessionList(props: Props) {
         </button>
       </div>
     </div>
+    </Show>
   );
 }

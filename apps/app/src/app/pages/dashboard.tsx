@@ -60,6 +60,8 @@ import {
   Box,
   Circle,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   SlidersHorizontal,
   X,
@@ -421,6 +423,9 @@ export default function DashboardView(props: DashboardViewProps) {
   const [shareWorkspaceId, setShareWorkspaceId] = createSignal<string | null>(null);
   const {
     leftSidebarWidth,
+    leftSidebarCollapsed,
+    effectiveLeftSidebarWidth,
+    toggleLeftSidebarCollapsed,
     startLeftSidebarResize,
   } = createWorkspaceShellLayout({ expandedRightWidth: 280 });
 
@@ -1159,14 +1164,27 @@ export default function DashboardView(props: DashboardViewProps) {
     <div class="h-[100dvh] min-h-screen w-full overflow-hidden bg-[var(--dls-app-bg)] p-3 md:p-4 text-dls-text font-sans">
       <div class="flex h-full w-full gap-3 md:gap-4">
       <aside
-        class="relative hidden md:flex shrink-0 flex-col overflow-hidden rounded-[24px] border border-dls-border bg-dls-sidebar p-2.5"
+        class={`relative hidden md:flex shrink-0 flex-col overflow-hidden rounded-[24px] border border-dls-border bg-dls-sidebar transition-[width,min-width] duration-200 ease-out ${leftSidebarCollapsed() ? "p-1.5" : "p-2.5"}`}
         style={{
-          width: `${leftSidebarWidth()}px`,
-          "min-width": `${leftSidebarWidth()}px`,
+          width: `${effectiveLeftSidebarWidth()}px`,
+          "min-width": `${effectiveLeftSidebarWidth()}px`,
         }}
       >
         <div class="shrink-0">
-          <Show when={showUpdatePill()}>
+          <div class={`mb-2 flex ${leftSidebarCollapsed() ? "justify-center" : "justify-start"}`}>
+            <button
+              type="button"
+              class="flex h-8 w-8 items-center justify-center rounded-lg text-dls-secondary transition-colors hover:bg-dls-hover"
+              onClick={toggleLeftSidebarCollapsed}
+              aria-label={leftSidebarCollapsed() ? "Expand sidebar" : "Collapse sidebar"}
+              title={leftSidebarCollapsed() ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <Show when={leftSidebarCollapsed()} fallback={<PanelLeftClose size={16} />}>
+                <PanelLeftOpen size={16} />
+              </Show>
+            </button>
+          </div>
+          <Show when={!leftSidebarCollapsed() && showUpdatePill()}>
             <button
               type="button"
               class={`group mb-3 w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--dls-accent-rgb),0.2)] ${updatePillButtonTone()}`}
@@ -1196,6 +1214,7 @@ export default function DashboardView(props: DashboardViewProps) {
         </div>
         <div class="flex min-h-0 flex-1">
           <WorkspaceSessionList
+            collapsed={leftSidebarCollapsed()}
             workspaceSessionGroups={props.workspaceSessionGroups}
             selectedWorkspaceId={props.selectedWorkspaceId}
             developerMode={props.developerMode}
@@ -1216,12 +1235,14 @@ export default function DashboardView(props: DashboardViewProps) {
             onOpenCreateWorkspace={props.openCreateWorkspace}
           />
         </div>
-        <div
-          class="absolute right-0 top-3 hidden h-[calc(100%-24px)] w-2 translate-x-1/2 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-dls-border/40 md:block"
-          onPointerDown={startLeftSidebarResize}
-          title="Resize workspace column"
-          aria-label="Resize workspace column"
-        />
+        <Show when={!leftSidebarCollapsed()}>
+          <div
+            class="absolute right-0 top-3 hidden h-[calc(100%-24px)] w-2 translate-x-1/2 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-dls-border/40 md:block"
+            onPointerDown={startLeftSidebarResize}
+            title="Resize workspace column"
+            aria-label="Resize workspace column"
+          />
+        </Show>
 
       </aside>
 
