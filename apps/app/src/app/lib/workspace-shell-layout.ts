@@ -12,7 +12,7 @@ export const LEFT_SIDEBAR_COLLAPSED_WIDTH = 56;
 export const DEFAULT_WORKSPACE_RIGHT_SIDEBAR_COLLAPSED_WIDTH = 72;
 export const DEFAULT_RIGHT_PANEL_WIDTH = 420;
 export const MIN_RIGHT_PANEL_WIDTH = 280;
-export const MAX_RIGHT_PANEL_WIDTH = 600;
+export const MAX_RIGHT_PANEL_WIDTH = 1200;
 
 type WorkspaceShellLayoutOptions = {
   defaultLeftWidth?: number;

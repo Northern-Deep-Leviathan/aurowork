@@ -95,8 +95,9 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
   const onPointerMove = (e: PointerEvent) => {
     if (!dragging() || !panelRef) return;
     const rect = panelRef.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    setSplitPosition(Math.max(160, Math.min(x, rect.width - 200)));
+    // File tree is on the right, so width = distance from right edge
+    const fileTreeWidth = rect.right - e.clientX;
+    setSplitPosition(Math.max(160, Math.min(fileTreeWidth, rect.width - 200)));
   };
 
   const onPointerUp = () => setDragging(false);
@@ -179,47 +180,7 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
 
       {/* Body */}
       <div class="relative flex min-h-0 flex-1 overflow-hidden">
-        {/* File tree */}
-        <div
-          class="shrink-0 overflow-hidden border-r border-dls-border"
-          style={{ width: `${splitPosition()}px` }}
-        >
-          <Show
-            when={effectiveRoot()}
-            fallback={
-              <div class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
-                <p class="text-xs text-dls-secondary">No workspace folder</p>
-                <button
-                  type="button"
-                  class="flex items-center gap-1.5 rounded-md bg-dls-hover px-3 py-1.5 text-[12px] font-medium text-dls-secondary transition-colors hover:bg-dls-active"
-                  onClick={handlePickFolder}
-                >
-                  <FolderOpen size={14} />
-                  Open Folder
-                </button>
-              </div>
-            }
-          >
-            <FileTree
-              rootPath={effectiveRoot()}
-              onFileSelect={(path) => void loadFile(path)}
-              selectedPath={selectedFilePath()}
-            />
-          </Show>
-        </div>
-
-        {/* Splitter */}
-        <div
-          class={`w-[3px] shrink-0 cursor-col-resize transition-colors ${
-            dragging() ? "bg-blue-8" : "bg-transparent hover:bg-dls-border"
-          }`}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        />
-
-        {/* Editor area */}
+        {/* Editor area (left) */}
         <div class="min-w-0 flex-1 overflow-hidden">
           <Show when={isLoading()}>
             <div class="flex h-full items-center justify-center text-xs text-dls-secondary">
@@ -246,6 +207,46 @@ export function CodeEditorPanel(props: CodeEditorPanelProps) {
               filePath={selectedFilePath()}
               onContentChange={handleContentChange}
               onSave={saveFile}
+            />
+          </Show>
+        </div>
+
+        {/* Splitter */}
+        <div
+          class={`w-[3px] shrink-0 cursor-col-resize transition-colors ${
+            dragging() ? "bg-blue-8" : "bg-transparent hover:bg-dls-border"
+          }`}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+        />
+
+        {/* File tree (right) */}
+        <div
+          class="shrink-0 overflow-hidden border-l border-dls-border"
+          style={{ width: `${splitPosition()}px` }}
+        >
+          <Show
+            when={effectiveRoot()}
+            fallback={
+              <div class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+                <p class="text-xs text-dls-secondary">No workspace folder</p>
+                <button
+                  type="button"
+                  class="flex items-center gap-1.5 rounded-md bg-dls-hover px-3 py-1.5 text-[12px] font-medium text-dls-secondary transition-colors hover:bg-dls-active"
+                  onClick={handlePickFolder}
+                >
+                  <FolderOpen size={14} />
+                  Open Folder
+                </button>
+              </div>
+            }
+          >
+            <FileTree
+              rootPath={effectiveRoot()}
+              onFileSelect={(path) => void loadFile(path)}
+              selectedPath={selectedFilePath()}
             />
           </Show>
         </div>

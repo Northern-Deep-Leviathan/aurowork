@@ -4090,7 +4090,7 @@ export default function SessionView(props: SessionViewProps) {
           </Show>
         </aside>
 
-        <main class="min-w-0 flex-1 flex flex-col overflow-hidden rounded-[24px] border border-dls-border bg-dls-surface shadow-[var(--dls-shell-shadow)]">
+        <main class="min-w-[320px] flex-1 flex flex-col overflow-hidden rounded-[24px] border border-dls-border bg-dls-surface shadow-[var(--dls-shell-shadow)]">
           <header class="z-10 flex h-12 shrink-0 items-center justify-between border-b border-dls-border bg-dls-surface px-4 md:px-6">
             <div class="flex min-w-0 items-center gap-3">
               <Show when={showUpdatePill()}>
@@ -4184,7 +4184,10 @@ export default function SessionView(props: SessionViewProps) {
                 <button
                   type="button"
                   class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors text-dls-secondary hover:bg-dls-hover/70 hover:text-dls-text"
-                  onClick={() => setCodeEditorExpanded(true)}
+                  onClick={() => {
+                    setCodeEditorExpanded(true);
+                    if (!leftSidebarCollapsed()) toggleLeftSidebarCollapsed();
+                  }}
                   title="Work Files"
                   aria-label="Toggle Work Files"
                 >
