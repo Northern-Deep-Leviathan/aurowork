@@ -2053,35 +2053,8 @@ export default function SettingsView(props: SettingsViewProps) {
               </div>
             </div>
 
-            <div class={`${settingsPanelClass} space-y-3`}>
-              <div>
-                <div class="text-sm font-medium text-dls-text">{translate("settings.opencode_title")}</div>
-                <div class="text-xs text-dls-secondary">
-                  {translate("settings.opencode_description")}
-                </div>
-              </div>
-
-              <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
-                <div class="min-w-0">
-                  <div class="text-sm text-dls-text">{translate("settings.enable_exa_title")}</div>
-                  <div class="text-xs text-dls-secondary">
-                    {translate("settings.enable_exa_hint")}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  class="text-xs h-8 py-0 px-3 shrink-0"
-                  onClick={props.toggleOpencodeEnableExa}
-                  disabled={props.busy}
-                >
-                  {props.opencodeEnableExa ? translate("settings.status_on") : translate("settings.status_off")}
-                </Button>
-              </div>
-
-              <div class="text-[11px] text-dls-secondary">
-                {translate("settings.opencode_restart_hint")}
-              </div>
-            </div>
+            {/* OpenCode panel hidden — only contained the Exa toggle which is not ready.
+                See .claude/plans/exa-search-not-ready.md */}
 
             <div class={`${settingsPanelClass} space-y-3`}>
               <div class="text-sm font-medium text-dls-text">{translate("settings.developer_mode_title")}</div>
@@ -2607,42 +2580,9 @@ export default function SettingsView(props: SettingsViewProps) {
                     {props.cacheRepairBusy ? translate("settings.cache_repairing") : translate("settings.cache_repair_button")}
                   </Button>
                 </div>
-                <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div class="min-w-0">
-                    <div class="text-sm text-dls-text">
-                      {translate("settings.docker_containers_title")}
-                    </div>
-                    <div class="text-xs text-dls-secondary">
-                      {translate("settings.docker_containers_description")}
-                    </div>
-                    <Show when={props.dockerCleanupResult}>
-                      <div class="text-xs text-dls-secondary mt-2">
-                        {props.dockerCleanupResult}
-                      </div>
-                    </Show>
-                  </div>
-                  <Button
-                    variant="danger"
-                    class="text-xs h-8 py-0 px-3 shrink-0"
-                    onClick={props.cleanupAuroworkDockerContainers}
-                    disabled={
-                      props.dockerCleanupBusy ||
-                      props.anyActiveRuns ||
-                      !isTauriRuntime()
-                    }
-                    title={
-                      !isTauriRuntime()
-                        ? translate("settings.docker_desktop_hint")
-                        : props.anyActiveRuns
-                          ? translate("settings.docker_stop_hint")
-                          : ""
-                    }
-                  >
-                    {props.dockerCleanupBusy
-                      ? translate("settings.docker_removing")
-                      : translate("settings.docker_delete")}
-                  </Button>
-                </div>
+                {/* Docker containers panel hidden — sandbox feature was pruned,
+                    cleanup always returns empty, no Docker integration exists.
+                    See .claude/plans/docker-sandbox-pruned.md */}
           </div>
         </Match>
 
@@ -2701,62 +2641,8 @@ export default function SettingsView(props: SettingsViewProps) {
                   </Show>
                 </div>
 
-                <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-3">
-                  <div class="flex items-start justify-between gap-3">
-                    <div>
-                      <div class="text-sm font-medium text-dls-text">
-                        {translate("settings.debug_sandbox_probe_title")}
-                      </div>
-                      <div class="text-xs text-dls-secondary">
-                        {translate("settings.debug_sandbox_probe_description")}
-                      </div>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      class="text-xs h-8 py-0 px-3"
-                      onClick={runSandboxDebugProbe}
-                      disabled={
-                        !isTauriRuntime() ||
-                        sandboxProbeBusy() ||
-                        props.anyActiveRuns
-                      }
-                      title={
-                        !isTauriRuntime()
-                          ? translate("settings.debug_sandbox_probe_desktop_hint")
-                          : props.anyActiveRuns
-                            ? translate("settings.debug_sandbox_probe_stop_hint")
-                            : ""
-                      }
-                    >
-                      {sandboxProbeBusy()
-                        ? translate("settings.debug_sandbox_probe_running")
-                        : translate("settings.debug_sandbox_probe_run")}
-                    </Button>
-                  </div>
-                  <Show when={sandboxProbeResult()}>
-                    {(result) => (
-                      <div class="text-xs text-dls-secondary space-y-1">
-                        <div>
-                          {translate("settings.sandbox_run_id")}:{" "}
-                          <span class="font-mono">{result().runId}</span>
-                        </div>
-                        <div>{translate("settings.sandbox_result")}: {result().ready ? translate("settings.sandbox_ready") : translate("settings.sandbox_error")}</div>
-                        <Show when={result().error}>
-                          {(err) => <div class="text-red-11">{err()}</div>}
-                        </Show>
-                      </div>
-                    )}
-                  </Show>
-                  <Show when={sandboxProbeStatus()}>
-                    {(status) => (
-                      <div class="text-xs text-dls-secondary">{status()}</div>
-                    )}
-                  </Show>
-                  <div class="text-[11px] text-dls-secondary">
-                    {translate("settings.debug_sandbox_probe_export_hint")}
-                  </div>
-                </div>
-
+                {/* Sandbox probe hidden — Docker sandbox feature was pruned.
+                    See .claude/plans/docker-sandbox-pruned.md */}
 
 
 
