@@ -51,9 +51,9 @@
       }
     },
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUwNDdCNTAwMTcxNUUxQTQKUldTazRSVVhBTFZIVUpNRi9OQnNRaElZY1NUWUQxS1ZJOTFUeUdPd2d6ZnFmMW5QV2xJQ1hXTTkK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNBMEYzODhCNUNEN0FFNkEKUldScXJ0ZGNpemdQT2kwWU10RFVaWTdkdjhkemdjb2FtZHpqT2pDVk9uQzU0bnBWWENwSVFQaTgK",
       "endpoints": [
-        "https://github.com/different-ai/aurowork/releases/latest/download/latest.json"
+        "https://github.com/Northern-Deep-Leviathan/aurowork/releases/latest/download/latest.json"
       ]
     }
   }
