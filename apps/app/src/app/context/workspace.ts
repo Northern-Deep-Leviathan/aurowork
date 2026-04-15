@@ -3714,13 +3714,8 @@ export function createWorkspaceStore(options: {
     }
 
     if (firstRunWorkspaceSetup()) {
-      if (starterBootstrapState() === "not_started") {
-        await autoBootstrapStarterWorkspace();
-        return;
-      }
-
-      options.setStartupPreference("local");
-      options.setOnboardingStep("local");
+      markOnboardingComplete();
+      options.setOnboardingStep("welcome");
       return;
     }
 
