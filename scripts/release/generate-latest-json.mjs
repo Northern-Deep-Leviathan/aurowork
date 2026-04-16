@@ -14,7 +14,7 @@ function normalizeArch(arch) {
 function parseArgs(argv) {
   const options = {
     tag: process.env.RELEASE_TAG || "",
-    repo: process.env.GITHUB_REPOSITORY || "different-ai/aurowork",
+    repo: process.env.GITHUB_REPOSITORY || "Northern-Deep-Leviathan/aurowork",
     output: "latest.json",
   };
 

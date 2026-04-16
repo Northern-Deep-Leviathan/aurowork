@@ -15,7 +15,7 @@ type Repo = {
   stargazers_count?: number;
 };
 
-const FALLBACK_RELEASE = "https://github.com/different-ai/aurowork/releases";
+const FALLBACK_RELEASE = "https://github.com/Northern-Deep-Leviathan/aurowork/releases";
 
 const formatCompact = (value: number) => {
   try {
@@ -70,9 +70,9 @@ const fetchJson = async <T,>(url: string): Promise<T | null> => {
 
 export const getGithubData = async () => {
   const [repo, releases] = await Promise.all([
-    fetchJson<Repo>("https://api.github.com/repos/different-ai/aurowork"),
+    fetchJson<Repo>("https://api.github.com/repos/Northern-Deep-Leviathan/aurowork"),
     fetchJson<Release[]>(
-      "https://api.github.com/repos/different-ai/aurowork/releases?per_page=10"
+      "https://api.github.com/repos/Northern-Deep-Leviathan/aurowork/releases?per_page=10"
     )
   ]);
 

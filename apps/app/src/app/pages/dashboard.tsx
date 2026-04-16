@@ -69,7 +69,7 @@ import {
 } from "lucide-solid";
 import type { Language } from "../../i18n";
 
-const DEFAULT_AUROWORK_PUBLISHER_BASE_URL = "https://share.auroworklabs.com";
+const DEFAULT_AUROWORK_PUBLISHER_BASE_URL = "";
 
 export type DashboardViewProps = {
   tab: DashboardTab;

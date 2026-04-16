@@ -293,7 +293,7 @@ export type SettingsViewProps = {
 
 const DISCORD_INVITE_URL = "https://discord.gg/VEhNQXxYMB";
 const BUG_REPORT_URL =
-  "https://github.com/different-ai/aurowork/issues/new?template=bug.yml";
+  "https://github.com/Northern-Deep-Leviathan/aurowork/issues/new?template=bug.yml";
 
 export default function SettingsView(props: SettingsViewProps) {
   const platform = usePlatform();
@@ -2142,7 +2142,7 @@ export default function SettingsView(props: SettingsViewProps) {
                           <span class="font-mono">aurowork-dev://</span>, or a
                           raw supported{" "}
                           <span class="font-mono">
-                            https://share.auroworklabs.com/b/...
+                            https://share.example.com/b/...
                           </span>{" "}
                           URL.
                         </div>

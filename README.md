@@ -147,4 +147,4 @@ MIT — see [LICENSE](./LICENSE).
 
 ---
 
-> Forked from [different-ai/aurowork](https://github.com/different-ai/aurowork). This fork focuses on a streamlined local-first experience.
+> Forked from [different-ai/aurowork](https://github.com/Northern-Deep-Leviathan/aurowork). This fork focuses on a streamlined local-first experience.

@@ -2,7 +2,7 @@
 name = "aurowork"
 version = "0.11.193"
 description = "AuroWork"
-authors = ["Different AI"]
+authors = ["NLD"]
 edition = "2021"
 default-run = "AuroWork-Dev"
 

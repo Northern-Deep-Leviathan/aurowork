@@ -31,8 +31,8 @@ fi
 VERSION="${TAG#v}"
 ASSET_NAME_AMD64="${AUR_ASSET_NAME:-aurowork-desktop-linux-amd64.deb}"
 ASSET_NAME_ARM64="aurowork-desktop-linux-arm64.deb"
-ASSET_URL_AMD64="https://github.com/different-ai/aurowork/releases/download/${TAG}/${ASSET_NAME_AMD64}"
-ASSET_URL_ARM64="https://github.com/different-ai/aurowork/releases/download/${TAG}/${ASSET_NAME_ARM64}"
+ASSET_URL_AMD64="https://github.com/Northern-Deep-Leviathan/aurowork/releases/download/${TAG}/${ASSET_NAME_AMD64}"
+ASSET_URL_ARM64="https://github.com/Northern-Deep-Leviathan/aurowork/releases/download/${TAG}/${ASSET_NAME_ARM64}"
 
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT

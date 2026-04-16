@@ -96,7 +96,7 @@ import type {
   AuroworkServerStatus,
   AuroworkWorkspaceExport,
 } from "../lib/aurowork-server";
-const DEFAULT_AUROWORK_PUBLISHER_BASE_URL = "https://share.auroworklabs.com";
+const DEFAULT_AUROWORK_PUBLISHER_BASE_URL = "";
 import { join } from "@tauri-apps/api/path";
 import {
   isUserVisiblePart,

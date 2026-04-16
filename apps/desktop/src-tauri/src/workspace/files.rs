@@ -182,7 +182,7 @@ Specific User Requests
 }
 
 const ENTERPRISE_ARCHIVE_URL: &str =
-    "https://github.com/different-ai/aurowork-enterprise/archive/refs/heads/main.zip";
+    "https://github.com/Northern-Deep-Leviathan/aurowork-enterprise/archive/refs/heads/main.zip";
 const ENTERPRISE_SEED_MARKER: &str = ".aurowork-enterprise-creators";
 static ENTERPRISE_SEED_IN_FLIGHT: LazyLock<Mutex<HashSet<String>>> =
     LazyLock::new(|| Mutex::new(HashSet::new()));

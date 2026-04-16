@@ -62,7 +62,7 @@ export function createExtensionsStore(options: {
   const formatSkillPath = (location: string) => location.replace(/[/\\]SKILL\.md$/i, "");
 
   const DEFAULT_HUB_REPO: HubSkillRepo = {
-    owner: "different-ai",
+    owner: "Northern-Deep-Leviathan",
     repo: "aurowork-hub",
     ref: "main",
   };

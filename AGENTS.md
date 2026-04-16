@@ -234,12 +234,12 @@ This triggers the workflow automatically (`on: push.tags: v*`).
 
 If the workflow needs to be re-run for an existing tag (e.g. notarization retry), use workflow dispatch:
 
-* `gh workflow run "Release App" --repo different-ai/aurowork -f tag=vX.Y.Z`
+* `gh workflow run "Release App" --repo Northern-Deep-Leviathan/aurowork -f tag=vX.Y.Z`
 
 ### Verify
 
-* Runs: `gh run list --repo different-ai/aurowork --workflow "Release App" --limit 5`
-* Release: `gh release view vX.Y.Z --repo different-ai/aurowork`
+* Runs: `gh run list --repo Northern-Deep-Leviathan/aurowork --workflow "Release App" --limit 5`
+* Release: `gh release view vX.Y.Z --repo Northern-Deep-Leviathan/aurowork`
 
 Confirm the DMG assets are attached and versioned correctly.
 
@@ -252,7 +252,7 @@ This is usually covered by `Release App` when `publish_sidecars` + `publish_npm`
 3.  Commit the bump.
 4.  Build and upload sidecar assets for the same version tag:
     * `pnpm --filter aurowork-orchestrator build:sidecars`
-    * `gh release create aurowork-orchestrator-vX.Y.Z apps/orchestrator/dist/sidecars/* --repo different-ai/aurowork`
+    * `gh release create aurowork-orchestrator-vX.Y.Z apps/orchestrator/dist/sidecars/* --repo Northern-Deep-Leviathan/aurowork`
 5.  Publish:
     * `pnpm --filter aurowork-orchestrator publish --access public`
 6.  Verify:

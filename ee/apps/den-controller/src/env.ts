@@ -177,7 +177,7 @@ export const env = {
     apiKey: parsed.RENDER_API_KEY,
     ownerId: parsed.RENDER_OWNER_ID,
     workerRepo:
-      parsed.RENDER_WORKER_REPO ?? "https://github.com/different-ai/aurowork",
+      parsed.RENDER_WORKER_REPO ?? "https://github.com/Northern-Deep-Leviathan/aurowork",
     workerBranch: parsed.RENDER_WORKER_BRANCH ?? "dev",
     workerRootDir:
       parsed.RENDER_WORKER_ROOT_DIR ?? "ee/apps/den-worker-runtime",

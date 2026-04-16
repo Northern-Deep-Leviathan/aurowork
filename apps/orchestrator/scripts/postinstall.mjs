@@ -59,7 +59,7 @@ function resolveFallbackBaseUrl(version) {
   if (override) {
     return override.replace(/\/$/, "")
   }
-  return `https://github.com/different-ai/aurowork/releases/download/aurowork-orchestrator-v${version}`
+  return `https://github.com/Northern-Deep-Leviathan/aurowork/releases/download/aurowork-orchestrator-v${version}`
 }
 
 async function downloadFallbackBinary() {

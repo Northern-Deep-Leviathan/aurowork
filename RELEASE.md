@@ -14,7 +14,7 @@ AuroWork releases should be deterministic, easy to reproduce, and fully verifiab
     - `pnpm bump:patch` or `pnpm bump:minor` or `pnpm bump:major`
 2. Re-run `pnpm release:review`.
 3. Build sidecars for the desktop bundle:
-   - `pnpm --filter @different-ai/aurowork prepare:sidecar`
+   - `pnpm --filter @nld/aurowork prepare:sidecar`
 4. Commit the version bump.
 5. Tag and push:
    - `git tag vX.Y.Z`
@@ -27,7 +27,7 @@ AuroWork releases should be deterministic, easy to reproduce, and fully verifiab
 2. Build sidecar assets and manifest:
    - `pnpm --filter aurowork-orchestrator build:sidecars`
 3. Create the GitHub release for sidecars:
-   - `gh release create aurowork-orchestrator-vX.Y.Z packages/orchestrator/dist/sidecars/* --repo different-ai/aurowork`
+   - `gh release create aurowork-orchestrator-vX.Y.Z packages/orchestrator/dist/sidecars/* --repo Northern-Deep-Leviathan/aurowork`
 4. Publish the package:
    - `pnpm --filter aurowork-orchestrator publish --access public`
 
@@ -39,8 +39,8 @@ AuroWork releases should be deterministic, easy to reproduce, and fully verifiab
 ## Verification
 
 - `aurowork start --workspace /path/to/workspace --check --check-events`
-- `gh run list --repo different-ai/aurowork --workflow "Release App" --limit 5`
-- `gh release view vX.Y.Z --repo different-ai/aurowork`
+- `gh run list --repo Northern-Deep-Leviathan/aurowork --workflow "Release App" --limit 5`
+- `gh release view vX.Y.Z --repo Northern-Deep-Leviathan/aurowork`
 
 Use `pnpm release:review --json` when automating these checks in scripts or agents.
 

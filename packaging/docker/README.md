@@ -39,7 +39,7 @@ Optional env vars (via `.env` or `export`):
 - `AUROWORK_OPENCODE_CONFIG_DIR` — override the host OpenCode config source used for that optional import
 - `AUROWORK_OPENCODE_DATA_DIR` — override the host OpenCode data source used for that optional import
 
-The dev stack also starts the local share service automatically and points the AuroWork app at it, so share-link flows publish to a local service instead of `https://share.auroworklabs.com`.
+The dev stack also starts the local share service automatically and points the AuroWork app at it, so share-link flows publish to a local service instead of the production share server.
 
 ---
 

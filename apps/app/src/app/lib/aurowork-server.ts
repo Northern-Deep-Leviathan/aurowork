@@ -383,7 +383,7 @@ export function buildAuroworkWorkspaceBaseUrl(hostUrl: string, workspaceId?: str
   }
 }
 
-export const DEFAULT_AUROWORK_CONNECT_APP_URL = "https://app.auroworklabs.com";
+export const DEFAULT_AUROWORK_CONNECT_APP_URL = "";
 
 const AUROWORK_INVITE_PARAM_URL = "ow_url";
 const AUROWORK_INVITE_PARAM_TOKEN = "ow_token";

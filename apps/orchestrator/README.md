@@ -34,7 +34,7 @@ Use `--sidecar-source` to control where `aurowork-server` and `opencode-router` 
 apply the same policies via env vars.
 
 By default the manifest is fetched from
-`https://github.com/different-ai/aurowork/releases/download/aurowork-orchestrator-v<version>/aurowork-orchestrator-sidecars.json`.
+`https://github.com/Northern-Deep-Leviathan/aurowork/releases/download/aurowork-orchestrator-v<version>/aurowork-orchestrator-sidecars.json`.
 
 OpenCode Router is optional. If it exits, `aurowork` continues running unless you pass
 `--opencode-router-required` or set `AUROWORK_OPENCODE_ROUTER_REQUIRED=1`.

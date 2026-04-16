@@ -25,12 +25,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/different-ai/aurowork.git",
+    "url": "git+https://github.com/Northern-Deep-Leviathan/aurowork.git",
     "directory": "apps/orchestrator"
   },
-  "homepage": "https://github.com/different-ai/aurowork/tree/dev/apps/orchestrator",
+  "homepage": "https://github.com/Northern-Deep-Leviathan/aurowork/tree/dev/apps/orchestrator",
   "bugs": {
-    "url": "https://github.com/different-ai/aurowork/issues"
+    "url": "https://github.com/Northern-Deep-Leviathan/aurowork/issues"
   },
   "keywords": [
     "aurowork",

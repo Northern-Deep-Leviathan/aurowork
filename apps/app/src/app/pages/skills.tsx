@@ -7,7 +7,7 @@ import { Copy, Edit2, FolderOpen, Link2, Loader2, Package, Plus, RefreshCw, Sear
 import { currentLocale, t } from "../../i18n";
 
 // Stub for removed publisher module
-const DEFAULT_AUROWORK_PUBLISHER_BASE_URL = "https://share.auroworklabs.com";
+const DEFAULT_AUROWORK_PUBLISHER_BASE_URL = "";
 async function publishAuroworkBundleJson(_opts: { payload: unknown; bundleType: string; name: string }): Promise<{ url: string }> {
   throw new Error("Skill publishing has been removed.");
 }
@@ -132,7 +132,7 @@ export default function SkillsView(props: SkillsViewProps) {
   };
 
   const hubRepoKey = (repo: HubSkillRepo) => `${repo.owner}/${repo.repo}@${repo.ref}`;
-  const defaultHubRepoKey = "different-ai/aurowork-hub@main";
+  const defaultHubRepoKey = "Northern-Deep-Leviathan/aurowork-hub@main";
 
   const activeHubRepoLabel = createMemo(() => (props.hubRepo ? hubRepoKey(props.hubRepo) : "No hub repo selected"));
 
@@ -751,7 +751,7 @@ export default function SkillsView(props: SkillsViewProps) {
       </div>
 
       {/* Skill Hub section hidden — server-side endpoints (/hub/skills, /hub/skills/:name)
-          are not implemented yet, and the default hub repo (different-ai/aurowork-hub) may not
+          are not implemented yet, and the default hub repo (Northern-Deep-Leviathan/aurowork-hub) may not
           exist. Re-enable when the hub backend is ready. See .claude/plans/skill-hub-hidden.md */}
 
       <div class="space-y-4">
@@ -1002,7 +1002,7 @@ export default function SkillsView(props: SkillsViewProps) {
                   type="url"
                   value={installLinkUrl()}
                   onInput={(e) => setInstallLinkUrl(e.currentTarget.value)}
-                  placeholder="https://share.auroworklabs.com/b/..."
+                  placeholder="https://share.example.com/b/..."
                   class="w-full bg-dls-hover border border-dls-border rounded-lg px-3 py-2 text-xs font-mono text-dls-text focus:outline-none"
                   spellcheck={false}
                 />

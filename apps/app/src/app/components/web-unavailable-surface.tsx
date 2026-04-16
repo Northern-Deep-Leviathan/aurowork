@@ -38,7 +38,7 @@ export default function WebUnavailableSurface(props: WebUnavailableSurfaceProps)
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>{MESSAGE}</span>
             <a
-              href="https://auroworklabs.com"
+              href=""
               target="_blank"
               rel="noreferrer"
               class="inline-flex items-center gap-1 underline underline-offset-2 hover:no-underline"

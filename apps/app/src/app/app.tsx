@@ -661,9 +661,7 @@ function parseSharedBundleDeepLink(rawUrl: string): SharedBundleDeepLink | null 
       const path = url.pathname.replace(/^\/+/, "");
       const segments = path.split("/").filter(Boolean);
       if (
-        (host === "share.auroworklabs.com"
-          || host.endsWith(".auroworklabs.com")
-          || host === "share.aurowork.software"
+        (host === "share.aurowork.software"
           || host.endsWith(".aurowork.software"))
         && segments[0] === "b"
         && segments[1]
@@ -866,12 +864,12 @@ function parseDebugDeepLinkInput(rawValue: string):
     }
   }
 
-  const shareIdMatch = normalized.match(/share\.aurowork(?:labs\.com|\.software)\/b\/([^\s/?#"'<>]+)/i);
+  const shareIdMatch = normalized.match(/share\.aurowork\.software\/b\/([^\s/?#"'<>]+)/i);
   if (shareIdMatch?.[1]) {
     return {
       kind: "bundle",
       link: {
-        bundleUrl: `https://share.auroworklabs.com/b/${shareIdMatch[1]}`,
+        bundleUrl: `https://share.example.com/b/${shareIdMatch[1]}`,
         intent: "new_worker",
       },
     };

@@ -9,7 +9,7 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   stats:
-    if: github.repository == 'different-ai/aurowork'
+    if: github.repository == 'Northern-Deep-Leviathan/aurowork'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write
@@ -31,7 +31,7 @@ jobs:
           POSTHOG_LEGACY_EVENT: download
           POSTHOG_V2_EVENT: release_asset_snapshot
           POSTHOG_DISTINCT_ID: aurowork-download
-          GITHUB_REPO: different-ai/aurowork
+          GITHUB_REPO: Northern-Deep-Leviathan/aurowork
         run: node scripts/stats.mjs
 
       - name: Commit stats

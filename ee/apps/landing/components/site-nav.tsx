@@ -73,7 +73,7 @@ export function SiteNav(props: Props) {
 
           <div className="flex items-center gap-4">
             <a
-              href="https://github.com/different-ai/aurowork"
+              href="https://github.com/Northern-Deep-Leviathan/aurowork"
               className="hidden items-center gap-2 rounded-full border border-gray-100 bg-white px-3.5 py-2 text-sm font-medium text-gray-500 shadow-[0_1px_2px_rgba(17,24,39,0.06)] transition-colors hover:text-[#011627] sm:flex"
               rel="noreferrer"
               target="_blank"
@@ -145,7 +145,7 @@ export function SiteNav(props: Props) {
                 Book a call
               </a>
               <a
-                href="https://github.com/different-ai/aurowork"
+                href="https://github.com/Northern-Deep-Leviathan/aurowork"
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-100 bg-white px-4 py-2 text-sm font-medium text-gray-500 shadow-[0_1px_2px_rgba(17,24,39,0.06)] transition-colors hover:text-[#011627]"
                 rel="noreferrer"
                 target="_blank"

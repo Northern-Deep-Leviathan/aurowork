@@ -29,7 +29,7 @@ Manual recovery path (sidecars + npm) below.
 ```bash
 pnpm --filter aurowork-orchestrator build:sidecars
 gh release create aurowork-orchestrator-vX.Y.Z packages/orchestrator/dist/sidecars/* \
-  --repo different-ai/aurowork \
+  --repo Northern-Deep-Leviathan/aurowork \
   --title "aurowork-orchestrator vX.Y.Z sidecars" \
   --notes "Sidecar binaries and manifest for aurowork-orchestrator vX.Y.Z"
 ```

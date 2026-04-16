@@ -14,7 +14,7 @@ export const DEFAULT_DEN_AUTH_NAME = "AuroWork User";
 export const DEFAULT_DEN_BASE_URL =
   (typeof import.meta !== "undefined" && typeof import.meta.env?.VITE_DEN_BASE_URL === "string"
     ? import.meta.env.VITE_DEN_BASE_URL
-    : "").trim() || "https://app.auroworklabs.com";
+    : "").trim() || "";
 
 export type DenSettings = {
   baseUrl: string;
@@ -174,7 +174,7 @@ export function normalizeDenBaseUrl(input: string | null | undefined): string | 
 
 function isWebAppHost(hostname: string): boolean {
   const normalized = hostname.trim().toLowerCase();
-  return normalized === "app.auroworklabs.com" || normalized === "app.aurowork.software" || normalized.startsWith("app.");
+  return normalized === "app.aurowork.software" || normalized.startsWith("app.");
 }
 
 function stripDenApiBasePath(input: string | null | undefined): string | null {
