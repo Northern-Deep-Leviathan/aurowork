@@ -48,6 +48,24 @@ pub struct FsEntry {
 ### 2.3 Response Type
 
 ```rust
+#[derive(Serialize, Clone)]
+pub struct SheetCell {
+    pub value: String,
+    #[serde(rename = "type")]
+    pub cell_type: String,  // "string", "number", "boolean", "formula", "empty"
+}
+
+#[derive(Serialize, Clone)]
+pub struct SheetData {
+    pub name: String,
+    pub rows: Vec<Vec<Option<SheetCell>>>,  // null = empty cell
+}
+
+#[derive(Serialize, Clone)]
+pub struct WorkbookData {
+    pub sheets: Vec<SheetData>,
+}
+
 #[derive(Serialize)]
 #[serde(tag = "type")]
 pub enum FsFileContent {
@@ -56,14 +74,16 @@ pub enum FsFileContent {
 
     #[serde(rename = "sheet")]
     Sheet {
-        content: String,   // JSON-serialized sheet data
-        readonly: bool,    // true for .xls/.xlsb/.ods/.numbers
+        content: WorkbookData,  // structured, not JSON string
+        readonly: bool,
     },
 
     #[serde(rename = "binary")]
     Binary {},
 }
 ```
+
+Tauri's IPC serializes the entire `FsFileContent` enum via serde in a single pass. The `WorkbookData` struct is serialized directly into the JSON response — no double-encoding. The frontend receives a native JS object (`content.sheets[0].rows[0][0].value`) with zero `JSON.parse()` calls.
 
 ### 2.4 Read Dispatch (`fs_read_file`)
 
@@ -75,16 +95,16 @@ fn fs_read_file(entry: FsEntry) -> Result<FsFileContent, String> {
         Some("xlsx" | "xlsm") => {
             let book = umya_spreadsheet::reader::xlsx::read(&entry.path)
                 .map_err(|e| e.to_string())?;
-            let json = serialize_workbook(&book);
-            Ok(FsFileContent::Sheet { content: json, readonly: false })
+            let workbook = translate_workbook(&book);  // returns WorkbookData, not String
+            Ok(FsFileContent::Sheet { content: workbook, readonly: false })
         }
 
         // Read-only spreadsheet formats
         Some("xls" | "xlsb" | "ods" | "numbers") => {
             let book = umya_spreadsheet::reader::xlsx::read(&entry.path)
                 .map_err(|e| e.to_string())?;
-            let json = serialize_workbook(&book);
-            Ok(FsFileContent::Sheet { content: json, readonly: true })
+            let workbook = translate_workbook(&book);
+            Ok(FsFileContent::Sheet { content: workbook, readonly: true })
         }
 
         // Text files
@@ -104,30 +124,35 @@ Note: umya-spreadsheet natively supports `.xlsx` and `.xlsm`. For `.xls`, `.xlsb
 
 ### 2.5 Write Dispatch (`fs_write_file`)
 
-```rust
-#[tauri::command]
-fn fs_write_file(entry: FsEntry, content: String) -> Result<(), String> {
-    match entry.ext.as_deref() {
-        // Spreadsheet: apply cell delta to original file
-        Some("xlsx" | "xlsm") => {
-            let mut book = umya_spreadsheet::reader::xlsx::read(&entry.path)
-                .map_err(|e| e.to_string())?;
-            let delta: Vec<CellDelta> = serde_json::from_str(&content)
-                .map_err(|e| e.to_string())?;
-            apply_delta(&mut book, &delta);
-            umya_spreadsheet::writer::xlsx::write(&book, &entry.path)
-                .map_err(|e| e.to_string())?;
-            Ok(())
-        }
+The write command accepts structured `WritePayload` instead of a raw string:
 
-        // Text: direct write
-        Some(ext) if is_text_extension(ext) => {
+```rust
+#[derive(Deserialize)]
+#[serde(tag = "type")]
+pub enum WritePayload {
+    #[serde(rename = "text")]
+    Text { content: String },
+
+    #[serde(rename = "sheet")]
+    Sheet { deltas: Vec<CellDelta> },
+}
+
+#[tauri::command]
+fn fs_write_file(entry: FsEntry, payload: WritePayload) -> Result<(), String> {
+    match payload {
+        WritePayload::Text { content } => {
             std::fs::write(&entry.path, &content)
                 .map_err(|e| e.to_string())?;
             Ok(())
         }
-
-        _ => Err("NotSupported: cannot write this file type".into()),
+        WritePayload::Sheet { deltas } => {
+            let mut book = umya_spreadsheet::reader::xlsx::read(&entry.path)
+                .map_err(|e| e.to_string())?;
+            apply_delta(&mut book, &deltas);
+            umya_spreadsheet::writer::xlsx::write(&book, &entry.path)
+                .map_err(|e| e.to_string())?;
+            Ok(())
+        }
     }
 }
 ```
@@ -144,28 +169,25 @@ struct CellDelta {
 }
 ```
 
-### 2.7 Workbook Serialization
+### 2.7 Workbook conversion
 
-`serialize_workbook()` converts umya-spreadsheet's `Spreadsheet` to a JSON structure consumable by Fortune-sheet:
+`translate_workbook()` converts umya-spreadsheet's `Spreadsheet` into a `WorkbookData` struct (not a JSON string). Tauri's serde layer handles the final JSON serialization in a single pass.
 
-```json
-{
-  "sheets": [
-    {
-      "name": "Sheet1",
-      "rows": [
-        [
-          { "value": "Hello", "type": "string" },
-          { "value": "42", "type": "number" },
-          null
-        ]
-      ]
-    }
-  ]
+```rust
+fn translate_workbook(book: &umya_spreadsheet::Spreadsheet) -> WorkbookData {
+    // Iterate sheets → SheetData { name, rows: Vec<Vec<Option<SheetCell>>> }
+    // Each cell → SheetCell { value, cell_type }
+    // Empty cells → None
+    // Row arrays padded to max column used per sheet
 }
 ```
 
-Cells are `{ value, type }` where type is `"string"`, `"number"`, `"boolean"`, `"formula"`, or `"empty"`. `null` represents empty cells. Row arrays are padded to the maximum column used in each sheet.
+The frontend receives this as a native JS object:
+
+```ts
+content.sheets[0].name         // "Sheet1"
+content.sheets[0].rows[0][0]   // { value: "Hello", type: "string" } | null
+```
 
 ### 2.8 Dependencies
 
@@ -201,21 +223,45 @@ export interface FsEntry {
   path: string;
   is_dir: boolean;
   size: number;
-  ext: string | null;
+  ext?: string;
 }
 
-export interface FsFileContent {
-  type: "text" | "sheet" | "binary";
-  content?: string;
-  readonly?: boolean;
+export interface SheetCell {
+  value: string;
+  type: "string" | "number" | "boolean" | "formula" | "empty";
 }
+
+export interface SheetData {
+  name: string;
+  rows: (SheetCell | null)[][];
+}
+
+export interface WorkbookData {
+  sheets: SheetData[];
+}
+
+export interface CellDelta {
+  sheet: string;
+  row: number;
+  col: number;
+  value: string;
+}
+
+export type FsFileContent =
+  | { type: "text"; content: string }
+  | { type: "sheet"; content: WorkbookData; readonly: boolean }
+  | { type: "binary" };
+
+export type WritePayload =
+  | { type: "text"; content: string }
+  | { type: "sheet"; deltas: CellDelta[] };
 
 export async function fsReadFile(entry: FsEntry): Promise<FsFileContent> {
   return invoke<FsFileContent>("fs_read_file", { entry });
 }
 
-export async function fsWriteFile(entry: FsEntry, content: string): Promise<void> {
-  return invoke<void>("fs_write_file", { entry, content });
+export async function fsWriteFile(entry: FsEntry, payload: WritePayload): Promise<void> {
+  return invoke<void>("fs_write_file", { entry, payload });
 }
 
 // fsReadDir stays unchanged
@@ -234,7 +280,7 @@ Replaces `CodeEditorPanel.tsx`. Key changes:
   - `"text"` → `<CodeEditorView />` (existing, unchanged) or `<MarkdownPreview />` for .md/.mdx
   - `"sheet"` → `<SheetEditorView />`
   - `"binary"` → `<UnsupportedFileView />`
-- **File saving:** calls `fsWriteFile(entry, content)` — for text, content is the string; for sheets, content is the JSON-serialized cell delta
+- **File saving:** calls `fsWriteFile(entry, payload)` — for text, payload is `{ type: "text", content }`;  for sheets, payload is `{ type: "sheet", deltas }`
 - **FileTree** `onFileSelect` now passes `FsEntry` instead of a path string
 
 ### 3.3 SheetEditorView.tsx (New)
@@ -243,7 +289,7 @@ Replaces `CodeEditorPanel.tsx`. Key changes:
 ```ts
 interface SheetEditorViewProps {
   entry: FsEntry;
-  content: string;      // JSON sheet data from backend
+  content: WorkbookData;  // structured object, not JSON string
   readonly: boolean;
   onDirty: (dirty: boolean) => void;
   onSave: () => void;
@@ -258,7 +304,7 @@ interface SheetEditorViewProps {
 **Cell change tracking:**
 - Fortune-sheet's `onChange` callback fires on every cell edit
 - Accumulate changes as `CellDelta[]` in a signal
-- On save (Cmd+S), serialize delta to JSON, call `fsWriteFile(entry, deltaJSON)`
+- On save (Cmd+S), call `fsWriteFile(entry, { type: "sheet", deltas })`
 - After successful save, clear the delta accumulator and mark clean
 
 **Read-only mode:**
@@ -296,8 +342,8 @@ User clicks file in FileTree
   → FileEditorPanel calls fsReadFile(entry)
   → Tauri IPC → fs_read_file(entry: FsEntry)
     → match entry.ext:
-      "xlsx"/"xlsm"              → umya-spreadsheet read → JSON → Sheet { content, readonly: false }
-      "xls"/"xlsb"/"ods"/etc    → calamine read → JSON → Sheet { content, readonly: true }
+      "xlsx"/"xlsm"              → umya-spreadsheet read → WorkbookData → Sheet { content, readonly: false }
+      "xls"/"xlsb"/"ods"/etc    → calamine read → WorkbookData → Sheet { content, readonly: true }
       text extension             → fs::read_to_string → Text { content }
       other                      → Binary {}
   → Frontend receives FsFileContent
@@ -311,8 +357,8 @@ User clicks file in FileTree
 ```
 User edits in CodeEditorView → isDirty = true
   → Cmd+S
-  → fsWriteFile(entry, textContent)
-  → Tauri IPC → fs_write_file → fs::write(entry.path, content)
+  → fsWriteFile(entry, { type: "text", content: textContent })
+  → Tauri IPC → fs_write_file(entry, WritePayload::Text) → fs::write(entry.path, content)
   → isDirty = false
 ```
 
@@ -323,8 +369,8 @@ User edits cell in SheetEditorView (Fortune-sheet)
   → onChange callback → accumulate CellDelta[]
   → isDirty = true
   → Cmd+S
-  → fsWriteFile(entry, JSON.stringify(deltas))
-  → Tauri IPC → fs_write_file
+  → fsWriteFile(entry, { type: "sheet", deltas })
+  → Tauri IPC → fs_write_file(entry, WritePayload::Sheet { deltas })
     → umya-spreadsheet opens entry.path
     → apply each CellDelta (set cell value by sheet/row/col)
     → umya-spreadsheet writes back to entry.path
