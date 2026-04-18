@@ -24,15 +24,18 @@ pub async fn fs_read_dir(path: String) -> Result<Vec<FsEntry>, String> {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
         let metadata = entry.metadata().map_err(|e| format!("Failed to read metadata: {}", e))?;
         let name = entry.file_name().to_string_lossy().to_string();
-        let full_path = entry.path().to_string_lossy().to_string();
-        let extension = full_path.extension().and_then(|ext| ext.to_string());
+        let entry_path = entry.path();
+        let full_path = entry_path.to_string_lossy().to_string();
+        let extension = entry_path.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_string());
 
         entries.push(FsEntry {
             name,
             path: full_path,
             is_dir: metadata.is_dir(),
             size: metadata.len(),
-            ext: extention,
+            ext: extension,
         });
     }
 
