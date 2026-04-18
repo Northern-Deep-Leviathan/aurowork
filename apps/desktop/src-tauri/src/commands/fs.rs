@@ -360,6 +360,109 @@ fn apply_deltas(
     Ok(())
 }
 
+#[tauri::command]
+pub async fn fs_read_file(req: FsReadRequest) -> Result<FsReadResponse, FsError> {
+    let path = Path::new(&req.path);
+
+    if !path.exists() {
+        return Err(FsError::NotFound {
+            message: format!("File not found: {}", req.path),
+        });
+    }
+    if path.is_dir() {
+        return Err(FsError::InvalidRequest {
+            message: format!("Path is a directory: {}", req.path),
+        });
+    }
+
+    match classify_file(path) {
+        FileType::Text => {
+            let revision = get_revision(path)?;
+            let content = std::fs::read_to_string(path).map_err(|e| {
+                FsError::Internal {
+                    message: format!("Failed to read as text: {}", e),
+                }
+            })?;
+            Ok(FsReadResponse::Text { content, revision })
+        }
+        FileType::Sheet => {
+            let revision = get_revision(path)?;
+            let book = umya_spreadsheet::reader::xlsx::read(path).map_err(|e| {
+                FsError::Internal {
+                    message: format!("Failed to read spreadsheet: {}", e),
+                }
+            })?;
+            let content = translate_workbook(&book, req.sheet_window.as_ref());
+            let ext = path.extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("xlsx")
+                .to_lowercase();
+            let capabilities = SheetCapabilities {
+                can_edit_cells: true,
+                can_save: true,
+                format: ext,
+            };
+            Ok(FsReadResponse::Sheet { content, capabilities, revision })
+        }
+        FileType::UnsupportedSheet => Ok(FsReadResponse::Binary {
+            mime: None,
+            reason: "Unsupported spreadsheet format in this phase".to_string(),
+        }),
+        FileType::Binary => Ok(FsReadResponse::Binary {
+            mime: None,
+            reason: "Binary file".to_string(),
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn fs_write_file(req: FsWriteRequest) -> Result<FsWriteResponse, FsError> {
+    let path = Path::new(&req.path);
+
+    check_revision_conflict(path, &req.expected_revision)?;
+
+    match req.payload {
+        WritePayload::Text { content } => {
+            std::fs::write(path, &content).map_err(|e| {
+                if e.kind() == std::io::ErrorKind::PermissionDenied {
+                    FsError::PermissionDenied {
+                        message: format!("Permission denied: {}", req.path),
+                    }
+                } else {
+                    FsError::Internal {
+                        message: format!("Failed to write file: {}", e),
+                    }
+                }
+            })?;
+        }
+        WritePayload::Sheet { deltas } => {
+            let file_type = classify_file(path);
+            if file_type != FileType::Sheet {
+                return Err(FsError::NotSupported {
+                    message: "This file type cannot be saved as a spreadsheet".to_string(),
+                });
+            }
+
+            let mut book = umya_spreadsheet::reader::xlsx::read(path).map_err(|e| {
+                FsError::Internal {
+                    message: format!("Failed to read spreadsheet for update: {}", e),
+                }
+            })?;
+
+            apply_deltas(&mut book, &deltas)?;
+
+            umya_spreadsheet::writer::xlsx::write(&book, path).map_err(|e| {
+                FsError::Internal {
+                    message: format!("Failed to write spreadsheet: {}", e),
+                }
+            })?;
+        }
+    }
+
+    let revision = get_revision(path)?;
+    Ok(FsWriteResponse { revision })
+}
+
 #[derive(Debug, Serialize)]
 pub struct FsEntry {
     pub name: String,

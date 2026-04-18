@@ -39,6 +39,8 @@
     "@codemirror/language": "^6.11.0",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.0",
+    "@fortune-sheet/core": "^1.0.4",
+    "@fortune-sheet/react": "^1.0.4",
     "@opencode-ai/sdk": "^1.1.31",
     "@radix-ui/colors": "^3.0.0",
     "@solid-primitives/event-bus": "^1.1.2",
@@ -56,10 +58,14 @@
     "jsonc-parser": "^3.2.1",
     "lucide-solid": "^0.562.0",
     "marked": "^17.0.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "solid-js": "^1.9.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
+    "@types/react": "18.2.79",
+    "@types/react-dom": "18.2.25",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.6.3",
     "vite": "^6.0.1",
