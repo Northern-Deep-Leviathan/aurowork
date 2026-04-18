@@ -2,8 +2,17 @@ import { Show, createEffect, createSignal, on } from "solid-js";
 import { X, Save, FolderOpen } from "lucide-solid";
 import CodeEditorView from "./CodeEditorView";
 import MarkdownPreview from "./MarkdownPreview";
+import SheetEditorView from "./SheetEditorView";
+import UnsupportedFileView from "./UnsupportedFileView";
 import FileTree from "./FileTree";
-import { fsReadTextFile, fsWriteTextFile } from "../../lib/tauri-fs";
+import {
+  fsReadFile,
+  fsWriteFile,
+  type FsEntry,
+  type FsReadResponse,
+  type FileRevision,
+  type CellDelta,
+} from "../../lib/tauri-fs";
 import { isTauriRuntime } from "../../utils";
 import { pickDirectory } from "../../lib/tauri";
 
@@ -15,16 +24,21 @@ type FileEditorPanelProps = {
 };
 
 export function FileEditorPanel(props: FileEditorPanelProps) {
-  const [selectedFilePath, setSelectedFilePath] = createSignal<string | null>(
-    null,
-  );
-  const [fileContent, setFileContent] = createSignal("");
+  const [selectedEntry, setSelectedEntry] = createSignal<FsEntry | null>(null);
+  const [openDoc, setOpenDoc] = createSignal<FsReadResponse | null>(null);
   const [isDirty, setIsDirty] = createSignal(false);
   const [isLoading, setIsLoading] = createSignal(false);
   const [loadError, setLoadError] = createSignal<string | null>(null);
   const [splitPosition, setSplitPosition] = createSignal(280);
   const [effectiveRoot, setEffectiveRoot] = createSignal<string | null>(null);
   const [viewMode, setViewMode] = createSignal<"edit" | "preview">("edit");
+  const [revision, setRevision] = createSignal<FileRevision | null>(null);
+  const [deltas, setDeltas] = createSignal<CellDelta[]>([]);
+  const [currentTextContent, setCurrentTextContent] = createSignal("");
+
+  // ── Derived state ──
+
+  const selectedFilePath = () => selectedEntry()?.path ?? null;
 
   const isMarkdown = () => {
     const p = selectedFilePath();
@@ -32,20 +46,38 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
     return /\.mdx?$/i.test(p);
   };
 
-  // Sync rootPath from props
+  const docType = () => openDoc()?.type ?? null;
+
+  const canSave = () => {
+    const doc = openDoc();
+    if (!doc) return false;
+    if (doc.type === "text") return true;
+    if (doc.type === "sheet") return doc.capabilities.can_save;
+    return false;
+  };
+
+  // ── Sync rootPath from props ──
+
   createEffect(() => {
     const root = props.rootPath;
     if (root) setEffectiveRoot(root);
   });
 
-  // Reset view mode when switching files
   createEffect(
     on(() => selectedFilePath(), () => setViewMode("edit"), { defer: true }),
   );
 
-  // ---------- file operations ----------
+  // Seed text content when a text file is loaded
+  createEffect(() => {
+    const doc = openDoc();
+    if (doc?.type === "text") {
+      setCurrentTextContent(doc.content);
+    }
+  });
 
-  const loadFile = async (path: string) => {
+  // ── File operations ──
+
+  const loadFile = async (entry: FsEntry) => {
     if (isDirty()) {
       const ok = window.confirm(
         "You have unsaved changes. Discard and open new file?",
@@ -55,33 +87,109 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
 
     setIsLoading(true);
     setLoadError(null);
+    setDeltas([]);
+    setIsDirty(false);
+
     try {
-      const content = await fsReadTextFile(path);
-      setFileContent(content);
-      setSelectedFilePath(path);
-      setIsDirty(false);
-    } catch (err) {
-      setLoadError(String(err));
+      const response = await fsReadFile(entry.path);
+      setOpenDoc(response);
+      setSelectedEntry(entry);
+
+      if (response.type === "text" || response.type === "sheet") {
+        setRevision(response.revision);
+      } else {
+        setRevision(null);
+      }
+    } catch (err: any) {
+      const msg = err?.message ?? String(err);
+      setLoadError(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
   const saveFile = async () => {
-    const path = selectedFilePath();
-    if (!path) return;
+    const entry = selectedEntry();
+    const doc = openDoc();
+    if (!entry || !doc) return;
+
     try {
-      await fsWriteTextFile(path, fileContent());
-      setIsDirty(false);
-    } catch (err) {
-      window.alert(`Failed to save: ${err}`);
+      if (doc.type === "text") {
+        const result = await fsWriteFile(
+          entry.path,
+          { type: "text", content: currentTextContent() },
+          revision() ?? undefined,
+        );
+        setRevision(result.revision);
+        setIsDirty(false);
+      } else if (doc.type === "sheet") {
+        const currentDeltas = deltas();
+        if (currentDeltas.length === 0) return;
+
+        const result = await fsWriteFile(
+          entry.path,
+          { type: "sheet", deltas: currentDeltas },
+          revision() ?? undefined,
+        );
+        setRevision(result.revision);
+        setDeltas([]);
+        setIsDirty(false);
+      }
+    } catch (err: any) {
+      const parsed = typeof err === "object" && err?.code ? err : null;
+      if (parsed?.code === "Conflict") {
+        const reload = window.confirm(
+          "File changed on disk. Reload latest version? (Cancel to overwrite)",
+        );
+        if (reload && entry) {
+          void loadFile(entry);
+        } else if (entry) {
+          // Retry without revision check
+          try {
+            if (doc.type === "text") {
+              const result = await fsWriteFile(entry.path, {
+                type: "text",
+                content: currentTextContent(),
+              });
+              setRevision(result.revision);
+              setIsDirty(false);
+            } else if (doc.type === "sheet") {
+              const result = await fsWriteFile(entry.path, {
+                type: "sheet",
+                deltas: deltas(),
+              });
+              setRevision(result.revision);
+              setDeltas([]);
+              setIsDirty(false);
+            }
+          } catch (retryErr) {
+            window.alert(`Failed to save: ${retryErr}`);
+          }
+        }
+      } else {
+        window.alert(`Failed to save: ${err?.message ?? err}`);
+      }
     }
   };
 
-  const handleContentChange = (value: string) => {
-    setFileContent(value);
+  // ── Text content tracking ──
+
+  const handleTextContentChange = (value: string) => {
+    setCurrentTextContent(value);
     setIsDirty(true);
   };
+
+  // ── Sheet delta handling ──
+
+  const handleDeltasChange = (next: CellDelta[]) => {
+    setDeltas(next);
+  };
+
+  const handleSheetDirtyChange = (dirty: boolean) => {
+    setIsDirty(dirty);
+  };
+
+  // ── Folder picker ──
 
   const handlePickFolder = async () => {
     try {
@@ -94,7 +202,7 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
     }
   };
 
-  // ---------- splitter drag ----------
+  // ── Splitter drag ──
 
   const [dragging, setDragging] = createSignal(false);
   let panelRef: HTMLElement | undefined;
@@ -108,21 +216,13 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
   const onPointerMove = (e: PointerEvent) => {
     if (!dragging() || !panelRef) return;
     const rect = panelRef.getBoundingClientRect();
-    // File tree is on the right, so width = distance from right edge
     const fileTreeWidth = rect.right - e.clientX;
     setSplitPosition(Math.max(160, Math.min(fileTreeWidth, rect.width - 200)));
   };
 
   const onPointerUp = () => setDragging(false);
 
-  // ---------- file name from path ----------
-
-  const fileName = () => {
-    const path = selectedFilePath();
-    if (!path) return null;
-    const parts = path.replace(/\\/g, "/").split("/");
-    return parts[parts.length - 1] ?? path;
-  };
+  // ── Display helpers ──
 
   const breadcrumb = () => {
     const path = selectedFilePath();
@@ -134,7 +234,7 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
     return path;
   };
 
-  // ---------- non-Tauri guard ----------
+  // ── Non-Tauri guard ──
 
   if (!isTauriRuntime()) {
     return (
@@ -169,7 +269,7 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
             title="Unsaved changes"
           />
         </Show>
-        <Show when={selectedFilePath()}>
+        <Show when={selectedFilePath() && canSave()}>
           <button
             type="button"
             class="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-dls-secondary transition-colors hover:bg-dls-hover hover:text-dls-text disabled:opacity-50"
@@ -180,6 +280,12 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
             <Save size={12} />
             <span>Save</span>
           </button>
+        </Show>
+        {/* Read-only badge for sheets */}
+        <Show when={docType() === "sheet" && openDoc()?.type === "sheet" && !(openDoc() as Extract<FsReadResponse, { type: "sheet" }>).capabilities.can_edit_cells}>
+          <span class="rounded bg-dls-hover px-1.5 py-0.5 text-[10px] font-medium text-dls-secondary">
+            Read-only
+          </span>
         </Show>
         <button
           type="button"
@@ -195,8 +301,8 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
       <div class="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Editor area (left) */}
         <div class="min-w-0 flex-1 flex flex-col overflow-hidden">
-          {/* Edit / Preview tabs — only shown for markdown files */}
-          <Show when={isMarkdown() && selectedFilePath() && !isLoading() && !loadError()}>
+          {/* Edit / Preview tabs — only for markdown text files */}
+          <Show when={docType() === "text" && isMarkdown() && !isLoading() && !loadError()}>
             <div class="flex items-center gap-0.5 border-b border-dls-border px-3 shrink-0">
               <button
                 type="button"
@@ -236,7 +342,7 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
               </div>
             </Show>
             <Show
-              when={selectedFilePath() && !isLoading() && !loadError()}
+              when={openDoc() && !isLoading() && !loadError()}
               fallback={
                 <Show when={!isLoading() && !loadError()}>
                   <div class="flex h-full items-center justify-center text-xs text-dls-secondary">
@@ -245,18 +351,54 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
                 </Show>
               }
             >
-              <Show
-                when={isMarkdown() && viewMode() === "preview"}
-                fallback={
-                  <CodeEditorView
-                    content={fileContent()}
-                    filePath={selectedFilePath()}
-                    onContentChange={handleContentChange}
-                    onSave={saveFile}
-                  />
-                }
-              >
-                <MarkdownPreview content={fileContent()} />
+              {/* Text view */}
+              <Show when={docType() === "text"}>
+                <Show
+                  when={isMarkdown() && viewMode() === "preview"}
+                  fallback={
+                    <CodeEditorView
+                      content={currentTextContent()}
+                      filePath={selectedFilePath()}
+                      onContentChange={handleTextContentChange}
+                      onSave={saveFile}
+                    />
+                  }
+                >
+                  <MarkdownPreview content={currentTextContent()} />
+                </Show>
+              </Show>
+
+              {/* Sheet view */}
+              <Show when={docType() === "sheet" && openDoc()?.type === "sheet"}>
+                {(() => {
+                  const doc = openDoc()!;
+                  if (doc.type !== "sheet") return null;
+                  return (
+                    <SheetEditorView
+                      entry={selectedEntry()!}
+                      content={doc.content}
+                      capabilities={doc.capabilities}
+                      deltas={deltas()}
+                      onDeltasChange={handleDeltasChange}
+                      onDirtyChange={handleSheetDirtyChange}
+                      onSaveRequested={saveFile}
+                    />
+                  );
+                })()}
+              </Show>
+
+              {/* Binary/unsupported view */}
+              <Show when={docType() === "binary" && openDoc()?.type === "binary"}>
+                {(() => {
+                  const doc = openDoc()!;
+                  if (doc.type !== "binary") return null;
+                  return (
+                    <UnsupportedFileView
+                      entry={selectedEntry()!}
+                      reason={doc.reason}
+                    />
+                  );
+                })()}
               </Show>
             </Show>
           </div>
@@ -296,7 +438,7 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
           >
             <FileTree
               rootPath={effectiveRoot()}
-              onFileSelect={(path) => void loadFile(path)}
+              onFileSelect={(entry) => void loadFile(entry)}
               selectedPath={selectedFilePath()}
             />
           </Show>
