@@ -95,16 +95,3 @@ export async function fsWriteFile(
     req: { path, payload, expected_revision: expectedRevision ?? null },
   });
 }
-
-// ── Deprecated (kept for backward compat during migration) ──
-
-export async function fsReadTextFile(path: string): Promise<string> {
-  return invoke<string>("fs_read_text_file", { path });
-}
-
-export async function fsWriteTextFile(
-  path: string,
-  content: string,
-): Promise<void> {
-  return invoke<void>("fs_write_text_file", { path, content });
-}
