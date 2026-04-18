@@ -1,5 +1,135 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
+
+// ── Error model ──
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "code")]
+pub enum FsError {
+    NotFound { message: String },
+    PermissionDenied { message: String },
+    NotSupported { message: String },
+    Conflict { message: String },
+    InvalidRequest { message: String },
+    Internal { message: String },
+}
+
+impl std::fmt::Display for FsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FsError::NotFound { message } => write!(f, "NotFound: {}", message),
+            FsError::PermissionDenied { message } => write!(f, "PermissionDenied: {}", message),
+            FsError::NotSupported { message } => write!(f, "NotSupported: {}", message),
+            FsError::Conflict { message } => write!(f, "Conflict: {}", message),
+            FsError::InvalidRequest { message } => write!(f, "InvalidRequest: {}", message),
+            FsError::Internal { message } => write!(f, "Internal: {}", message),
+        }
+    }
+}
+
+// ── Revision tracking ──
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct FileRevision {
+    pub mtime_ms: u64,
+    pub size: u64,
+}
+
+// ── Read request/response ──
+
+#[derive(Deserialize)]
+pub struct FsReadRequest {
+    pub path: String,
+    pub sheet_window: Option<SheetWindowRequest>,
+}
+
+#[derive(Deserialize)]
+pub struct SheetWindowRequest {
+    pub start_row: u32,
+    pub start_col: u32,
+    pub max_rows: u32,
+    pub max_cols: u32,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type")]
+pub enum FsReadResponse {
+    #[serde(rename = "text")]
+    Text {
+        content: String,
+        revision: FileRevision,
+    },
+    #[serde(rename = "sheet")]
+    Sheet {
+        content: WorkbookData,
+        capabilities: SheetCapabilities,
+        revision: FileRevision,
+    },
+    #[serde(rename = "binary")]
+    Binary {
+        mime: Option<String>,
+        reason: String,
+    },
+}
+
+#[derive(Serialize, Clone)]
+pub struct SheetCapabilities {
+    pub can_edit_cells: bool,
+    pub can_save: bool,
+    pub format: String,
+}
+
+// ── Workbook transport (sparse) ──
+
+#[derive(Serialize, Clone)]
+pub struct WorkbookData {
+    pub sheets: Vec<SheetData>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct SheetData {
+    pub name: String,
+    pub max_row: u32,
+    pub max_col: u32,
+    pub cells: Vec<CellRef>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CellRef {
+    pub row: u32,
+    pub col: u32,
+    pub value: String,
+    pub cell_type: Option<String>,
+}
+
+// ── Write request/response ──
+
+#[derive(Deserialize)]
+pub struct FsWriteRequest {
+    pub path: String,
+    pub expected_revision: Option<FileRevision>,
+    pub payload: WritePayload,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type")]
+pub enum WritePayload {
+    #[serde(rename = "text")]
+    Text { content: String },
+    #[serde(rename = "sheet")]
+    Sheet { deltas: Vec<CellDelta> },
+}
+
+#[derive(Deserialize)]
+pub struct CellDelta {
+    pub sheet: String,
+    pub cell: CellRef,
+}
+
+#[derive(Serialize)]
+pub struct FsWriteResponse {
+    pub revision: FileRevision,
+}
 
 #[derive(Debug, Serialize)]
 pub struct FsEntry {
