@@ -2,15 +2,17 @@
 
 ## Summary
 
-Rename `code-editor-panel` to `file-editor-panel`, introduce a multi-editor routing architecture, add spreadsheet viewing/editing via Fortune-sheet + umya-spreadsheet, and unify backend file operations around `FsEntry`-based APIs.
+Rename `code-editor-panel` to `file-editor-panel`, introduce a multi-editor routing architecture, add spreadsheet viewing/editing via Fortune-sheet + umya-spreadsheet, and unify backend file operations with server-owned metadata and structured typed APIs.
 
 ## Motivation
 
-The current `CodeEditorPanel` only supports text files. The goal is to expand to multiple file types (starting with spreadsheets) through a pluggable editor view architecture, while cleaning up the backend API to be type-safe and extensible.
+The current `CodeEditorPanel` only supports text files. The goal is to expand to multiple file types (starting with spreadsheets) through a pluggable editor view architecture, while cleaning up the backend API to be type-safe, secure, and extensible.
 
 ---
 
-## 1. Renaming
+## 1. Scope and Naming
+
+### 1.1 Rename
 
 | Before | After |
 |---|---|
@@ -20,111 +22,192 @@ The current `CodeEditorPanel` only supports text files. The goal is to expand to
 | `index.ts` barrel export | Updated to export `FileEditorPanel` |
 | `session.tsx` import/usage | Updated to use `FileEditorPanel` |
 
-Files that remain unchanged: `CodeEditorView.tsx`, `FileTree.tsx`, `MarkdownPreview.tsx`, `language-detection.ts`.
+Files that remain unchanged: `CodeEditorView.tsx`, `MarkdownPreview.tsx`, `language-detection.ts`.
+
+### 1.2 Goal
+
+Introduce a multi-editor panel that supports:
+- Text editing (existing CodeMirror path)
+- Spreadsheet viewing/editing (xlsx/xlsm first)
+- Unsupported/binary fallback view
+
+Non-goals in this phase:
+- Advanced spreadsheet formula engine parity
+- Multi-user collaborative editing
+- Support for non-umya formats (.xls, .xlsb, .ods, .numbers)
 
 ---
 
-## 2. Backend API (Rust/Tauri)
+## 2. Design Principles (Normative)
 
-### 2.1 Unified Commands
+1. **Server-owned truth**: backend derives file metadata (extension, type, capabilities) from the real path; frontend-provided metadata is advisory only.
+2. **Single owner per state**: dirty state and deltas have one canonical owner (`FileEditorPanel`).
+3. **Bounded payloads**: use sparse cell representation to avoid memory/IPC explosion on large/sparse sheets.
+4. **Capability-driven UX**: UI save affordance is derived from backend-reported capabilities, not frontend extension guesses.
+5. **No regression**: retain unsaved-change confirmation when switching files.
+6. **Deterministic errors**: no ambiguous silent fallbacks; every error maps to a specific user-visible behavior.
 
-Replace `fs_read_text_file` / `fs_write_text_file` with `fs_read_file` / `fs_write_file`. Keep `fs_read_dir` as-is.
+---
 
-### 2.2 FsEntry as Input
+## 3. Backend API (Rust/Tauri)
 
-Both `fs_read_file` and `fs_write_file` accept `FsEntry` as input instead of string arguments. `FsEntry` already contains `name`, `path`, `is_dir`, `size`, and `ext` — the `ext` field drives dispatch logic.
+### 3.1 Command Surface
+
+Replace `fs_read_text_file` / `fs_write_text_file` with unified commands. Keep `fs_read_dir` as-is.
 
 ```rust
-#[derive(Deserialize, Serialize, Clone)]
-pub struct FsEntry {
-    pub name: String,
+#[tauri::command]
+fn fs_read_file(req: FsReadRequest) -> Result<FsReadResponse, FsError>;
+
+#[tauri::command]
+fn fs_write_file(req: FsWriteRequest) -> Result<FsWriteResponse, FsError>;
+```
+
+### 3.2 Request/Response Contracts
+
+**Read request** — accepts `path` only (not full `FsEntry`). Backend derives extension, type, and capabilities server-side to prevent trust boundary violations from forged frontend metadata.
+
+```rust
+#[derive(Deserialize)]
+pub struct FsReadRequest {
     pub path: String,
-    pub is_dir: bool,
-    pub size: u64,
-    pub ext: Option<String>,
+    pub sheet_window: Option<SheetWindowRequest>,
+}
+
+#[derive(Deserialize)]
+pub struct SheetWindowRequest {
+    pub start_row: u32,     // 1-indexed
+    pub start_col: u32,     // 1-indexed
+    pub max_rows: u32,      // e.g. 500
+    pub max_cols: u32,      // e.g. 200
 }
 ```
 
-### 2.3 Response Type
+**Read response** — discriminated union with revision tracking:
 
 ```rust
-#[derive(Serialize, Clone)]
-pub struct SheetCell {
-    pub value: String,
-    #[serde(rename = "type")]
-    pub cell_type: String,  // "string", "number", "boolean", "formula", "empty"
+#[derive(Serialize)]
+#[serde(tag = "type")]
+pub enum FsReadResponse {
+    #[serde(rename = "text")]
+    Text {
+        content: String,
+        revision: FileRevision,
+    },
+
+    #[serde(rename = "sheet")]
+    Sheet {
+        content: WorkbookData,
+        capabilities: SheetCapabilities,
+        revision: FileRevision,
+    },
+
+    #[serde(rename = "binary")]
+    Binary {
+        mime: Option<String>,
+        reason: String,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct FileRevision {
+    pub mtime_ms: u64,
+    pub size: u64,
 }
 
 #[derive(Serialize, Clone)]
-pub struct SheetData {
-    pub name: String,
-    pub rows: Vec<Vec<Option<SheetCell>>>,  // null = empty cell
+pub struct SheetCapabilities {
+    pub can_edit_cells: bool,
+    pub can_save: bool,
+    pub format: String,  // "xlsx", "xlsm"
+}
+```
+
+`readonly` in the UI is derived from `!capabilities.can_edit_cells`; save enablement from `capabilities.can_save`. No separate `readonly` field needed.
+
+**Write request** — includes revision for conflict detection:
+
+```rust
+#[derive(Deserialize)]
+pub struct FsWriteRequest {
+    pub path: String,
+    pub expected_revision: Option<FileRevision>,
+    pub payload: WritePayload,
 }
 
+#[derive(Serialize)]
+pub struct FsWriteResponse {
+    pub revision: FileRevision,  // new revision after write
+}
+```
+
+### 3.3 Dispatch Rules
+
+- Backend canonicalizes and validates `path` (prevent directory traversal, symlink escape).
+- Backend computes extension from the real filesystem path.
+- Text detection supports both extension-based and name-based matching:
+  - **Extensions:** ts, tsx, mts, cts, js, jsx, mjs, cjs, json, jsonc, json5, yaml, yml, toml, md, mdx, txt, xml, html, htm, css, scss, sass, less, graphql, gql, sql, ini, cfg, conf, env, py, rs, go, java, c, cpp, h, hpp, rb, php, swift, kt, scala, r, sh, bash, zsh, fish, ps1
+  - **Extensionless filenames:** Dockerfile, Makefile, .gitignore, .gitattributes, .editorconfig, .npmrc, .nvmrc, .prettierrc, .eslintrc, .env
+- Spreadsheet routing uses the umya-only policy (section 3.4).
+
+### 3.4 Spreadsheet Format Policy (umya-only)
+
+- Supported spreadsheet formats in this phase: `.xlsx`, `.xlsm` only.
+- Backend returns `FsReadResponse::Sheet` with capabilities derived from actual runtime behavior.
+- For other spreadsheet-like extensions (`.xls`, `.xlsb`, `.ods`, `.numbers`, etc.), backend returns `FsReadResponse::Binary` with reason `"Unsupported spreadsheet format in this phase"`.
+- No secondary spreadsheet parser (calamine) is introduced in this phase.
+
+### 3.5 Workbook Transport Model (Sparse + Bounded)
+
+Avoid dense padded 2D arrays. Use sparse cell list with bounded window loading:
+
+```rust
 #[derive(Serialize, Clone)]
 pub struct WorkbookData {
     pub sheets: Vec<SheetData>,
 }
 
-#[derive(Serialize)]
-#[serde(tag = "type")]
-pub enum FsFileContent {
-    #[serde(rename = "text")]
-    Text { content: String },
+#[derive(Serialize, Clone)]
+pub struct SheetData {
+    pub name: String,
+    pub max_row: u32,
+    pub max_col: u32,
+    pub cells: Vec<CellRef>,  // sparse list for requested window
+}
 
-    #[serde(rename = "sheet")]
-    Sheet {
-        content: WorkbookData,  // structured, not JSON string
-        readonly: bool,
-    },
-
-    #[serde(rename = "binary")]
-    Binary {},
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CellRef {
+    pub row: u32,                  // 1-indexed
+    pub col: u32,                  // 1-indexed
+    pub value: String,
+    pub cell_type: Option<String>, // read: populated; write: optional hint
 }
 ```
 
-Tauri's IPC serializes the entire `FsFileContent` enum via serde in a single pass. The `WorkbookData` struct is serialized directly into the JSON response — no double-encoding. The frontend receives a native JS object (`content.sheets[0].rows[0][0].value`) with zero `JSON.parse()` calls.
+`SheetWindowRequest` allows initial bounded load (e.g. first 500 rows x 200 cols) and later pagination for large sheets.
 
-### 2.4 Read Dispatch (`fs_read_file`)
+`translate_workbook()` converts umya-spreadsheet's `Spreadsheet` into a `WorkbookData` struct. Tauri's serde layer handles JSON serialization in a single pass — no double-encoding.
 
 ```rust
-#[tauri::command]
-fn fs_read_file(entry: FsEntry) -> Result<FsFileContent, String> {
-    match entry.ext.as_deref() {
-        // Read-write spreadsheet formats (umya-spreadsheet)
-        Some("xlsx" | "xlsm") => {
-            let book = umya_spreadsheet::reader::xlsx::read(&entry.path)
-                .map_err(|e| e.to_string())?;
-            let workbook = translate_workbook(&book);  // returns WorkbookData, not String
-            Ok(FsFileContent::Sheet { content: workbook, readonly: false })
-        }
-
-        // Read-only spreadsheet formats
-        Some("xls" | "xlsb" | "ods" | "numbers") => {
-            let book = umya_spreadsheet::reader::xlsx::read(&entry.path)
-                .map_err(|e| e.to_string())?;
-            let workbook = translate_workbook(&book);
-            Ok(FsFileContent::Sheet { content: workbook, readonly: true })
-        }
-
-        // Text files
-        Some(ext) if is_text_extension(ext) => {
-            let content = std::fs::read_to_string(&entry.path)
-                .map_err(|e| e.to_string())?;
-            Ok(FsFileContent::Text { content })
-        }
-
-        // Binary / unsupported
-        _ => Ok(FsFileContent::Binary {}),
-    }
+fn translate_workbook(
+    book: &umya_spreadsheet::Spreadsheet,
+    window: Option<&SheetWindowRequest>,
+) -> WorkbookData {
+    // Iterate sheets → SheetData { name, max_row, max_col, cells }
+    // Only emit CellRef for non-empty cells within the window bounds
+    // cell_type: "string", "number", "boolean", "formula"
 }
 ```
 
-Note: umya-spreadsheet natively supports `.xlsx` and `.xlsm`. For `.xls`, `.xlsb`, `.ods`, `.numbers`, a separate reader (e.g. calamine) may be needed for the read path only, with the `readonly: true` flag preventing write attempts. If umya-spreadsheet cannot read these formats, calamine should be added as a read-only fallback.
+The frontend receives this as a native JS object — zero `JSON.parse()` calls:
 
-### 2.5 Write Dispatch (`fs_write_file`)
+```ts
+content.sheets[0].name                    // "Sheet1"
+content.sheets[0].max_row                 // 1000
+content.sheets[0].cells[0]               // { row: 1, col: 1, value: "Hello", cell_type: "string" }
+```
 
-The write command accepts structured `WritePayload` instead of a raw string:
+### 3.6 Write Payload
 
 ```rust
 #[derive(Deserialize)]
@@ -137,87 +220,54 @@ pub enum WritePayload {
     Sheet { deltas: Vec<CellDelta> },
 }
 
-#[tauri::command]
-fn fs_write_file(entry: FsEntry, payload: WritePayload) -> Result<(), String> {
-    match payload {
-        WritePayload::Text { content } => {
-            std::fs::write(&entry.path, &content)
-                .map_err(|e| e.to_string())?;
-            Ok(())
-        }
-        WritePayload::Sheet { deltas } => {
-            let mut book = umya_spreadsheet::reader::xlsx::read(&entry.path)
-                .map_err(|e| e.to_string())?;
-            apply_delta(&mut book, &deltas);
-            umya_spreadsheet::writer::xlsx::write(&book, &entry.path)
-                .map_err(|e| e.to_string())?;
-            Ok(())
-        }
-    }
-}
-```
-
-### 2.6 Cell Delta Format
-
-```rust
 #[derive(Deserialize)]
-struct CellDelta {
-    sheet: String,    // sheet name
-    row: u32,         // 1-indexed
-    col: u32,         // 1-indexed
-    value: String,    // new cell value
+pub struct CellDelta {
+    pub sheet: String,
+    pub cell: CellRef,
 }
 ```
 
-### 2.7 Workbook conversion
+`CellRef` is shared across read/write:
+- Read path populates `cell_type` for each returned cell.
+- Write path may omit `cell_type`; backend infers type when absent.
 
-`translate_workbook()` converts umya-spreadsheet's `Spreadsheet` into a `WorkbookData` struct (not a JSON string). Tauri's serde layer handles the final JSON serialization in a single pass.
+Write enforcement:
+- Reject with `FsError::NotSupported` if format is not writable (backend checks server-derived extension, not client input).
+- Reject with `FsError::Conflict` if `expected_revision` doesn't match file's current mtime/size on disk.
+- In this phase, only `.xlsx`/`.xlsm` sheet writes are valid.
+
+### 3.7 Error Model
 
 ```rust
-fn translate_workbook(book: &umya_spreadsheet::Spreadsheet) -> WorkbookData {
-    // Iterate sheets → SheetData { name, rows: Vec<Vec<Option<SheetCell>>> }
-    // Each cell → SheetCell { value, cell_type }
-    // Empty cells → None
-    // Row arrays padded to max column used per sheet
+#[derive(Serialize)]
+#[serde(tag = "code")]
+pub enum FsError {
+    NotFound { message: String },
+    PermissionDenied { message: String },
+    NotSupported { message: String },
+    Conflict { message: String },
+    InvalidRequest { message: String },
+    Internal { message: String },
 }
 ```
 
-The frontend receives this as a native JS object:
+No ambiguous silent fallbacks. Each error code maps to a deterministic frontend behavior.
 
-```ts
-content.sheets[0].name         // "Sheet1"
-content.sheets[0].rows[0][0]   // { value: "Hello", type: "string" } | null
-```
-
-### 2.8 Dependencies
+### 3.8 Dependencies
 
 **Cargo.toml additions:**
 - `umya-spreadsheet = "2"` — read/write xlsx/xlsm with format preservation
-- Optionally `calamine = "0.26"` — read-only fallback for .xls/.xlsb/.ods/.numbers
 
 **Remove:** `fs_read_text_file` and `fs_write_text_file` from `lib.rs` invoke_handler registration. Add `fs_read_file` and `fs_write_file`.
 
-### 2.9 Text Extension List
-
-Follow the pattern from `packages/opencode/src/file/index.ts` `textExtensions` set:
-
-```
-ts, tsx, mts, cts, js, jsx, mjs, cjs, sh, bash, zsh, fish, ps1,
-json, jsonc, json5, yaml, yml, toml, md, mdx, txt, xml, html, htm,
-css, scss, sass, less, graphql, gql, sql, ini, cfg, conf, env,
-py, rs, go, java, c, cpp, h, hpp, rb, php, swift, kt, scala, r,
-dockerfile, makefile, .gitignore, .editorconfig, .prettierrc, .eslintrc
-```
-
 ---
 
-## 3. Frontend
+## 4. Frontend Architecture
 
-### 3.1 tauri-fs.ts
-
-Replace the three current functions with:
+### 4.1 tauri-fs.ts
 
 ```ts
+// FsEntry remains for directory listing only (fs_read_dir)
 export interface FsEntry {
   name: string;
   path: string;
@@ -226,14 +276,29 @@ export interface FsEntry {
   ext?: string;
 }
 
-export interface SheetCell {
+export interface FileRevision {
+  mtime_ms: number;
+  size: number;
+}
+
+export interface SheetCapabilities {
+  can_edit_cells: boolean;
+  can_save: boolean;
+  format: string;
+}
+
+export interface CellRef {
+  row: number;
+  col: number;
   value: string;
-  type: "string" | "number" | "boolean" | "formula" | "empty";
+  cell_type?: string;
 }
 
 export interface SheetData {
   name: string;
-  rows: (SheetCell | null)[][];
+  max_row: number;
+  max_col: number;
+  cells: CellRef[];
 }
 
 export interface WorkbookData {
@@ -242,26 +307,39 @@ export interface WorkbookData {
 
 export interface CellDelta {
   sheet: string;
-  row: number;
-  col: number;
-  value: string;
+  cell: CellRef;
 }
 
-export type FsFileContent =
-  | { type: "text"; content: string }
-  | { type: "sheet"; content: WorkbookData; readonly: boolean }
-  | { type: "binary" };
+export type FsReadResponse =
+  | { type: "text"; content: string; revision: FileRevision }
+  | { type: "sheet"; content: WorkbookData; capabilities: SheetCapabilities; revision: FileRevision }
+  | { type: "binary"; mime?: string; reason: string };
 
 export type WritePayload =
   | { type: "text"; content: string }
   | { type: "sheet"; deltas: CellDelta[] };
 
-export async function fsReadFile(entry: FsEntry): Promise<FsFileContent> {
-  return invoke<FsFileContent>("fs_read_file", { entry });
+export interface FsWriteResponse {
+  revision: FileRevision;
 }
 
-export async function fsWriteFile(entry: FsEntry, payload: WritePayload): Promise<void> {
-  return invoke<void>("fs_write_file", { entry, payload });
+export async function fsReadFile(
+  path: string,
+  sheetWindow?: { start_row: number; start_col: number; max_rows: number; max_cols: number },
+): Promise<FsReadResponse> {
+  return invoke<FsReadResponse>("fs_read_file", {
+    req: { path, sheet_window: sheetWindow ?? null },
+  });
+}
+
+export async function fsWriteFile(
+  path: string,
+  payload: WritePayload,
+  expectedRevision?: FileRevision,
+): Promise<FsWriteResponse> {
+  return invoke<FsWriteResponse>("fs_write_file", {
+    req: { path, payload, expected_revision: expectedRevision ?? null },
+  });
 }
 
 // fsReadDir stays unchanged
@@ -270,153 +348,220 @@ export async function fsReadDir(path: string): Promise<FsEntry[]> {
 }
 ```
 
-### 3.2 FileEditorPanel.tsx
+Note: `fsReadFile` and `fsWriteFile` now accept `path: string` (not `FsEntry`), matching the server-owned-truth principle. `FsEntry` remains for directory listing only.
+
+### 4.2 FileEditorPanel.tsx
 
 Replaces `CodeEditorPanel.tsx`. Key changes:
 
-- **State:** `selectedFile: FsEntry | null` instead of `selectedFilePath: string | null`
-- **File loading:** calls `fsReadFile(entry)` and stores the `FsFileContent` result
-- **View routing** based on `FsFileContent.type`:
-  - `"text"` → `<CodeEditorView />` (existing, unchanged) or `<MarkdownPreview />` for .md/.mdx
-  - `"sheet"` → `<SheetEditorView />`
-  - `"binary"` → `<UnsupportedFileView />`
-- **File saving:** calls `fsWriteFile(entry, payload)` — for text, payload is `{ type: "text", content }`;  for sheets, payload is `{ type: "sheet", deltas }`
-- **FileTree** `onFileSelect` now passes `FsEntry` instead of a path string
+**State:**
+- `selectedEntry: FsEntry | null` — from FileTree (used for display, path extraction)
+- `openDoc: FsReadResponse | null` — the full server response
+- `dirty: boolean` — canonical dirty flag (single owner)
+- `revision: FileRevision | null` — for conflict detection on save
+- `deltas: CellDelta[]` — canonical delta accumulator for sheet edits (single owner)
+- `viewMode: "edit" | "preview"` — for markdown files
 
-### 3.3 SheetEditorView.tsx (New)
+**View routing** based on `openDoc.type`:
+- `"text"` → `<CodeEditorView />` (existing, unchanged) or `<MarkdownPreview />` for .md/.mdx
+- `"sheet"` → `<SheetEditorView />`
+- `"binary"` → `<UnsupportedFileView />`
+
+**File loading:** calls `fsReadFile(entry.path)` and stores the `FsReadResponse`
+
+**File saving:**
+- Text: `fsWriteFile(path, { type: "text", content }, revision)`
+- Sheet: `fsWriteFile(path, { type: "sheet", deltas }, revision)`
+- On success: update `revision` from response, clear `dirty` and `deltas`
+- On `Conflict`: prompt user to reload or overwrite
+
+**Unsaved-change guard:** Before switching files, check `dirty` and prompt confirmation if true.
+
+### 4.3 SheetEditorView.tsx (New)
 
 **Props:**
+
 ```ts
 interface SheetEditorViewProps {
   entry: FsEntry;
-  content: WorkbookData;  // structured object, not JSON string
-  readonly: boolean;
-  onDirty: (dirty: boolean) => void;
-  onSave: () => void;
+  content: WorkbookData;
+  capabilities: SheetCapabilities;
+  deltas: CellDelta[];                     // owned by parent
+  onDeltasChange: (next: CellDelta[]) => void;  // emit intent only
+  onDirtyChange: (dirty: boolean) => void;       // emit intent only
+  onSaveRequested: () => void;
 }
 ```
 
-**Integration approach:** Fortune-sheet is React-based. Mount it in SolidJS via:
-1. Create a container `<div ref={containerRef} />` in the SolidJS component
-2. Use `createRoot` from `react-dom/client` to render Fortune-sheet's `<Workbook>` into the container div
-3. Pass sheet data as props; receive cell change callbacks
+**State ownership rule:**
+- `FileEditorPanel` owns canonical `deltas` and `dirty`.
+- `SheetEditorView` emits change intents only — it does not hold its own delta state.
 
-**Cell change tracking:**
-- Fortune-sheet's `onChange` callback fires on every cell edit
-- Accumulate changes as `CellDelta[]` in a signal
-- On save (Cmd+S), call `fsWriteFile(entry, { type: "sheet", deltas })`
-- After successful save, clear the delta accumulator and mark clean
+**React bridge requirements:**
+- Create `ReactDOM.createRoot()` once per mount in `onMount()`.
+- Call `root.unmount()` in `onCleanup()` to prevent leaks.
+- Wrap Fortune-sheet render in a React error boundary with fallback UI ("Spreadsheet viewer failed to load").
 
 **Read-only mode:**
-- When `readonly` is true, Fortune-sheet's editing is disabled
-- A "Read-only" badge is shown in the toolbar area
-- Save button/shortcut is disabled
+- When `!capabilities.can_edit_cells`, Fortune-sheet's editing is disabled.
+- A "Read-only" badge is shown in the toolbar area.
+- Save button/shortcut is disabled when `!capabilities.can_save`.
 
-### 3.4 UnsupportedFileView.tsx (New)
+### 4.4 UnsupportedFileView.tsx (New)
 
-Simple component showing:
+Show:
 - File icon + file name
-- "This file type is not supported for viewing"
 - File metadata: size, extension
+- Reason string from `FsReadResponse::Binary.reason` (e.g. "Unsupported spreadsheet format in this phase", "Binary file", etc.)
 
-### 3.5 FileTree.tsx Update
+### 4.5 FileTree.tsx Update
 
-Currently `onFileSelect` passes a path string. Update to pass the full `FsEntry` object instead, so `FileEditorPanel` has access to `ext`, `is_dir`, `size`, etc. without re-deriving them.
+- `onFileSelect(entry: FsEntry)` — passes full entry for display/path extraction.
+- Selection identity remains by `entry.path`.
 
-### 3.6 Package Dependencies
+### 4.6 Package Dependencies
 
 **Add to `apps/app/package.json`:**
 - `@fortune-sheet/react` (v1.0.4) — React-based spreadsheet component
 - `@fortune-sheet/core` (v1.0.4) — core logic, peer dep of `@fortune-sheet/react`
-- `react` and `react-dom` (peer deps for Fortune-sheet, used only for imperative mounting in SolidJS)
+- `react` and `react-dom` — peer deps for Fortune-sheet (explicitly scoped to spreadsheet adapter; not used elsewhere in the SolidJS app)
+
+Constraint: track bundle size delta in PR and justify added runtime weight.
 
 ---
 
-## 4. Data Flow
+## 5. Data Flows
 
-### 4.1 Read Flow
+### 5.1 Read Flow
 
 ```
 User clicks file in FileTree
   → FileTree emits FsEntry via onFileSelect
-  → FileEditorPanel calls fsReadFile(entry)
-  → Tauri IPC → fs_read_file(entry: FsEntry)
-    → match entry.ext:
-      "xlsx"/"xlsm"              → umya-spreadsheet read → WorkbookData → Sheet { content, readonly: false }
-      "xls"/"xlsb"/"ods"/etc    → calamine read → WorkbookData → Sheet { content, readonly: true }
-      text extension             → fs::read_to_string → Text { content }
-      other                      → Binary {}
-  → Frontend receives FsFileContent
+  → FileEditorPanel checks unsaved-change guard (prompt if dirty)
+  → FileEditorPanel calls fsReadFile(entry.path, sheetWindow?)
+  → Tauri IPC → fs_read_file(FsReadRequest)
+    → Backend derives extension from path:
+      "xlsx"/"xlsm"  → umya-spreadsheet read → Sheet { content, capabilities, revision }
+      text ext/name   → fs::read_to_string → Text { content, revision }
+      other           → Binary { mime, reason }
+  → Frontend receives FsReadResponse, stores as openDoc
     → type "text"   → CodeEditorView (or MarkdownPreview for .md)
     → type "sheet"  → SheetEditorView
     → type "binary" → UnsupportedFileView
 ```
 
-### 4.2 Write Flow (Text)
+### 5.2 Write Flow (Text)
 
 ```
-User edits in CodeEditorView → isDirty = true
+User edits in CodeEditorView → dirty = true
   → Cmd+S
-  → fsWriteFile(entry, { type: "text", content: textContent })
-  → Tauri IPC → fs_write_file(entry, WritePayload::Text) → fs::write(entry.path, content)
-  → isDirty = false
+  → fsWriteFile(path, { type: "text", content }, expectedRevision)
+  → Backend validates revision → fs::write
+  → On success: update revision from response, dirty = false
+  → On Conflict: prompt user to reload or overwrite
 ```
 
-### 4.3 Write Flow (Sheet)
+### 5.3 Write Flow (Sheet)
 
 ```
 User edits cell in SheetEditorView (Fortune-sheet)
-  → onChange callback → accumulate CellDelta[]
-  → isDirty = true
+  → onChange → SheetEditorView calls onDeltasChange([...deltas, newDelta])
+  → FileEditorPanel updates canonical deltas, dirty = true
   → Cmd+S
-  → fsWriteFile(entry, { type: "sheet", deltas })
-  → Tauri IPC → fs_write_file(entry, WritePayload::Sheet { deltas })
-    → umya-spreadsheet opens entry.path
-    → apply each CellDelta (set cell value by sheet/row/col)
-    → umya-spreadsheet writes back to entry.path
-  → Clear delta accumulator, isDirty = false
-```
-
-### 4.4 Read-Only Sheet Flow
-
-```
-User clicks .xls/.ods/.numbers file
-  → fsReadFile(entry) → Sheet { content, readonly: true }
-  → SheetEditorView renders with editing disabled
-  → "Read-only" badge shown
-  → Save shortcut/button disabled
+  → fsWriteFile(path, { type: "sheet", deltas }, expectedRevision)
+  → Backend validates revision → umya-spreadsheet open → apply deltas → write
+  → On success: clear deltas, update revision, dirty = false
+  → On Conflict: prompt user to reload or overwrite
 ```
 
 ---
 
-## 5. Error Handling
+## 6. Error Handling UX
 
-| Scenario | Behavior |
+| Error Code | Behavior |
 |---|---|
-| File not found | Show error toast in FileEditorPanel |
-| umya-spreadsheet read fails | Fall back to `Binary {}` response, show "Cannot read this file" |
-| Write to read-only format | Backend returns `Err("NotSupported")`, frontend shows error toast |
-| Fortune-sheet mount fails | Show fallback "Spreadsheet viewer failed to load" message |
-| Empty/corrupt spreadsheet | Show empty grid or error message depending on failure mode |
+| `NotFound` | Toast: "File not found" + clear editor area |
+| `PermissionDenied` | Toast: "Permission denied" |
+| `NotSupported` | Toast: "This file type cannot be saved" |
+| `Conflict` | Modal: "File changed on disk. Reload or overwrite?" |
+| `InvalidRequest` | Toast: "Invalid request" (developer error) |
+| `Internal` | Toast: "An error occurred" with details |
+| Fortune-sheet mount failure | Error boundary fallback: "Spreadsheet viewer failed to load" |
+
+No ambiguous silent fallbacks. Toast and inline panel state must agree on error semantics.
 
 ---
 
-## 6. Files Changed Summary
+## 7. Dependencies
+
+**Backend (Cargo.toml):**
+- `umya-spreadsheet = "2"`
+
+**Frontend (package.json):**
+- `@fortune-sheet/react`
+- `@fortune-sheet/core`
+- `react`, `react-dom` (explicitly scoped to spreadsheet adapter)
+
+---
+
+## 8. Migration Plan
+
+1. Rename panel directory/component and wire imports.
+2. Introduce unified fs commands (`fs_read_file`/`fs_write_file`) while keeping old commands (`fs_read_text_file`/`fs_write_text_file`) behind temporary compatibility wrappers.
+3. Migrate frontend to new API types (`FsReadResponse`, `WritePayload`, `FileRevision`).
+4. Add `SheetEditorView` and `UnsupportedFileView`.
+5. Remove deprecated text-only commands after all call sites are switched.
+
+---
+
+## 9. Test Plan
+
+**Backend tests:**
+- Text read/write round-trip
+- xlsx/xlsm read/write round-trip with format preservation
+- Unsupported spreadsheet format classification (`.xls`, `.ods`, etc. → `Binary`)
+- Conflict detection (mismatched `expected_revision`)
+- Path validation (directory traversal rejection)
+- Extensionless filename detection (Dockerfile, .gitignore)
+
+**Frontend tests/manual checks:**
+- Unsaved-change guard on file switch
+- Markdown edit/preview unchanged
+- Spreadsheet dirty/save lifecycle (delta accumulation, clear on save)
+- Fallback UI on Fortune-sheet mount failure (error boundary)
+- Capabilities-driven UI (read-only badge, save disabled)
+
+**E2E:**
+- Open text file → edit → save → reopen verify
+- Open xlsx → edit cell → save → reopen verify cell changed
+- Open xls/ods → unsupported file view with reason message
+- Force conflict (external edit during session) → conflict modal UX
+
+---
+
+## 10. Files Expected to Change
 
 | File | Change |
 |---|---|
 | `apps/app/src/app/components/code-editor-panel/` | Rename directory to `file-editor-panel/` |
-| `FileEditorPanel.tsx` (new name) | Rewrite with FsEntry-based state, view routing |
-| `SheetEditorView.tsx` (new) | Fortune-sheet wrapper component |
-| `UnsupportedFileView.tsx` (new) | Binary/unsupported file display |
+| `FileEditorPanel.tsx` (new name) | Rewrite: path-based API, view routing, delta/dirty ownership |
+| `SheetEditorView.tsx` (new) | Fortune-sheet wrapper with React bridge + error boundary |
+| `UnsupportedFileView.tsx` (new) | Binary/unsupported file display with reason |
 | `FileTree.tsx` | `onFileSelect` emits `FsEntry` instead of string |
 | `index.ts` | Re-export `FileEditorPanel` |
-| `tauri-fs.ts` | Replace functions with `fsReadFile`/`fsWriteFile` taking `FsEntry` |
+| `tauri-fs.ts` | Replace with `fsReadFile(path)`/`fsWriteFile(path, payload, revision)` |
 | `session.tsx` | Update import from `CodeEditorPanel` to `FileEditorPanel` |
-| `apps/desktop/src-tauri/src/commands/fs.rs` | Replace commands, add `FsFileContent` enum, sheet logic |
+| `apps/desktop/src-tauri/src/commands/fs.rs` | New commands, `FsReadResponse`/`FsError` enums, sparse workbook model |
 | `apps/desktop/src-tauri/src/lib.rs` | Update invoke_handler registration |
-| `apps/desktop/src-tauri/Cargo.toml` | Add `umya-spreadsheet`, optionally `calamine` |
+| `apps/desktop/src-tauri/Cargo.toml` | Add `umya-spreadsheet` |
 | `apps/app/package.json` | Add `@fortune-sheet/react`, `@fortune-sheet/core`, `react`, `react-dom` |
 | `CodeEditorView.tsx` | Unchanged |
 | `MarkdownPreview.tsx` | Unchanged |
 | `language-detection.ts` | Unchanged |
+
+---
+
+## 11. Open Decisions
+
+1. **Initial sheet window bounds**: what default `max_rows`/`max_cols` for the first load, and pagination trigger (scroll-based? explicit button?).
+2. **Conflict resolution default**: optimistic (warn only) or strict (block save on mismatch)?
