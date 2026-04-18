@@ -73,7 +73,7 @@ import {
 } from "lucide-solid";
 
 import Button from "../components/button";
-import { CodeEditorPanel } from "../components/code-editor-panel";
+import { FileEditorPanel } from "../components/file-editor-panel";
 import ConfirmModal from "../components/confirm-modal";
 import RenameSessionModal from "../components/rename-session-modal";
 import ProviderAuthModal, {
@@ -4756,7 +4756,7 @@ export default function SessionView(props: SessionViewProps) {
               title="Resize Work Files panel"
               aria-label="Resize Work Files panel"
             />
-            <CodeEditorPanel
+            <FileEditorPanel
               expanded={codeEditorExpanded()}
               onClose={() => setCodeEditorExpanded(false)}
               rootPath={currentWorkspacePath()}

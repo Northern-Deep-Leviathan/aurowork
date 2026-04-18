@@ -5,6 +5,7 @@ export interface FsEntry {
   path: string;
   is_dir: boolean;
   size: number;
+  ext: string;
 }
 
 export async function fsReadDir(path: string): Promise<FsEntry[]> {

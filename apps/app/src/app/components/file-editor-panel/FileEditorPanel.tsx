@@ -7,14 +7,14 @@ import { fsReadTextFile, fsWriteTextFile } from "../../lib/tauri-fs";
 import { isTauriRuntime } from "../../utils";
 import { pickDirectory } from "../../lib/tauri";
 
-type CodeEditorPanelProps = {
+type FileEditorPanelProps = {
   expanded: boolean;
   onClose: () => void;
   rootPath: string | null;
   width?: number;
 };
 
-export function CodeEditorPanel(props: CodeEditorPanelProps) {
+export function FileEditorPanel(props: FileEditorPanelProps) {
   const [selectedFilePath, setSelectedFilePath] = createSignal<string | null>(
     null,
   );
