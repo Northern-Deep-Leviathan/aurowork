@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use std::time::UNIX_EPOCH;
 
 // ── Error model ──
 
@@ -129,6 +130,112 @@ pub struct CellDelta {
 #[derive(Serialize)]
 pub struct FsWriteResponse {
     pub revision: FileRevision,
+}
+
+// ── File-type detection ──
+
+const TEXT_EXTENSIONS: &[&str] = &[
+    "ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs",
+    "json", "jsonc", "json5", "yaml", "yml", "toml",
+    "md", "mdx", "txt", "xml", "html", "htm",
+    "css", "scss", "sass", "less", "graphql", "gql", "sql",
+    "ini", "cfg", "conf", "env",
+    "py", "rs", "go", "java", "c", "cpp", "h", "hpp",
+    "rb", "php", "swift", "kt", "scala", "r",
+    "sh", "bash", "zsh", "fish", "ps1",
+    "svg", "csv", "tsv", "log",
+];
+
+const TEXT_FILENAMES: &[&str] = &[
+    "Dockerfile", "Makefile", "Vagrantfile", "Rakefile", "Gemfile",
+    "Procfile", "Justfile",
+    ".gitignore", ".gitattributes", ".editorconfig",
+    ".npmrc", ".nvmrc", ".prettierrc", ".eslintrc", ".env",
+    ".dockerignore", ".prettierignore", ".eslintignore",
+];
+
+const SHEET_EXTENSIONS: &[&str] = &["xlsx", "xlsm"];
+
+const UNSUPPORTED_SHEET_EXTENSIONS: &[&str] = &["xls", "xlsb", "ods", "numbers"];
+
+#[derive(Debug, PartialEq)]
+enum FileType {
+    Text,
+    Sheet,
+    UnsupportedSheet,
+    Binary,
+}
+
+fn classify_file(path: &Path) -> FileType {
+    let filename = path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+
+    if TEXT_FILENAMES.contains(&filename) {
+        return FileType::Text;
+    }
+
+    let ext = path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .unwrap_or_default();
+
+    if ext.is_empty() {
+        return FileType::Text;
+    }
+
+    if SHEET_EXTENSIONS.contains(&ext.as_str()) {
+        return FileType::Sheet;
+    }
+    if UNSUPPORTED_SHEET_EXTENSIONS.contains(&ext.as_str()) {
+        return FileType::UnsupportedSheet;
+    }
+    if TEXT_EXTENSIONS.contains(&ext.as_str()) {
+        return FileType::Text;
+    }
+
+    FileType::Binary
+}
+
+fn get_revision(path: &Path) -> Result<FileRevision, FsError> {
+    let meta = std::fs::metadata(path).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            FsError::NotFound { message: format!("File not found: {}", path.display()) }
+        } else if e.kind() == std::io::ErrorKind::PermissionDenied {
+            FsError::PermissionDenied { message: format!("Permission denied: {}", path.display()) }
+        } else {
+            FsError::Internal { message: format!("Failed to read metadata: {}", e) }
+        }
+    })?;
+
+    let mtime_ms = meta.modified()
+        .map_err(|e| FsError::Internal { message: format!("Failed to get mtime: {}", e) })?
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    Ok(FileRevision {
+        mtime_ms,
+        size: meta.len(),
+    })
+}
+
+fn check_revision_conflict(
+    path: &Path,
+    expected: &Option<FileRevision>,
+) -> Result<(), FsError> {
+    if let Some(expected) = expected {
+        let current = get_revision(path)?;
+        if current.mtime_ms != expected.mtime_ms || current.size != expected.size {
+            return Err(FsError::Conflict {
+                message: format!(
+                    "File changed on disk. Expected mtime={} size={}, got mtime={} size={}",
+                    expected.mtime_ms, expected.size, current.mtime_ms, current.size
+                ),
+            });
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
