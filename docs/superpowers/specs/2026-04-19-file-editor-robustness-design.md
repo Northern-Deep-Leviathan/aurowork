@@ -120,9 +120,30 @@ fn atomic_write_with_lock(
 ### 2.4 Locking details
 
 - Use `fd-lock = "4"` crate for cross-platform exclusive file locks.
-- Lock is acquired on the **target file** (opened for read, not the temp file).
 - Retry loop with 50ms sleep, up to 5 seconds total. On timeout: `FsError::Conflict { message: "File is locked by another operation" }`.
-- If the target file doesn't exist yet (new file creation): skip locking and revision check, just rename.
+
+**Branching logic** — determined by trying to open the target file:
+
+```
+try open(target, read) {
+    Ok(fd)        → EXISTING FILE path
+    Err(NotFound) → NEW FILE path
+    Err(other)    → return FsError from io::Error
+}
+```
+
+**Existing file path:**
+1. Acquire exclusive lock on the opened fd via `fd-lock`.
+2. Check revision (mtime + size) under the lock → `FsError::Conflict` if mismatch.
+3. Rename temp → target.
+4. Release lock (drop fd).
+
+**New file path** (target does not exist):
+1. Skip locking and revision check.
+2. Use an exclusive rename to prevent two writers from both creating the same file:
+   - **Unix**: `libc::linkat` to hard-link temp → target (fails with `EEXIST` if target appeared), then `unlink` the temp name.
+   - **Windows**: `MoveFileExW` with `MOVEFILE_REPLACE_EXISTING` **not set** — the call fails if the target already exists.
+3. On failure (file appeared between open and rename): re-enter the existing file path (open → lock → revision check → rename).
 
 ### 2.5 Text write integration
 
