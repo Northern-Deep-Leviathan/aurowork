@@ -255,6 +255,154 @@ fn check_revision_conflict(
     Ok(())
 }
 
+// ── Atomic write helper ──
+
+fn atomic_write_with_lock(
+    target: &Path,
+    expected_revision: Option<&FileRevision>,
+    write_fn: impl FnOnce(&Path) -> Result<(), FsError>,
+) -> Result<FileRevision, FsError> {
+    let parent = target.parent().ok_or_else(|| FsError::InvalidRequest {
+        message: "Cannot determine parent directory".into(),
+    })?;
+
+    // 1. Generate temp file path in same directory
+    let temp_name = format!(
+        ".{}.tmp.{}",
+        target.file_name().and_then(|n| n.to_str()).unwrap_or("file"),
+        uuid::Uuid::new_v4()
+    );
+    let temp_path = parent.join(&temp_name);
+
+    // 2. Write content to temp file
+    if let Err(e) = write_fn(&temp_path) {
+        let _ = std::fs::remove_file(&temp_path);
+        return Err(e);
+    }
+
+    // 3. fsync the temp file
+    {
+        let f = std::fs::File::open(&temp_path)?;
+        f.sync_all()?;
+    }
+
+    // 4. Branch: existing file vs new file
+    match std::fs::File::open(target) {
+        Ok(file) => {
+            // EXISTING FILE path: lock → revision check → rename
+            let temp_path_clone = temp_path.clone();
+            with_exclusive_lock(file, || {
+                if let Some(expected) = expected_revision {
+                    let current = get_revision(target)?;
+                    if current.mtime_ms != expected.mtime_ms || current.size != expected.size {
+                        let _ = std::fs::remove_file(&temp_path_clone);
+                        return Err(FsError::Conflict {
+                            message: format!(
+                                "File changed on disk. Expected mtime={} size={}, got mtime={} size={}",
+                                expected.mtime_ms, expected.size, current.mtime_ms, current.size
+                            ),
+                        });
+                    }
+                }
+                std::fs::rename(&temp_path_clone, target)?;
+                Ok(())
+            })?;
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if let Err(_) = exclusive_rename(&temp_path, target) {
+                let file = std::fs::File::open(target)?;
+                let temp_path_clone = temp_path.clone();
+                with_exclusive_lock(file, || {
+                    if let Some(expected) = expected_revision {
+                        let current = get_revision(target)?;
+                        if current.mtime_ms != expected.mtime_ms || current.size != expected.size {
+                            let _ = std::fs::remove_file(&temp_path_clone);
+                            return Err(FsError::Conflict {
+                                message: "File was created concurrently".into(),
+                            });
+                        }
+                    }
+                    std::fs::rename(&temp_path_clone, target)?;
+                    Ok(())
+                })?;
+            }
+        }
+        Err(e) => {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(FsError::from(e));
+        }
+    }
+
+    get_revision(target)
+}
+
+fn with_exclusive_lock<R>(
+    file: std::fs::File,
+    under_lock: impl FnOnce() -> Result<R, FsError>,
+) -> Result<R, FsError> {
+    let mut lock = fd_lock::RwLock::new(file);
+    let max_attempts = 100; // 100 * 50ms = 5s
+    for attempt in 0..max_attempts {
+        match lock.try_write() {
+            Ok(_guard) => {
+                return under_lock();
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                if attempt == max_attempts - 1 {
+                    return Err(FsError::Conflict {
+                        message: "File is locked by another operation".into(),
+                    });
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Err(e) => return Err(FsError::Internal { message: format!("Lock failed: {}", e) }),
+        }
+    }
+    Err(FsError::Conflict {
+        message: "File is locked by another operation".into(),
+    })
+}
+
+#[cfg(unix)]
+fn exclusive_rename(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+    let src_c = CString::new(src.as_os_str().as_bytes())
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+    let dst_c = CString::new(dst.as_os_str().as_bytes())
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+    let ret = unsafe {
+        libc::linkat(
+            libc::AT_FDCWD, src_c.as_ptr(),
+            libc::AT_FDCWD, dst_c.as_ptr(),
+            0,
+        )
+    };
+    if ret != 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    std::fs::remove_file(src)?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn exclusive_rename(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
+    use std::os::windows::ffi::OsStrExt;
+    let src_w: Vec<u16> = src.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let dst_w: Vec<u16> = dst.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let ret = unsafe {
+        windows_sys::Win32::Storage::FileSystem::MoveFileExW(
+            src_w.as_ptr(),
+            dst_w.as_ptr(),
+            0,
+        )
+    };
+    if ret == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(())
+}
+
 // ── Workbook translation helpers ──
 
 fn translate_workbook(
@@ -556,5 +704,65 @@ mod tests {
     fn fs_error_display() {
         let err = FsError::NotFound { message: "file.txt".into() };
         assert_eq!(format!("{}", err), "file.txt");
+    }
+
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn atomic_write_creates_file() {
+        let dir = tempdir().unwrap();
+        let target = dir.path().join("test.txt");
+        let rev = atomic_write_with_lock(&target, None, |tmp| {
+            fs::write(tmp, "hello")?;
+            Ok(())
+        }).unwrap();
+        assert_eq!(fs::read_to_string(&target).unwrap(), "hello");
+        assert!(rev.size > 0);
+    }
+
+    #[test]
+    fn atomic_write_conflict_on_stale_revision() {
+        let dir = tempdir().unwrap();
+        let target = dir.path().join("test.txt");
+        fs::write(&target, "original").unwrap();
+        let stale = FileRevision { mtime_ms: 0, size: 0 };
+        let result = atomic_write_with_lock(&target, Some(&stale), |tmp| {
+            fs::write(tmp, "new")?;
+            Ok(())
+        });
+        match result {
+            Err(FsError::Conflict { .. }) => {}
+            other => panic!("expected Conflict, got: {:?}", other),
+        }
+        assert_eq!(fs::read_to_string(&target).unwrap(), "original");
+    }
+
+    #[test]
+    fn atomic_write_cleans_up_temp_on_write_failure() {
+        let dir = tempdir().unwrap();
+        let target = dir.path().join("test.txt");
+        let result = atomic_write_with_lock(&target, None, |_tmp| {
+            Err(FsError::Internal { message: "boom".into() })
+        });
+        assert!(result.is_err());
+        let entries: Vec<_> = fs::read_dir(dir.path()).unwrap().collect();
+        assert_eq!(entries.len(), 0);
+    }
+
+    #[test]
+    fn atomic_write_overwrites_existing_with_valid_revision() {
+        let dir = tempdir().unwrap();
+        let target = dir.path().join("test.txt");
+        fs::write(&target, "original").unwrap();
+        let rev = get_revision(&target).unwrap();
+        // Sleep 10ms to ensure mtime changes
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let new_rev = atomic_write_with_lock(&target, Some(&rev), |tmp| {
+            fs::write(tmp, "updated")?;
+            Ok(())
+        }).unwrap();
+        assert_eq!(fs::read_to_string(&target).unwrap(), "updated");
+        assert_ne!(new_rev.size, rev.size); // "updated" != "original" in length
     }
 }
