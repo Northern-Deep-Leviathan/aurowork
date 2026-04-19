@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::{
-    ExecResult, RemoteType, WorkspaceInfo, WorkspaceList, WorkspaceAuroworkConfig, WorkspaceType,
+    ExecResult, RemoteType, WorkspaceAuroworkConfig, WorkspaceInfo, WorkspaceList, WorkspaceType,
 };
 use crate::workspace::files::ensure_workspace_files;
 use crate::workspace::state::{
@@ -238,14 +238,19 @@ pub fn workspace_register(
 
     let opencode_dir = PathBuf::from(&folder).join(".opencode");
     if !opencode_dir.exists() || !opencode_dir.is_dir() {
-        return Err("Selected folder is not an existing workspace (missing .opencode directory)".to_string());
+        return Err(
+            "Selected folder is not an existing workspace (missing .opencode directory)"
+                .to_string(),
+        );
     }
 
     let folder = normalize_local_workspace_path(&folder);
     let id = stable_workspace_id(&folder);
 
     // Read preset from aurowork.json if present, otherwise default to "minimal"
-    let aurowork_path = PathBuf::from(&folder).join(".opencode").join("aurowork.json");
+    let aurowork_path = PathBuf::from(&folder)
+        .join(".opencode")
+        .join("aurowork.json");
     let preset = if aurowork_path.exists() {
         let raw = fs::read_to_string(&aurowork_path).unwrap_or_default();
         serde_json::from_str::<WorkspaceAuroworkConfig>(&raw)
@@ -331,7 +336,9 @@ pub fn workspace_check_folder(folder_path: String) -> Result<FolderCheck, String
                 Ok(FolderCheck {
                     writable: false,
                     exists,
-                    error: Some("Cannot write files in this folder — check permissions.".to_string()),
+                    error: Some(
+                        "Cannot write files in this folder — check permissions.".to_string(),
+                    ),
                 })
             }
         }

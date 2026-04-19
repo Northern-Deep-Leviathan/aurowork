@@ -1,12 +1,12 @@
 use tauri::{AppHandle, Manager, State};
 
+use crate::aurowork_server::{manager::AuroworkServerManager, start_aurowork_server};
 use crate::config::{read_opencode_config, write_opencode_config};
 use crate::engine::doctor::{
     opencode_serve_help, opencode_version, resolve_engine_path, resolve_sidecar_candidate,
 };
 use crate::engine::manager::EngineManager;
 use crate::engine::spawn::{find_free_port, spawn_engine};
-use crate::aurowork_server::{manager::AuroworkServerManager, start_aurowork_server};
 use crate::orchestrator::manager::OrchestratorManager;
 use crate::orchestrator::{self, OrchestratorSpawnOptions};
 use crate::types::{EngineDoctorResult, EngineInfo, EngineRuntime, ExecResult};

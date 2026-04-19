@@ -20,8 +20,7 @@ pub fn debug_log_append(lines: Vec<String>) -> Result<(), String> {
         .map_err(|e| format!("Failed to open debug log: {e}"))?;
 
     for line in &lines {
-        writeln!(file, "{}", line)
-            .map_err(|e| format!("Failed to write debug log: {e}"))?;
+        writeln!(file, "{}", line).map_err(|e| format!("Failed to write debug log: {e}"))?;
     }
 
     Ok(())

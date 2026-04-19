@@ -224,8 +224,7 @@ pub fn orchestrator_start_detached(
 
     eprintln!(
         "[orchestrator-start][at={start_ts}][runId={}][stage=entry] workspacePath={}",
-        run_id_value,
-        workspace_path,
+        run_id_value, workspace_path,
     );
 
     let port = allocate_free_port()?;

@@ -26,16 +26,22 @@ pub enum FsError {
 impl From<std::io::Error> for FsError {
     fn from(e: std::io::Error) -> Self {
         match e.kind() {
-            std::io::ErrorKind::NotFound => FsError::NotFound { message: e.to_string() },
-            std::io::ErrorKind::PermissionDenied => FsError::PermissionDenied { message: e.to_string() },
-            _ => FsError::Internal { message: e.to_string() },
+            std::io::ErrorKind::NotFound => FsError::NotFound {
+                message: e.to_string(),
+            },
+            std::io::ErrorKind::PermissionDenied => FsError::PermissionDenied {
+                message: e.to_string(),
+            },
+            _ => FsError::Internal {
+                message: e.to_string(),
+            },
         }
     }
 }
 
 // ── Revision tracking ──
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
 pub struct FileRevision {
     pub mtime_ms: u64,
     pub size: u64,
@@ -150,57 +156,87 @@ pub struct WorkbookCache {
 }
 
 impl WorkbookCache {
-    pub fn insert(&self, path: PathBuf, book: umya_spreadsheet::Spreadsheet, revision: FileRevision) {
-        let mut map = self.inner.lock().unwrap();
-        map.insert(path, WorkbookSnapshot { book, revision });
-    }
-
     pub fn evict(&self, path: &Path) {
         let mut map = self.inner.lock().unwrap();
         map.remove(path);
     }
 
-    /// Take the cached book if revision matches expected. Returns None on miss or mismatch.
-    pub fn take_if_fresh(&self, path: &Path, expected: Option<&FileRevision>) -> Option<umya_spreadsheet::Spreadsheet> {
+    /// Peek the cached book if revision matches expected. Returns None on miss and return Err on mismatch.
+    pub fn peek(
+        &self,
+        path: &Path,
+        expected: Option<&FileRevision>,
+    ) -> Result<Option<umya_spreadsheet::Spreadsheet>, FsError> {
         let mut map = self.inner.lock().unwrap();
-        if let Some(snap) = map.get(path) {
-            let matches = match expected {
-                Some(exp) => snap.revision.mtime_ms == exp.mtime_ms && snap.revision.size == exp.size,
-                None => true,
-            };
-            if matches {
-                return Some(map.remove(path).unwrap().book);
+        if let Some(snapshot) = map.get_mut(path) {
+            if let Some(expected) = expected {
+                if snapshot.revision == *expected {
+                    // Cache hit with matching revision, return the book
+                    return Ok(Some(snapshot.book.clone()));
+                } else {
+                    // Cache hit but revision mismatch, meaning requested a specific version is stale.
+                    return Err(FsError::Conflict {
+                        message: format!(
+                            "Cached revision mismatch. Expected {:?}, got {:?}",
+                            expected, snapshot.revision
+                        ),
+                    });
+                }
             }
         }
-        None
+
+        // Missed on the cache
+        Ok(None)
     }
 
-    pub fn update_revision(&self, path: &Path, book: umya_spreadsheet::Spreadsheet, revision: FileRevision) {
+    pub fn upsert_with_revision(
+        &self,
+        path: &Path,
+        book: umya_spreadsheet::Spreadsheet,
+        revision: FileRevision,
+    ) {
         let mut map = self.inner.lock().unwrap();
-        map.insert(path.to_path_buf(), WorkbookSnapshot { book, revision });
+        match map.get_mut(path) {
+            Some(snapshot) => {
+                snapshot.book = book;
+                snapshot.revision = revision;
+            }
+            None => {
+                map.insert(path.to_path_buf(), WorkbookSnapshot { book, revision });
+            }
+        }
     }
 }
 
 // ── File-type detection ──
 
 const TEXT_EXTENSIONS: &[&str] = &[
-    "ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs",
-    "json", "jsonc", "json5", "yaml", "yml", "toml",
-    "md", "mdx", "txt", "xml", "html", "htm",
-    "css", "scss", "sass", "less", "graphql", "gql", "sql",
-    "ini", "cfg", "conf", "env",
-    "py", "rs", "go", "java", "c", "cpp", "h", "hpp",
-    "rb", "php", "swift", "kt", "scala", "r",
-    "sh", "bash", "zsh", "fish", "ps1",
-    "svg", "csv", "tsv", "log",
+    "ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs", "json", "jsonc", "json5", "yaml", "yml",
+    "toml", "md", "mdx", "txt", "xml", "html", "htm", "css", "scss", "sass", "less", "graphql",
+    "gql", "sql", "ini", "cfg", "conf", "env", "py", "rs", "go", "java", "c", "cpp", "h", "hpp",
+    "rb", "php", "swift", "kt", "scala", "r", "sh", "bash", "zsh", "fish", "ps1", "svg", "csv",
+    "tsv", "log",
 ];
 
 const PREDEFINED_TEST_FILES: &[&str] = &[
-    "Dockerfile", "Makefile", "Vagrantfile", "Rakefile", "Gemfile",
-    "Procfile", "Justfile",
-    ".gitignore", ".gitattributes", ".editorconfig",
-    ".npmrc", ".nvmrc", ".prettierrc", ".eslintrc", ".env",
-    ".dockerignore", ".prettierignore", ".eslintignore",
+    "Dockerfile",
+    "Makefile",
+    "Vagrantfile",
+    "Rakefile",
+    "Gemfile",
+    "Procfile",
+    "Justfile",
+    ".gitignore",
+    ".gitattributes",
+    ".editorconfig",
+    ".npmrc",
+    ".nvmrc",
+    ".prettierrc",
+    ".eslintrc",
+    ".env",
+    ".dockerignore",
+    ".prettierignore",
+    ".eslintignore",
 ];
 
 const SHEET_EXTENSIONS: &[&str] = &["xlsx", "xlsm"];
@@ -216,15 +252,14 @@ enum FileType {
 }
 
 fn detect_file_type(path: &Path) -> FileType {
-    let filename = path.file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
+    let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
     if PREDEFINED_TEST_FILES.contains(&filename) {
         return FileType::Text;
     }
 
-    let ext = path.extension()
+    let ext = path
+        .extension()
         .and_then(|e| e.to_str())
         .map(|e| e.to_lowercase())
         .unwrap_or_default();
@@ -235,14 +270,11 @@ fn detect_file_type(path: &Path) -> FileType {
 
     if SHEET_EXTENSIONS.contains(&ext.as_str()) {
         FileType::Sheet
-    }
-    else if UNSUPPORTED_SHEET_EXTENSIONS.contains(&ext.as_str()) {
+    } else if UNSUPPORTED_SHEET_EXTENSIONS.contains(&ext.as_str()) {
         FileType::UnsupportedSheet
-    }
-    else if TEXT_EXTENSIONS.contains(&ext.as_str()) {
+    } else if TEXT_EXTENSIONS.contains(&ext.as_str()) {
         FileType::Text
-    }
-    else {
+    } else {
         // Fallback to binary for unknown extensions
         FileType::Binary
     }
@@ -272,8 +304,11 @@ fn guard_file_write(file_type: &FileType, payload: &WritePayload) -> Result<(), 
 
 fn get_revision(path: &Path) -> Result<FileRevision, FsError> {
     let meta = std::fs::metadata(path)?;
-    let mtime_ms = meta.modified()
-        .map_err(|e| FsError::Internal { message: format!("Failed to get mtime: {}", e) })?
+    let mtime_ms = meta
+        .modified()
+        .map_err(|e| FsError::Internal {
+            message: format!("Failed to get mtime: {}", e),
+        })?
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
@@ -297,7 +332,10 @@ fn atomic_write_with_lock(
     // 1. Generate temp file path in same directory
     let temp_name = format!(
         ".{}.tmp.{}",
-        target.file_name().and_then(|n| n.to_str()).unwrap_or("file"),
+        target
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("file"),
         uuid::Uuid::new_v4()
     );
     let temp_path = parent.join(&temp_name);
@@ -320,39 +358,29 @@ fn atomic_write_with_lock(
             // EXISTING FILE path: lock → revision check → rename
             let temp_path_clone = temp_path.clone();
             with_exclusive_lock(file, || {
+                let current = get_revision(target)?;
                 if let Some(expected) = expected_revision {
-                    let current = get_revision(target)?;
-                    if current.mtime_ms != expected.mtime_ms || current.size != expected.size {
-                        let _ = std::fs::remove_file(&temp_path_clone);
-                        return Err(FsError::Conflict {
-                            message: format!(
-                                "File changed on disk. Expected mtime={} size={}, got mtime={} size={}",
-                                expected.mtime_ms, expected.size, current.mtime_ms, current.size
-                            ),
-                        });
+                    if current == *expected {
+                        std::fs::rename(&temp_path_clone, target)?;
+                        return Ok(());
                     }
                 }
-                std::fs::rename(&temp_path_clone, target)?;
-                Ok(())
+
+                let _ = std::fs::remove_file(&temp_path_clone);
+                Err(FsError::Conflict {
+                    message: format!(
+                        "File changed on disk. Expected {:?}, got {:?}",
+                        expected_revision, current
+                    ),
+                })
             })?;
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            if let Err(_) = exclusive_rename(&temp_path, target) {
-                let file = std::fs::File::open(target)?;
-                let temp_path_clone = temp_path.clone();
-                with_exclusive_lock(file, || {
-                    if let Some(expected) = expected_revision {
-                        let current = get_revision(target)?;
-                        if current.mtime_ms != expected.mtime_ms || current.size != expected.size {
-                            let _ = std::fs::remove_file(&temp_path_clone);
-                            return Err(FsError::Conflict {
-                                message: "File was created concurrently".into(),
-                            });
-                        }
-                    }
-                    std::fs::rename(&temp_path_clone, target)?;
-                    Ok(())
-                })?;
+            if let Err(err) = exclusive_rename(&temp_path, target) {
+                let _ = std::fs::remove_file(&temp_path);
+                return Err(FsError::Conflict {
+                    message: format!("Failed to create new file, got error {:?}", err),
+                });
             }
         }
         Err(e) => {
@@ -370,22 +398,22 @@ fn with_exclusive_lock<R>(
 ) -> Result<R, FsError> {
     let mut lock = fd_lock::RwLock::new(file);
     let max_attempts = 100; // 100 * 50ms = 5s
-    for attempt in 0..max_attempts {
+    for _ in 0..max_attempts {
         match lock.try_write() {
             Ok(_guard) => {
                 return under_lock();
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                if attempt == max_attempts - 1 {
-                    return Err(FsError::Conflict {
-                        message: "File is locked by another operation".into(),
-                    });
-                }
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
-            Err(e) => return Err(FsError::Internal { message: format!("Lock failed: {}", e) }),
+            Err(e) => {
+                return Err(FsError::Internal {
+                    message: format!("Lock failed: {}", e),
+                });
+            }
         }
     }
+
     Err(FsError::Conflict {
         message: "File is locked by another operation".into(),
     })
@@ -401,8 +429,10 @@ fn exclusive_rename(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
     let ret = unsafe {
         libc::linkat(
-            libc::AT_FDCWD, src_c.as_ptr(),
-            libc::AT_FDCWD, dst_c.as_ptr(),
+            libc::AT_FDCWD,
+            src_c.as_ptr(),
+            libc::AT_FDCWD,
+            dst_c.as_ptr(),
             0,
         )
     };
@@ -416,14 +446,18 @@ fn exclusive_rename(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
 #[cfg(windows)]
 fn exclusive_rename(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
     use std::os::windows::ffi::OsStrExt;
-    let src_w: Vec<u16> = src.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
-    let dst_w: Vec<u16> = dst.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let src_w: Vec<u16> = src
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let dst_w: Vec<u16> = dst
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
     let ret = unsafe {
-        windows_sys::Win32::Storage::FileSystem::MoveFileExW(
-            src_w.as_ptr(),
-            dst_w.as_ptr(),
-            0,
-        )
+        windows_sys::Win32::Storage::FileSystem::MoveFileExW(src_w.as_ptr(), dst_w.as_ptr(), 0)
     };
     if ret == 0 {
         return Err(std::io::Error::last_os_error());
@@ -542,7 +576,11 @@ fn apply_deltas(
                 cv.set_value_bool(delta.cell.value == "true");
             }
             "formula" => {
-                let formula = delta.cell.value.strip_prefix('=').unwrap_or(&delta.cell.value);
+                let formula = delta
+                    .cell
+                    .value
+                    .strip_prefix('=')
+                    .unwrap_or(&delta.cell.value);
                 cv.set_formula(formula);
             }
             _ => {
@@ -574,22 +612,20 @@ pub async fn fs_read_file(
     match detect_file_type(path) {
         FileType::Text => {
             let revision = get_revision(path)?;
-            let content = std::fs::read_to_string(path).map_err(|e| {
-                FsError::Internal {
-                    message: format!("Failed to read as text: {}", e),
-                }
+            let content = std::fs::read_to_string(path).map_err(|e| FsError::Internal {
+                message: format!("Failed to read as text: {}", e),
             })?;
             Ok(FsReadResponse::Text { content, revision })
         }
         FileType::Sheet => {
             let revision = get_revision(path)?;
-            let book = umya_spreadsheet::reader::xlsx::read(path).map_err(|e| {
-                FsError::Internal {
+            let book =
+                umya_spreadsheet::reader::xlsx::read(path).map_err(|e| FsError::Internal {
                     message: format!("Failed to read spreadsheet: {}", e),
-                }
-            })?;
+                })?;
             let content = translate_workbook(&book, req.sheet_window.as_ref());
-            let ext = path.extension()
+            let ext = path
+                .extension()
                 .and_then(|e| e.to_str())
                 .unwrap_or("xlsx")
                 .to_lowercase();
@@ -599,8 +635,12 @@ pub async fn fs_read_file(
                 format: ext,
             };
             // Cache the parsed workbook
-            cache.insert(path.to_path_buf(), book, revision.clone());
-            Ok(FsReadResponse::Sheet { content, capabilities, revision })
+            cache.upsert_with_revision(path, book, revision.clone());
+            Ok(FsReadResponse::Sheet {
+                content,
+                capabilities,
+                revision,
+            })
         }
         FileType::UnsupportedSheet => Ok(FsReadResponse::Binary {
             mime: None,
@@ -631,31 +671,26 @@ pub async fn fs_write_file(
             })?
         }
         WritePayload::Sheet { deltas } => {
-            let path_clone = path.clone();
-
             // Try cache first, fall back to disk read
-            let mut book = cache.take_if_fresh(&path_clone, req.expected_revision.as_ref())
-                .map(Ok)
-                .unwrap_or_else(|| {
-                    umya_spreadsheet::reader::xlsx::read(&path).map_err(|e| {
-                        FsError::Internal {
-                            message: format!("Failed to read spreadsheet for update: {}", e),
-                        }
-                    })
-                })?;
+            let mut book = match cache.peek(&path, req.expected_revision.as_ref())? {
+                Some(book) => book,
+                None => {
+                    umya_spreadsheet::reader::xlsx::read(&path).map_err(|e| FsError::Internal {
+                        message: format!("Failed to read spreadsheet for update: {}", e),
+                    })?
+                }
+            };
 
             apply_deltas(&mut book, &deltas)?;
 
             let revision = atomic_write_with_lock(&path, req.expected_revision.as_ref(), |tmp| {
-                umya_spreadsheet::writer::xlsx::write(&book, tmp).map_err(|e| {
-                    FsError::Internal {
-                        message: format!("Failed to write spreadsheet: {}", e),
-                    }
+                umya_spreadsheet::writer::xlsx::write(&book, tmp).map_err(|e| FsError::Internal {
+                    message: format!("Failed to write spreadsheet: {}", e),
                 })
             })?;
 
             // Update cache with mutated book and new revision
-            cache.update_revision(&path_clone, book, revision.clone());
+            cache.upsert_with_revision(&path, book, revision.clone());
             revision
         }
     };
@@ -693,11 +728,14 @@ pub async fn fs_read_dir(path: String) -> Result<Vec<FsEntry>, String> {
 
     for entry in read_dir {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
-        let metadata = entry.metadata().map_err(|e| format!("Failed to read metadata: {}", e))?;
+        let metadata = entry
+            .metadata()
+            .map_err(|e| format!("Failed to read metadata: {}", e))?;
         let name = entry.file_name().to_string_lossy().to_string();
         let entry_path = entry.path();
         let full_path = entry_path.to_string_lossy().to_string();
-        let extension = entry_path.extension()
+        let extension = entry_path
+            .extension()
             .and_then(|e| e.to_str())
             .map(|e| e.to_string());
 
@@ -749,7 +787,9 @@ mod tests {
 
     #[test]
     fn fs_error_display() {
-        let err = FsError::NotFound { message: "file.txt".into() };
+        let err = FsError::NotFound {
+            message: "file.txt".into(),
+        };
         assert_eq!(format!("{}", err), "file.txt");
     }
 
@@ -763,7 +803,8 @@ mod tests {
         let rev = atomic_write_with_lock(&target, None, |tmp| {
             fs::write(tmp, "hello")?;
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
         assert_eq!(fs::read_to_string(&target).unwrap(), "hello");
         assert!(rev.size > 0);
     }
@@ -773,7 +814,10 @@ mod tests {
         let dir = tempdir().unwrap();
         let target = dir.path().join("test.txt");
         fs::write(&target, "original").unwrap();
-        let stale = FileRevision { mtime_ms: 0, size: 0 };
+        let stale = FileRevision {
+            mtime_ms: 0,
+            size: 0,
+        };
         let result = atomic_write_with_lock(&target, Some(&stale), |tmp| {
             fs::write(tmp, "new")?;
             Ok(())
@@ -790,7 +834,9 @@ mod tests {
         let dir = tempdir().unwrap();
         let target = dir.path().join("test.txt");
         let result = atomic_write_with_lock(&target, None, |_tmp| {
-            Err(FsError::Internal { message: "boom".into() })
+            Err(FsError::Internal {
+                message: "boom".into(),
+            })
         });
         assert!(result.is_err());
         let entries: Vec<_> = fs::read_dir(dir.path()).unwrap().collect();
@@ -808,7 +854,8 @@ mod tests {
         let new_rev = atomic_write_with_lock(&target, Some(&rev), |tmp| {
             fs::write(tmp, "updated")?;
             Ok(())
-        }).unwrap();
+        })
+        .unwrap();
         assert_eq!(fs::read_to_string(&target).unwrap(), "updated");
         assert_ne!(new_rev.size, rev.size); // "updated" != "original" in length
     }
@@ -818,7 +865,10 @@ mod tests {
         let cache = WorkbookCache::default();
         let path = std::path::PathBuf::from("/tmp/test.xlsx");
         let book = umya_spreadsheet::new_file();
-        let rev = FileRevision { mtime_ms: 1000, size: 500 };
+        let rev = FileRevision {
+            mtime_ms: 1000,
+            size: 500,
+        };
         cache.insert(path.clone(), book, rev.clone());
         let inner = cache.inner.lock().unwrap();
         let snap = inner.get(&path).unwrap();
@@ -831,7 +881,10 @@ mod tests {
         let cache = WorkbookCache::default();
         let path = std::path::PathBuf::from("/tmp/test.xlsx");
         let book = umya_spreadsheet::new_file();
-        let rev = FileRevision { mtime_ms: 1000, size: 500 };
+        let rev = FileRevision {
+            mtime_ms: 1000,
+            size: 500,
+        };
         cache.insert(path.clone(), book, rev);
         cache.evict(&path);
         let inner = cache.inner.lock().unwrap();
