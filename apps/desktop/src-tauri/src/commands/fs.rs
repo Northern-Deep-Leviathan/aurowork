@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::UNIX_EPOCH;
 
 // ── Error model ──
@@ -133,6 +135,50 @@ pub struct CellDelta {
 #[derive(Serialize)]
 pub struct FsWriteResponse {
     pub revision: FileRevision,
+}
+
+// ── Workbook snapshot cache ──
+
+struct WorkbookSnapshot {
+    book: umya_spreadsheet::Spreadsheet,
+    revision: FileRevision,
+}
+
+#[derive(Default)]
+pub struct WorkbookCache {
+    inner: Mutex<HashMap<PathBuf, WorkbookSnapshot>>,
+}
+
+impl WorkbookCache {
+    pub fn insert(&self, path: PathBuf, book: umya_spreadsheet::Spreadsheet, revision: FileRevision) {
+        let mut map = self.inner.lock().unwrap();
+        map.insert(path, WorkbookSnapshot { book, revision });
+    }
+
+    pub fn evict(&self, path: &Path) {
+        let mut map = self.inner.lock().unwrap();
+        map.remove(path);
+    }
+
+    /// Take the cached book if revision matches expected. Returns None on miss or mismatch.
+    pub fn take_if_fresh(&self, path: &Path, expected: Option<&FileRevision>) -> Option<umya_spreadsheet::Spreadsheet> {
+        let mut map = self.inner.lock().unwrap();
+        if let Some(snap) = map.get(path) {
+            let matches = match expected {
+                Some(exp) => snap.revision.mtime_ms == exp.mtime_ms && snap.revision.size == exp.size,
+                None => true,
+            };
+            if matches {
+                return Some(map.remove(path).unwrap().book);
+            }
+        }
+        None
+    }
+
+    pub fn update_revision(&self, path: &Path, book: umya_spreadsheet::Spreadsheet, revision: FileRevision) {
+        let mut map = self.inner.lock().unwrap();
+        map.insert(path.to_path_buf(), WorkbookSnapshot { book, revision });
+    }
 }
 
 // ── File-type detection ──
@@ -508,7 +554,10 @@ fn apply_deltas(
 }
 
 #[tauri::command]
-pub async fn fs_read_file(req: FsReadRequest) -> Result<FsReadResponse, FsError> {
+pub async fn fs_read_file(
+    req: FsReadRequest,
+    cache: tauri::State<'_, WorkbookCache>,
+) -> Result<FsReadResponse, FsError> {
     let path = Path::new(&req.path);
 
     if !path.exists() {
@@ -549,6 +598,8 @@ pub async fn fs_read_file(req: FsReadRequest) -> Result<FsReadResponse, FsError>
                 can_save: true,
                 format: ext,
             };
+            // Cache the parsed workbook
+            cache.insert(path.to_path_buf(), book, revision.clone());
             Ok(FsReadResponse::Sheet { content, capabilities, revision })
         }
         FileType::UnsupportedSheet => Ok(FsReadResponse::Binary {
@@ -563,7 +614,10 @@ pub async fn fs_read_file(req: FsReadRequest) -> Result<FsReadResponse, FsError>
 }
 
 #[tauri::command]
-pub async fn fs_write_file(req: FsWriteRequest) -> Result<FsWriteResponse, FsError> {
+pub async fn fs_write_file(
+    req: FsWriteRequest,
+    cache: tauri::State<'_, WorkbookCache>,
+) -> Result<FsWriteResponse, FsError> {
     let path = std::path::PathBuf::from(&req.path);
     let file_type = detect_file_type(&path);
 
@@ -577,24 +631,45 @@ pub async fn fs_write_file(req: FsWriteRequest) -> Result<FsWriteResponse, FsErr
             })?
         }
         WritePayload::Sheet { deltas } => {
-            let mut book = umya_spreadsheet::reader::xlsx::read(&path).map_err(|e| {
-                FsError::Internal {
-                    message: format!("Failed to read spreadsheet for update: {}", e),
-                }
-            })?;
+            let path_clone = path.clone();
+
+            // Try cache first, fall back to disk read
+            let mut book = cache.take_if_fresh(&path_clone, req.expected_revision.as_ref())
+                .map(Ok)
+                .unwrap_or_else(|| {
+                    umya_spreadsheet::reader::xlsx::read(&path).map_err(|e| {
+                        FsError::Internal {
+                            message: format!("Failed to read spreadsheet for update: {}", e),
+                        }
+                    })
+                })?;
+
             apply_deltas(&mut book, &deltas)?;
 
-            atomic_write_with_lock(&path, req.expected_revision.as_ref(), |tmp| {
+            let revision = atomic_write_with_lock(&path, req.expected_revision.as_ref(), |tmp| {
                 umya_spreadsheet::writer::xlsx::write(&book, tmp).map_err(|e| {
                     FsError::Internal {
                         message: format!("Failed to write spreadsheet: {}", e),
                     }
                 })
-            })?
+            })?;
+
+            // Update cache with mutated book and new revision
+            cache.update_revision(&path_clone, book, revision.clone());
+            revision
         }
     };
 
     Ok(FsWriteResponse { revision })
+}
+
+#[tauri::command]
+pub async fn fs_close_file(
+    path: String,
+    cache: tauri::State<'_, WorkbookCache>,
+) -> Result<(), FsError> {
+    cache.evict(Path::new(&path));
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -736,5 +811,30 @@ mod tests {
         }).unwrap();
         assert_eq!(fs::read_to_string(&target).unwrap(), "updated");
         assert_ne!(new_rev.size, rev.size); // "updated" != "original" in length
+    }
+
+    #[test]
+    fn workbook_cache_insert_and_get() {
+        let cache = WorkbookCache::default();
+        let path = std::path::PathBuf::from("/tmp/test.xlsx");
+        let book = umya_spreadsheet::new_file();
+        let rev = FileRevision { mtime_ms: 1000, size: 500 };
+        cache.insert(path.clone(), book, rev.clone());
+        let inner = cache.inner.lock().unwrap();
+        let snap = inner.get(&path).unwrap();
+        assert_eq!(snap.revision.mtime_ms, 1000);
+        assert_eq!(snap.revision.size, 500);
+    }
+
+    #[test]
+    fn workbook_cache_evict() {
+        let cache = WorkbookCache::default();
+        let path = std::path::PathBuf::from("/tmp/test.xlsx");
+        let book = umya_spreadsheet::new_file();
+        let rev = FileRevision { mtime_ms: 1000, size: 500 };
+        cache.insert(path.clone(), book, rev);
+        cache.evict(&path);
+        let inner = cache.inner.lock().unwrap();
+        assert!(inner.get(&path).is_none());
     }
 }

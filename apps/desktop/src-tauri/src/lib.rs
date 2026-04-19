@@ -20,7 +20,7 @@ use commands::command_files::{
 };
 use commands::config::{read_opencode_config, write_opencode_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
-use commands::fs::{fs_read_dir, fs_read_file, fs_write_file};
+use commands::fs::{fs_close_file, fs_read_dir, fs_read_file, fs_write_file, WorkbookCache};
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
 };
@@ -155,6 +155,7 @@ pub fn run() {
         .manage(OrchestratorManager::default())
         .manage(AuroworkServerManager::default())
         .manage(WorkspaceWatchState::default())
+        .manage(WorkbookCache::default())
         .invoke_handler(tauri::generate_handler![
             engine_start,
             engine_stop,
@@ -207,7 +208,8 @@ pub fn run() {
             debug_log_clear,
             fs_read_dir,
             fs_read_file,
-            fs_write_file
+            fs_write_file,
+            fs_close_file
         ])
         .build(tauri::generate_context!())
         .expect("error while building AuroWork");
