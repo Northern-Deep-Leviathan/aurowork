@@ -4,26 +4,29 @@ use std::time::UNIX_EPOCH;
 
 // ── Error model ──
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, thiserror::Error, Serialize)]
 #[serde(tag = "code")]
 pub enum FsError {
+    #[error("{message}")]
     NotFound { message: String },
+    #[error("{message}")]
     PermissionDenied { message: String },
+    #[error("{message}")]
     NotSupported { message: String },
+    #[error("{message}")]
     Conflict { message: String },
+    #[error("{message}")]
     InvalidRequest { message: String },
+    #[error("{message}")]
     Internal { message: String },
 }
 
-impl std::fmt::Display for FsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FsError::NotFound { message } => write!(f, "NotFound: {}", message),
-            FsError::PermissionDenied { message } => write!(f, "PermissionDenied: {}", message),
-            FsError::NotSupported { message } => write!(f, "NotSupported: {}", message),
-            FsError::Conflict { message } => write!(f, "Conflict: {}", message),
-            FsError::InvalidRequest { message } => write!(f, "InvalidRequest: {}", message),
-            FsError::Internal { message } => write!(f, "Internal: {}", message),
+impl From<std::io::Error> for FsError {
+    fn from(e: std::io::Error) -> Self {
+        match e.kind() {
+            std::io::ErrorKind::NotFound => FsError::NotFound { message: e.to_string() },
+            std::io::ErrorKind::PermissionDenied => FsError::PermissionDenied { message: e.to_string() },
+            _ => FsError::Internal { message: e.to_string() },
         }
     }
 }
@@ -200,47 +203,34 @@ fn detect_file_type(path: &Path) -> FileType {
 }
 
 /// Guardrail for validation of file write requests, prevent mismatches between file types and payloads
-fn guard_file_write(file_type: FileType, payload: &WritePayload) -> Result<(), FsError> {
-    // Placeholder for future validation logic, e.g. file size limits, path restrictions, etc.
+fn guard_file_write(file_type: &FileType, payload: &WritePayload) -> Result<(), FsError> {
     match payload {
-        WritePayload::Text { .. } {
-            if file_type != FileType::Text {
-                Err(FsError::NotSupported {
-                    message: format!("This file type {} cannot be saved as text file", file_type.to_string()),
-                })
-            } else {
-                Ok(())
+        WritePayload::Text { .. } => {
+            if *file_type != FileType::Text {
+                return Err(FsError::NotSupported {
+                    message: format!("Cannot save {:?} as text", file_type),
+                });
             }
+            Ok(())
         }
-        WritePayload::Sheet { .. } {
-            if file_type != FileType::Sheet {
-                Err(FsError::NotSupported {
-                    message: format!("This file type {} cannot be saved as a spreadsheet", file_type.to_string()),
-                })
-            } else {
-                Ok(())
+        WritePayload::Sheet { .. } => {
+            if *file_type != FileType::Sheet {
+                return Err(FsError::NotSupported {
+                    message: format!("Cannot save {:?} as spreadsheet", file_type),
+                });
             }
+            Ok(())
         }
     }
 }
 
 fn get_revision(path: &Path) -> Result<FileRevision, FsError> {
-    let meta = std::fs::metadata(path).map_err(|e| {
-        if e.kind() == std::io::ErrorKind::NotFound {
-            FsError::NotFound { message: format!("File not found: {}", path.display()) }
-        } else if e.kind() == std::io::ErrorKind::PermissionDenied {
-            FsError::PermissionDenied { message: format!("Permission denied: {}", path.display()) }
-        } else {
-            FsError::Internal { message: format!("Failed to read metadata: {}", e) }
-        }
-    })?;
-
+    let meta = std::fs::metadata(path)?;
     let mtime_ms = meta.modified()
         .map_err(|e| FsError::Internal { message: format!("Failed to get mtime: {}", e) })?
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
-
     Ok(FileRevision {
         mtime_ms,
         size: meta.len(),
@@ -448,7 +438,7 @@ pub async fn fs_write_file(req: FsWriteRequest) -> Result<FsWriteResponse, FsErr
     let file_type = detect_file_type(path);
 
     // Guardrail to prevent writing to mismatched file types.
-    guard_file_write(file_type, &req.payload)?;
+    guard_file_write(&file_type, &req.payload)?;
     
     check_revision_conflict(path, &req.expected_revision)?;
 
@@ -526,4 +516,45 @@ pub async fn fs_read_dir(path: String) -> Result<Vec<FsEntry>, String> {
     }
 
     Ok(entries)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fs_error_from_io_not_found() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
+        let fs_err = FsError::from(io_err);
+        match fs_err {
+            FsError::NotFound { message } => assert!(message.contains("gone")),
+            other => panic!("expected NotFound, got: {}", other),
+        }
+    }
+
+    #[test]
+    fn fs_error_from_io_permission_denied() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "nope");
+        let fs_err = FsError::from(io_err);
+        match fs_err {
+            FsError::PermissionDenied { message } => assert!(message.contains("nope")),
+            other => panic!("expected PermissionDenied, got: {}", other),
+        }
+    }
+
+    #[test]
+    fn fs_error_from_io_other() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::BrokenPipe, "pipe broke");
+        let fs_err = FsError::from(io_err);
+        match fs_err {
+            FsError::Internal { message } => assert!(message.contains("pipe broke")),
+            other => panic!("expected Internal, got: {}", other),
+        }
+    }
+
+    #[test]
+    fn fs_error_display() {
+        let err = FsError::NotFound { message: "file.txt".into() };
+        assert_eq!(format!("{}", err), "file.txt");
+    }
 }
