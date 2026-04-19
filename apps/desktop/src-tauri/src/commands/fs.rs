@@ -146,7 +146,7 @@ const TEXT_EXTENSIONS: &[&str] = &[
     "svg", "csv", "tsv", "log",
 ];
 
-const TEXT_FILENAMES: &[&str] = &[
+const PREDEFINED_TEST_FILES: &[&str] = &[
     "Dockerfile", "Makefile", "Vagrantfile", "Rakefile", "Gemfile",
     "Procfile", "Justfile",
     ".gitignore", ".gitattributes", ".editorconfig",
@@ -166,12 +166,12 @@ enum FileType {
     Binary,
 }
 
-fn classify_file(path: &Path) -> FileType {
+fn detect_file_type(path: &Path) -> FileType {
     let filename = path.file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("");
 
-    if TEXT_FILENAMES.contains(&filename) {
+    if PREDEFINED_TEST_FILES.contains(&filename) {
         return FileType::Text;
     }
 
@@ -185,16 +185,43 @@ fn classify_file(path: &Path) -> FileType {
     }
 
     if SHEET_EXTENSIONS.contains(&ext.as_str()) {
-        return FileType::Sheet;
+        FileType::Sheet
     }
-    if UNSUPPORTED_SHEET_EXTENSIONS.contains(&ext.as_str()) {
-        return FileType::UnsupportedSheet;
+    else if UNSUPPORTED_SHEET_EXTENSIONS.contains(&ext.as_str()) {
+        FileType::UnsupportedSheet
     }
-    if TEXT_EXTENSIONS.contains(&ext.as_str()) {
-        return FileType::Text;
+    else if TEXT_EXTENSIONS.contains(&ext.as_str()) {
+        FileType::Text
     }
+    else {
+        // Fallback to binary for unknown extensions
+        FileType::Binary
+    }
+}
 
-    FileType::Binary
+/// Guardrail for validation of file write requests, prevent mismatches between file types and payloads
+fn guard_file_write(file_type: FileType, payload: &WritePayload) -> Result<(), FsError> {
+    // Placeholder for future validation logic, e.g. file size limits, path restrictions, etc.
+    match payload {
+        WritePayload::Text { .. } {
+            if file_type != FileType::Text {
+                Err(FsError::NotSupported {
+                    message: format!("This file type {} cannot be saved as text file", file_type.to_string()),
+                })
+            } else {
+                Ok(())
+            }
+        }
+        WritePayload::Sheet { .. } {
+            if file_type != FileType::Sheet {
+                Err(FsError::NotSupported {
+                    message: format!("This file type {} cannot be saved as a spreadsheet", file_type.to_string()),
+                })
+            } else {
+                Ok(())
+            }
+        }
+    }
 }
 
 fn get_revision(path: &Path) -> Result<FileRevision, FsError> {
@@ -375,7 +402,7 @@ pub async fn fs_read_file(req: FsReadRequest) -> Result<FsReadResponse, FsError>
         });
     }
 
-    match classify_file(path) {
+    match detect_file_type(path) {
         FileType::Text => {
             let revision = get_revision(path)?;
             let content = std::fs::read_to_string(path).map_err(|e| {
@@ -418,7 +445,11 @@ pub async fn fs_read_file(req: FsReadRequest) -> Result<FsReadResponse, FsError>
 #[tauri::command]
 pub async fn fs_write_file(req: FsWriteRequest) -> Result<FsWriteResponse, FsError> {
     let path = Path::new(&req.path);
+    let file_type = detect_file_type(path);
 
+    // Guardrail to prevent writing to mismatched file types.
+    guard_file_write(file_type, &req.payload)?;
+    
     check_revision_conflict(path, &req.expected_revision)?;
 
     match req.payload {
@@ -436,13 +467,6 @@ pub async fn fs_write_file(req: FsWriteRequest) -> Result<FsWriteResponse, FsErr
             })?;
         }
         WritePayload::Sheet { deltas } => {
-            let file_type = classify_file(path);
-            if file_type != FileType::Sheet {
-                return Err(FsError::NotSupported {
-                    message: "This file type cannot be saved as a spreadsheet".to_string(),
-                });
-            }
-
             let mut book = umya_spreadsheet::reader::xlsx::read(path).map_err(|e| {
                 FsError::Internal {
                     message: format!("Failed to read spreadsheet for update: {}", e),
