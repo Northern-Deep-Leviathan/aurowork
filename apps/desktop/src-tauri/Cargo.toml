@@ -34,6 +34,8 @@ gethostname = "0.4"
 local-ip-address = "0.5"
 umya-spreadsheet = "2"
 walkdir = "2.5"
+thiserror = "2"
+fd-lock = "4"
 zip = "0.6"
 
 [profile.release]
