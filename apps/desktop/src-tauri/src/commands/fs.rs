@@ -237,24 +237,6 @@ fn get_revision(path: &Path) -> Result<FileRevision, FsError> {
     })
 }
 
-fn check_revision_conflict(
-    path: &Path,
-    expected: &Option<FileRevision>,
-) -> Result<(), FsError> {
-    if let Some(expected) = expected {
-        let current = get_revision(path)?;
-        if current.mtime_ms != expected.mtime_ms || current.size != expected.size {
-            return Err(FsError::Conflict {
-                message: format!(
-                    "File changed on disk. Expected mtime={} size={}, got mtime={} size={}",
-                    expected.mtime_ms, expected.size, current.mtime_ms, current.size
-                ),
-            });
-        }
-    }
-    Ok(())
-}
-
 // ── Atomic write helper ──
 
 fn atomic_write_with_lock(
@@ -582,46 +564,36 @@ pub async fn fs_read_file(req: FsReadRequest) -> Result<FsReadResponse, FsError>
 
 #[tauri::command]
 pub async fn fs_write_file(req: FsWriteRequest) -> Result<FsWriteResponse, FsError> {
-    let path = Path::new(&req.path);
-    let file_type = detect_file_type(path);
+    let path = std::path::PathBuf::from(&req.path);
+    let file_type = detect_file_type(&path);
 
-    // Guardrail to prevent writing to mismatched file types.
     guard_file_write(&file_type, &req.payload)?;
-    
-    check_revision_conflict(path, &req.expected_revision)?;
 
-    match req.payload {
+    let revision = match req.payload {
         WritePayload::Text { content } => {
-            std::fs::write(path, &content).map_err(|e| {
-                if e.kind() == std::io::ErrorKind::PermissionDenied {
-                    FsError::PermissionDenied {
-                        message: format!("Permission denied: {}", req.path),
-                    }
-                } else {
-                    FsError::Internal {
-                        message: format!("Failed to write file: {}", e),
-                    }
-                }
-            })?;
+            atomic_write_with_lock(&path, req.expected_revision.as_ref(), |tmp| {
+                std::fs::write(tmp, &content)?;
+                Ok(())
+            })?
         }
         WritePayload::Sheet { deltas } => {
-            let mut book = umya_spreadsheet::reader::xlsx::read(path).map_err(|e| {
+            let mut book = umya_spreadsheet::reader::xlsx::read(&path).map_err(|e| {
                 FsError::Internal {
                     message: format!("Failed to read spreadsheet for update: {}", e),
                 }
             })?;
-
             apply_deltas(&mut book, &deltas)?;
 
-            umya_spreadsheet::writer::xlsx::write(&book, path).map_err(|e| {
-                FsError::Internal {
-                    message: format!("Failed to write spreadsheet: {}", e),
-                }
-            })?;
+            atomic_write_with_lock(&path, req.expected_revision.as_ref(), |tmp| {
+                umya_spreadsheet::writer::xlsx::write(&book, tmp).map_err(|e| {
+                    FsError::Internal {
+                        message: format!("Failed to write spreadsheet: {}", e),
+                    }
+                })
+            })?
         }
-    }
+    };
 
-    let revision = get_revision(path)?;
     Ok(FsWriteResponse { revision })
 }
 
