@@ -95,3 +95,9 @@ export async function fsWriteFile(
     req: { path, payload, expected_revision: expectedRevision ?? null },
   });
 }
+
+// ── Close API (cache eviction) ──
+
+export async function fsCloseFile(path: string): Promise<void> {
+  return invoke<void>("fs_close_file", { path });
+}

@@ -1,4 +1,4 @@
-import { Show, createEffect, createSignal, on } from "solid-js";
+import { Show, createEffect, createSignal, on, onCleanup } from "solid-js";
 import { X, Save, FolderOpen } from "lucide-solid";
 import CodeEditorView from "./CodeEditorView";
 import MarkdownPreview from "./MarkdownPreview";
@@ -8,6 +8,7 @@ import FileTree from "./FileTree";
 import {
   fsReadFile,
   fsWriteFile,
+  fsCloseFile,
   type FsEntry,
   type FsReadResponse,
   type FileRevision,
@@ -35,6 +36,14 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
   const [revision, setRevision] = createSignal<FileRevision | null>(null);
   const [deltas, setDeltas] = createSignal<CellDelta[]>([]);
   const [currentTextContent, setCurrentTextContent] = createSignal("");
+
+  // Evict cache on panel unmount
+  onCleanup(() => {
+    const path = selectedFilePath();
+    if (path) {
+      fsCloseFile(path).catch(() => {});
+    }
+  });
 
   // ── Derived state ──
 
@@ -89,6 +98,12 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
     setLoadError(null);
     setDeltas([]);
     setIsDirty(false);
+
+    // Evict previous file from backend cache
+    const prevPath = selectedFilePath();
+    if (prevPath) {
+      fsCloseFile(prevPath).catch(() => {}); // fire-and-forget
+    }
 
     try {
       const response = await fsReadFile(entry.path);
