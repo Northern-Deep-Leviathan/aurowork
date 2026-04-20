@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::UNIX_EPOCH;
 
 use crate::commands::spreadsheet::{
-    CellDelta, SheetCapabilities, SheetWindowRequest, WorkbookData,
+    CellDelta, SheetCapabilities, SheetWindowRequest, WorkbookCache, WorkbookData,
 };
 
 // ── Error model ──
@@ -361,6 +361,9 @@ fn exclusive_rename(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
 }
 
 
+/// Boundary adapter: map `SheetError` from the spreadsheet gateway into `FsError`
+/// for the Tauri fs_* commands. Kept until/unless those commands are rewritten
+/// to surface `SheetError` directly.
 fn sheet_err_to_fs(e: crate::commands::spreadsheet::SheetError) -> FsError {
     use crate::commands::spreadsheet::SheetError as S;
     match e {
@@ -379,7 +382,7 @@ fn sheet_err_to_fs(e: crate::commands::spreadsheet::SheetError) -> FsError {
 #[tauri::command]
 pub async fn fs_read_file(
     req: FsReadRequest,
-    cache: tauri::State<'_, crate::commands::spreadsheet::WorkbookCache>,
+    cache: tauri::State<'_, WorkbookCache>,
 ) -> Result<FsReadResponse, FsError> {
     let path = Path::new(&req.path);
 
@@ -436,7 +439,7 @@ pub async fn fs_read_file(
 #[tauri::command]
 pub async fn fs_write_file(
     req: FsWriteRequest,
-    cache: tauri::State<'_, crate::commands::spreadsheet::WorkbookCache>,
+    cache: tauri::State<'_, WorkbookCache>,
 ) -> Result<FsWriteResponse, FsError> {
     let path = std::path::PathBuf::from(&req.path);
     let file_type = detect_file_type(&path);
@@ -450,16 +453,9 @@ pub async fn fs_write_file(
                 Ok(())
             })?
         }
-        WritePayload::Sheet { deltas } => {
-            // Mutate always requires an expected_revision. Absence means "new file".
-            let expected = req.expected_revision.unwrap_or(FileRevision {
-                mtime_ms: 0,
-                size: 0,
-            });
-            cache
-                .mutate(&path, &expected, &deltas)
-                .map_err(sheet_err_to_fs)?
-        }
+        WritePayload::Sheet { deltas } => cache
+            .mutate(&path, req.expected_revision.as_ref(), &deltas)
+            .map_err(sheet_err_to_fs)?,
     };
 
     Ok(FsWriteResponse { revision })
@@ -468,7 +464,7 @@ pub async fn fs_write_file(
 #[tauri::command]
 pub async fn fs_close_file(
     path: String,
-    cache: tauri::State<'_, crate::commands::spreadsheet::WorkbookCache>,
+    cache: tauri::State<'_, WorkbookCache>,
 ) -> Result<(), FsError> {
     cache.close(Path::new(&path));
     Ok(())

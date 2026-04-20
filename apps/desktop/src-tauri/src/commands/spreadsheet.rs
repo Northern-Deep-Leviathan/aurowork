@@ -228,12 +228,14 @@ pub struct WorkbookCache {
 }
 
 impl WorkbookCache {
+    #[cfg(test)]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Open (or return already-cached) workbook. Idempotent.
     /// Always returns the currently-cached snapshot's data and revision.
+    #[cfg(test)]
     pub fn open(&self, path: &Path) -> Result<(WorkbookData, FileRevision), SheetError> {
         self.open_windowed(path, None)
     }
@@ -282,26 +284,33 @@ impl WorkbookCache {
     pub fn mutate(
         &self,
         path: &Path,
-        expected_revision: &FileRevision,
+        expected_revision: Option<&FileRevision>,
         deltas: &[CellDelta],
     ) -> Result<FileRevision, SheetError> {
-        // Fast path: cache hit.
+        // Fast path: cache hit. Requires expected_revision.
         if let Some(entry) = self.entries.get(path) {
             let arc = entry.clone();
             drop(entry); // release DashMap shard before acquiring inner mutex
             let mut snap = arc.lock().unwrap();
 
-            if snap.revision != *expected_revision {
+            let expected = expected_revision.ok_or_else(|| SheetError::InvalidRequest {
+                message: format!(
+                    "expected_revision is required to mutate a cached workbook: {}",
+                    path.display()
+                ),
+            })?;
+
+            if snap.revision != *expected {
                 return Err(SheetError::RevisionMismatch {
                     message: format!(
                         "Cached revision mismatch. Expected {:?}, got {:?}",
-                        expected_revision, snap.revision
+                        expected, snap.revision
                     ),
                 });
             }
 
             apply_deltas(&mut snap.book, deltas)?;
-            let new_rev = atomic_write_with_lock(path, Some(expected_revision), |tmp| {
+            let new_rev = atomic_write_with_lock(path, Some(expected), |tmp| {
                 umya_spreadsheet::writer::xlsx::write(&snap.book, tmp).map_err(|e| {
                     crate::commands::fs::FsError::Internal {
                         message: format!("Failed to write spreadsheet: {}", e),
@@ -322,7 +331,7 @@ impl WorkbookCache {
                 ),
             }),
             Ok(false) => {
-                // New file path: create empty workbook, apply deltas, write, cache it.
+                // New-file path: expected_revision is ignored.
                 let mut book = umya_spreadsheet::new_file_empty_worksheet();
                 apply_deltas(&mut book, deltas)?;
                 let new_rev = atomic_write_with_lock(path, None, |tmp| {
@@ -428,7 +437,7 @@ mod tests {
 
         let cache = WorkbookCache::new();
         let fake_rev = FileRevision { mtime_ms: 0, size: 0 };
-        let result = cache.mutate(&path, &fake_rev, &[]);
+        let result = cache.mutate(&path, Some(&fake_rev), &[]);
         match result {
             Err(SheetError::CacheEvicted { .. }) => {}
             other => panic!("expected CacheEvicted, got {:?}", other),
@@ -442,12 +451,30 @@ mod tests {
 
         let cache = WorkbookCache::new();
         let fake_rev = FileRevision { mtime_ms: 0, size: 0 };
-        let rev = cache.mutate(&path, &fake_rev, &[CellDelta {
+        let rev = cache.mutate(&path, None, &[CellDelta {
             sheet: "Sheet1".into(),
             cell: CellRef { row: 1, col: 1, value: "x".into(), cell_type: None },
         }]).unwrap();
         assert!(path.exists());
         assert!(rev.size > 0);
+        assert!(rev.mtime_ms > 0);
+        // Confirm the returned revision is not the sentinel-like fake_rev: new-file path
+        // ignores expected_revision rather than silently matching it.
+        assert_ne!(rev, fake_rev);
+    }
+
+    #[test]
+    fn cache_mutate_cached_requires_expected_revision() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("wb.xlsx");
+        let book = umya_spreadsheet::new_file();
+        umya_spreadsheet::writer::xlsx::write(&book, &path).unwrap();
+
+        let cache = WorkbookCache::new();
+        cache.open(&path).unwrap();
+        // No expected_revision on a cached workbook → InvalidRequest
+        let result = cache.mutate(&path, None, &[]);
+        assert!(matches!(result, Err(SheetError::InvalidRequest { .. })));
     }
 
     #[test]
@@ -462,7 +489,7 @@ mod tests {
         cache.close(&path);
         // After close, mutate with any revision should hit CacheEvicted because file exists
         let fake_rev = FileRevision { mtime_ms: 0, size: 0 };
-        let result = cache.mutate(&path, &fake_rev, &[]);
+        let result = cache.mutate(&path, Some(&fake_rev), &[]);
         assert!(matches!(result, Err(SheetError::CacheEvicted { .. })));
     }
 
@@ -483,7 +510,7 @@ mod tests {
         let c1 = cache.clone();
         let r1 = rev0.clone();
         let t1 = thread::spawn(move || {
-            c1.mutate(&p1, &r1, &[CellDelta {
+            c1.mutate(&p1, Some(&r1), &[CellDelta {
                 sheet: "Sheet1".into(),
                 cell: CellRef { row: 1, col: 1, value: "A".into(), cell_type: None },
             }])
@@ -493,7 +520,7 @@ mod tests {
         let c2 = cache.clone();
         let r2 = rev0.clone();
         let t2 = thread::spawn(move || {
-            c2.mutate(&p2, &r2, &[CellDelta {
+            c2.mutate(&p2, Some(&r2), &[CellDelta {
                 sheet: "Sheet1".into(),
                 cell: CellRef { row: 2, col: 1, value: "B".into(), cell_type: None },
             }])
