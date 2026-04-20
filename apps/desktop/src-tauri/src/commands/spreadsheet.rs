@@ -465,4 +465,50 @@ mod tests {
         let result = cache.mutate(&path, &fake_rev, &[]);
         assert!(matches!(result, Err(SheetError::CacheEvicted { .. })));
     }
+
+    #[test]
+    fn concurrent_mutate_serialises() {
+        use std::sync::Arc as StdArc;
+        use std::thread;
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("wb.xlsx");
+        let book = umya_spreadsheet::new_file();
+        umya_spreadsheet::writer::xlsx::write(&book, &path).unwrap();
+
+        let cache = StdArc::new(WorkbookCache::new());
+        let (_, rev0) = cache.open(&path).unwrap();
+
+        let p1 = path.clone();
+        let c1 = cache.clone();
+        let r1 = rev0.clone();
+        let t1 = thread::spawn(move || {
+            c1.mutate(&p1, &r1, &[CellDelta {
+                sheet: "Sheet1".into(),
+                cell: CellRef { row: 1, col: 1, value: "A".into(), cell_type: None },
+            }])
+        });
+
+        let p2 = path.clone();
+        let c2 = cache.clone();
+        let r2 = rev0.clone();
+        let t2 = thread::spawn(move || {
+            c2.mutate(&p2, &r2, &[CellDelta {
+                sheet: "Sheet1".into(),
+                cell: CellRef { row: 2, col: 1, value: "B".into(), cell_type: None },
+            }])
+        });
+
+        let res1 = t1.join().unwrap();
+        let res2 = t2.join().unwrap();
+
+        // Exactly one succeeds; the other sees the revision bump and gets RevisionMismatch.
+        let (ok_count, rev_err_count) = [&res1, &res2].iter().fold((0, 0), |(a, b), r| match r {
+            Ok(_) => (a + 1, b),
+            Err(SheetError::RevisionMismatch { .. }) => (a, b + 1),
+            other => panic!("unexpected result: {:?}", other),
+        });
+        assert_eq!(ok_count, 1);
+        assert_eq!(rev_err_count, 1);
+    }
 }
