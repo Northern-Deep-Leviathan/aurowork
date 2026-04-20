@@ -25,7 +25,8 @@ use commands::debug_log::{debug_log_append, debug_log_clear};
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
 };
-use commands::fs::{fs_close_file, fs_read_dir, fs_read_file, fs_write_file, WorkbookCache};
+use commands::fs::{fs_close_file, fs_read_dir, fs_read_file, fs_write_file};
+use commands::spreadsheet::WorkbookCache;
 use commands::misc::{
     app_build_info, nuke_aurowork_and_opencode_config_and_exit, opencode_db_migrate,
     opencode_mcp_auth, reset_aurowork_state, reset_opencode_cache,

@@ -1,12 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::path::Path;
 use std::time::UNIX_EPOCH;
 
 use crate::commands::spreadsheet::{
-    apply_deltas, translate_workbook, CellDelta, CellRef, SheetCapabilities, SheetData,
-    SheetWindowRequest, WorkbookData,
+    CellDelta, SheetCapabilities, SheetWindowRequest, WorkbookData,
 };
 
 // ── Error model ──
@@ -104,79 +101,6 @@ pub enum WritePayload {
 #[derive(Serialize)]
 pub struct FsWriteResponse {
     pub revision: FileRevision,
-}
-
-// ── Workbook snapshot cache ──
-
-struct WorkbookSnapshot {
-    book: umya_spreadsheet::Spreadsheet,
-    revision: FileRevision,
-}
-
-#[derive(Default)]
-pub struct WorkbookCache {
-    inner: Mutex<HashMap<PathBuf, WorkbookSnapshot>>,
-}
-
-impl WorkbookCache {
-    pub fn evict(&self, path: &Path) {
-        let mut map = self.inner.lock().unwrap();
-        map.remove(path);
-    }
-
-    /// Peek the cached book if revision matches expected. Returns None on miss and return Err on mismatch.
-    pub fn peek(
-        &self,
-        path: &Path,
-        expected: Option<&FileRevision>,
-    ) -> Result<Option<umya_spreadsheet::Spreadsheet>, FsError> {
-        let mut map = self.inner.lock().unwrap();
-        if let Some(snapshot) = map.get_mut(path) {
-            if let Some(expected) = expected {
-                if snapshot.revision == *expected {
-                    // Cache hit with matching revision, return the book
-                    return Ok(Some(snapshot.book.clone()));
-                } else {
-                    // Cache hit but revision mismatch, meaning requested a specific version is stale.
-                    return Err(FsError::Conflict {
-                        message: format!(
-                            "Cached revision mismatch. Expected {:?}, got {:?}",
-                            expected, snapshot.revision
-                        ),
-                    });
-                }
-            }
-        }
-
-        // Missed on the cache
-        Ok(None)
-    }
-
-    pub fn upsert_with_revision(
-        &self,
-        path: &Path,
-        book: umya_spreadsheet::Spreadsheet,
-        revision: FileRevision,
-    ) -> Result<(), FsError> {
-        let mut map = self.inner.lock().unwrap();
-        match map.get_mut(path) {
-            Some(snapshot) => {
-                if snapshot.revision < revision {
-                    snapshot.book = book;
-                    snapshot.revision = revision;
-                }
-                else {
-                    return Err(FsError::Conflict {
-                        message: format!("Cache revision conflict, stale revision snapshot requested"),
-                    });
-                }
-            }
-            None => {
-                map.insert(path.to_path_buf(), WorkbookSnapshot { book, revision });
-            }
-        }
-        Ok(())
-    }
 }
 
 // ── File-type detection ──
@@ -455,7 +379,7 @@ fn sheet_err_to_fs(e: crate::commands::spreadsheet::SheetError) -> FsError {
 #[tauri::command]
 pub async fn fs_read_file(
     req: FsReadRequest,
-    cache: tauri::State<'_, WorkbookCache>,
+    cache: tauri::State<'_, crate::commands::spreadsheet::WorkbookCache>,
 ) -> Result<FsReadResponse, FsError> {
     let path = Path::new(&req.path);
 
@@ -479,12 +403,9 @@ pub async fn fs_read_file(
             Ok(FsReadResponse::Text { content, revision })
         }
         FileType::Sheet => {
-            let revision = get_revision(path)?;
-            let book =
-                umya_spreadsheet::reader::xlsx::read(path).map_err(|e| FsError::Internal {
-                    message: format!("Failed to read spreadsheet: {}", e),
-                })?;
-            let content = translate_workbook(&book, req.sheet_window.as_ref());
+            let (content, revision) = cache
+                .open_windowed(path, req.sheet_window.as_ref())
+                .map_err(sheet_err_to_fs)?;
             let ext = path
                 .extension()
                 .and_then(|e| e.to_str())
@@ -495,8 +416,6 @@ pub async fn fs_read_file(
                 can_save: true,
                 format: ext,
             };
-            // Cache the parsed workbook
-            cache.upsert_with_revision(path, book, revision.clone())?;
             Ok(FsReadResponse::Sheet {
                 content,
                 capabilities,
@@ -517,7 +436,7 @@ pub async fn fs_read_file(
 #[tauri::command]
 pub async fn fs_write_file(
     req: FsWriteRequest,
-    cache: tauri::State<'_, WorkbookCache>,
+    cache: tauri::State<'_, crate::commands::spreadsheet::WorkbookCache>,
 ) -> Result<FsWriteResponse, FsError> {
     let path = std::path::PathBuf::from(&req.path);
     let file_type = detect_file_type(&path);
@@ -532,38 +451,14 @@ pub async fn fs_write_file(
             })?
         }
         WritePayload::Sheet { deltas } => {
-            // Try cache first, fall back to disk read
-            let mut book = match cache.peek(&path, req.expected_revision.as_ref())? {
-                Some(book) => book,
-                None => {
-                    let file_revision = get_revision(&path);
-                    match file_revision {
-                        Ok(_revision) => {
-                            return Err(FsError::Conflict {
-                                message: format!("Cache missed but file existed, please reopen the file."),
-                            });
-                        },
-                        Err(FsError::NotFound { .. }) => umya_spreadsheet::new_file_empty_worksheet(),
-                        Err(_) => {
-                            return Err(FsError::Conflict {
-                                message: format!("Cache missed and fail to check file, please reopen the file.")
-                            });
-                        },
-                    }
-                }
-            };
-
-            apply_deltas(&mut book, &deltas).map_err(sheet_err_to_fs)?;
-
-            let revision = atomic_write_with_lock(&path, req.expected_revision.as_ref(), |tmp| {
-                umya_spreadsheet::writer::xlsx::write(&book, tmp).map_err(|e| FsError::Internal {
-                    message: format!("Failed to write spreadsheet: {}", e),
-                })
-            })?;
-
-            // Update cache with mutated book and new revision
-            cache.upsert_with_revision(&path, book, revision.clone())?;
-            revision
+            // Mutate always requires an expected_revision. Absence means "new file".
+            let expected = req.expected_revision.unwrap_or(FileRevision {
+                mtime_ms: 0,
+                size: 0,
+            });
+            cache
+                .mutate(&path, &expected, &deltas)
+                .map_err(sheet_err_to_fs)?
         }
     };
 
@@ -573,9 +468,9 @@ pub async fn fs_write_file(
 #[tauri::command]
 pub async fn fs_close_file(
     path: String,
-    cache: tauri::State<'_, WorkbookCache>,
+    cache: tauri::State<'_, crate::commands::spreadsheet::WorkbookCache>,
 ) -> Result<(), FsError> {
-    cache.evict(Path::new(&path));
+    cache.close(Path::new(&path));
     Ok(())
 }
 
@@ -730,40 +625,5 @@ mod tests {
         .unwrap();
         assert_eq!(fs::read_to_string(&target).unwrap(), "updated");
         assert_ne!(new_rev.size, rev.size); // "updated" != "original" in length
-    }
-
-    #[test]
-    #[ignore]
-    #[cfg(any())]
-    fn workbook_cache_insert_and_get() {
-        let cache = WorkbookCache::default();
-        let path = std::path::PathBuf::from("/tmp/test.xlsx");
-        let book = umya_spreadsheet::new_file();
-        let rev = FileRevision {
-            mtime_ms: 1000,
-            size: 500,
-        };
-        cache.insert(path.clone(), book, rev.clone());
-        let inner = cache.inner.lock().unwrap();
-        let snap = inner.get(&path).unwrap();
-        assert_eq!(snap.revision.mtime_ms, 1000);
-        assert_eq!(snap.revision.size, 500);
-    }
-
-    #[test]
-    #[ignore]
-    #[cfg(any())]
-    fn workbook_cache_evict() {
-        let cache = WorkbookCache::default();
-        let path = std::path::PathBuf::from("/tmp/test.xlsx");
-        let book = umya_spreadsheet::new_file();
-        let rev = FileRevision {
-            mtime_ms: 1000,
-            size: 500,
-        };
-        cache.insert(path.clone(), book, rev);
-        cache.evict(&path);
-        let inner = cache.inner.lock().unwrap();
-        assert!(inner.get(&path).is_none());
     }
 }
