@@ -244,7 +244,9 @@ impl WorkbookCache {
         window: Option<&SheetWindowRequest>,
     ) -> Result<(WorkbookData, FileRevision), SheetError> {
         if let Some(entry) = self.entries.get(path) {
-            let snap = entry.lock().unwrap();
+            let arc = entry.clone();
+            drop(entry); // release DashMap shard before acquiring inner mutex
+            let snap = arc.lock().unwrap();
             let data = translate_workbook(&snap.book, window);
             return Ok((data, snap.revision.clone()));
         }
@@ -356,14 +358,8 @@ fn fs_to_sheet_err(e: crate::commands::fs::FsError) -> SheetError {
     match e {
         F::NotFound { message } => SheetError::NotFound { message },
         F::PermissionDenied { message } => SheetError::PermissionDenied { message },
-        F::Conflict { message } => {
-            // Disk revision check failed inside atomic_write_with_lock
-            if message.contains("locked") {
-                SheetError::FileLocked { message }
-            } else {
-                SheetError::RevisionMismatch { message }
-            }
-        }
+        F::Conflict { message } => SheetError::RevisionMismatch { message },
+        F::FileLocked { message } => SheetError::FileLocked { message },
         F::InvalidRequest { message } => SheetError::InvalidRequest { message },
         F::NotSupported { message } => SheetError::InvalidRequest { message },
         F::Internal { message } => SheetError::WriteFailed { message },

@@ -23,6 +23,8 @@ pub enum FsError {
     #[error("{message}")]
     Conflict { message: String },
     #[error("{message}")]
+    FileLocked { message: String },
+    #[error("{message}")]
     InvalidRequest { message: String },
     #[error("{message}")]
     Internal { message: String },
@@ -383,7 +385,7 @@ fn with_exclusive_lock<R>(
         }
     }
 
-    Err(FsError::Conflict {
+    Err(FsError::FileLocked {
         message: "File is locked by another operation".into(),
     })
 }
@@ -442,8 +444,8 @@ fn sheet_err_to_fs(e: crate::commands::spreadsheet::SheetError) -> FsError {
         S::PermissionDenied { message } => FsError::PermissionDenied { message },
         S::InvalidRequest { message } => FsError::InvalidRequest { message },
         S::RevisionMismatch { message }
-        | S::FileLocked { message }
         | S::CacheEvicted { message } => FsError::Conflict { message },
+        S::FileLocked { message } => FsError::FileLocked { message },
         S::ParseError { message } | S::WriteFailed { message } | S::Internal { message } => {
             FsError::Internal { message }
         }
