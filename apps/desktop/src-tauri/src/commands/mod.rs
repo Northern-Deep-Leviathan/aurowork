@@ -8,6 +8,7 @@ pub mod misc;
 pub mod opkg;
 pub mod orchestrator;
 pub mod skills;
+pub mod spreadsheet;
 pub mod updater;
 pub mod window;
 pub mod workspace;

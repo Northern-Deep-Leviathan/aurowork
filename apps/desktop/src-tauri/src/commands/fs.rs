@@ -310,7 +310,7 @@ fn guard_file_write(file_type: &FileType, payload: &WritePayload) -> Result<(), 
     }
 }
 
-fn get_revision(path: &Path) -> Result<FileRevision, FsError> {
+pub fn get_revision(path: &Path) -> Result<FileRevision, FsError> {
     let meta = std::fs::metadata(path)?;
     let mtime_ms = meta
         .modified()
@@ -328,7 +328,7 @@ fn get_revision(path: &Path) -> Result<FileRevision, FsError> {
 
 // ── Atomic write helper ──
 
-fn atomic_write_with_lock(
+pub fn atomic_write_with_lock(
     target: &Path,
     expected_revision: Option<&FileRevision>,
     write_fn: impl FnOnce(&Path) -> Result<(), FsError>,
