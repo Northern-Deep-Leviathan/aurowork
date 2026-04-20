@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::UNIX_EPOCH;
 
+use crate::commands::spreadsheet::{CellDelta, CellRef, SheetCapabilities, SheetData, SheetWindowRequest, WorkbookData};
+
 // ── Error model ──
 
 #[derive(Debug, thiserror::Error, Serialize)]
@@ -55,14 +57,6 @@ pub struct FsReadRequest {
     pub sheet_window: Option<SheetWindowRequest>,
 }
 
-#[derive(Deserialize)]
-pub struct SheetWindowRequest {
-    pub start_row: u32,
-    pub start_col: u32,
-    pub max_rows: u32,
-    pub max_cols: u32,
-}
-
 #[derive(Serialize)]
 #[serde(tag = "type")]
 pub enum FsReadResponse {
@@ -84,36 +78,6 @@ pub enum FsReadResponse {
     },
 }
 
-#[derive(Serialize, Clone)]
-pub struct SheetCapabilities {
-    pub can_edit_cells: bool,
-    pub can_save: bool,
-    pub format: String,
-}
-
-// ── Workbook transport (sparse) ──
-
-#[derive(Serialize, Clone)]
-pub struct WorkbookData {
-    pub sheets: Vec<SheetData>,
-}
-
-#[derive(Serialize, Clone)]
-pub struct SheetData {
-    pub name: String,
-    pub max_row: u32,
-    pub max_col: u32,
-    pub cells: Vec<CellRef>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct CellRef {
-    pub row: u32,
-    pub col: u32,
-    pub value: String,
-    pub cell_type: Option<String>,
-}
-
 // ── Write request/response ──
 
 #[derive(Deserialize)]
@@ -130,12 +94,6 @@ pub enum WritePayload {
     Text { content: String },
     #[serde(rename = "sheet")]
     Sheet { deltas: Vec<CellDelta> },
-}
-
-#[derive(Deserialize)]
-pub struct CellDelta {
-    pub sheet: String,
-    pub cell: CellRef,
 }
 
 #[derive(Serialize)]

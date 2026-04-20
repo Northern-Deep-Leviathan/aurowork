@@ -47,3 +47,47 @@ impl From<std::io::Error> for SheetError {
         }
     }
 }
+
+// ── Workbook transport (sparse) ──
+
+#[derive(Serialize, Clone)]
+pub struct WorkbookData {
+    pub sheets: Vec<SheetData>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct SheetData {
+    pub name: String,
+    pub max_row: u32,
+    pub max_col: u32,
+    pub cells: Vec<CellRef>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CellRef {
+    pub row: u32,
+    pub col: u32,
+    pub value: String,
+    pub cell_type: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct SheetCapabilities {
+    pub can_edit_cells: bool,
+    pub can_save: bool,
+    pub format: String,
+}
+
+#[derive(Deserialize)]
+pub struct SheetWindowRequest {
+    pub start_row: u32,
+    pub start_col: u32,
+    pub max_rows: u32,
+    pub max_cols: u32,
+}
+
+#[derive(Deserialize)]
+pub struct CellDelta {
+    pub sheet: String,
+    pub cell: CellRef,
+}
