@@ -41,7 +41,7 @@ impl From<std::io::Error> for FsError {
 
 // ── Revision tracking ──
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Clone, Debug)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord, Clone, Debug)]
 pub struct FileRevision {
     pub mtime_ms: u64,
     pub size: u64,
@@ -194,17 +194,25 @@ impl WorkbookCache {
         path: &Path,
         book: umya_spreadsheet::Spreadsheet,
         revision: FileRevision,
-    ) {
+    ) -> Result<(), FsError> {
         let mut map = self.inner.lock().unwrap();
         match map.get_mut(path) {
             Some(snapshot) => {
-                snapshot.book = book;
-                snapshot.revision = revision;
+                if snapshot.revision < revision {
+                    snapshot.book = book;
+                    snapshot.revision = revision;
+                }
+                else {
+                    return Err(FsError::Conflict {
+                        message: format!("Cache revision conflict, stale revision snapshot requested"),
+                    });
+                }
             }
             None => {
                 map.insert(path.to_path_buf(), WorkbookSnapshot { book, revision });
             }
         }
+        Ok(())
     }
 }
 
@@ -540,11 +548,16 @@ fn apply_deltas(
     deltas: &[CellDelta],
 ) -> Result<(), FsError> {
     for delta in deltas {
-        let sheet = workbook
-            .get_sheet_by_name_mut(&delta.sheet)
-            .ok_or_else(|| FsError::InvalidRequest {
-                message: format!("Sheet not found: {}", delta.sheet),
-            })?;
+        let sheet = match workbook.get_sheet_by_name(&delta.sheet) {
+            Some(_) => workbook
+                .get_sheet_by_name_mut(&delta.sheet)
+                .unwrap(),
+            None => workbook
+                .new_sheet(&delta.sheet)
+                .map_err(|e| FsError::InvalidRequest {
+                    message: format!("Failed to create sheet {}: {}", delta.sheet, e),
+                })?,
+        };
 
         let col = delta.cell.col;
         let row = delta.cell.row;
@@ -635,7 +648,7 @@ pub async fn fs_read_file(
                 format: ext,
             };
             // Cache the parsed workbook
-            cache.upsert_with_revision(path, book, revision.clone());
+            cache.upsert_with_revision(path, book, revision.clone())?;
             Ok(FsReadResponse::Sheet {
                 content,
                 capabilities,
@@ -675,9 +688,20 @@ pub async fn fs_write_file(
             let mut book = match cache.peek(&path, req.expected_revision.as_ref())? {
                 Some(book) => book,
                 None => {
-                    umya_spreadsheet::reader::xlsx::read(&path).map_err(|e| FsError::Internal {
-                        message: format!("Failed to read spreadsheet for update: {}", e),
-                    })?
+                    let file_revision = get_revision(&path);
+                    match file_revision {
+                        Ok(_revision) => {
+                            return Err(FsError::Conflict {
+                                message: format!("Cache missed but file existed, please reopen the file."),
+                            });
+                        },
+                        Err(FsError::NotFound { .. }) => umya_spreadsheet::new_file_empty_worksheet(),
+                        Err(_) => {
+                            return Err(FsError::Conflict {
+                                message: format!("Cache missed and fail to check file, please reopen the file.")
+                            });
+                        },
+                    }
                 }
             };
 
@@ -690,7 +714,7 @@ pub async fn fs_write_file(
             })?;
 
             // Update cache with mutated book and new revision
-            cache.upsert_with_revision(&path, book, revision.clone());
+            cache.upsert_with_revision(&path, book, revision.clone())?;
             revision
         }
     };
