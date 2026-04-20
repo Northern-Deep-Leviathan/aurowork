@@ -91,3 +91,165 @@ pub struct CellDelta {
     pub sheet: String,
     pub cell: CellRef,
 }
+
+// ── Workbook translation helpers ──
+
+pub fn translate_workbook(
+    workbook: &umya_spreadsheet::Spreadsheet,
+    window: Option<&SheetWindowRequest>,
+) -> WorkbookData {
+    let default_max_rows: u32 = 500;
+    let default_max_cols: u32 = 200;
+
+    let start_row = window.map_or(1, |w| w.start_row.max(1));
+    let start_col = window.map_or(1, |w| w.start_col.max(1));
+    let max_rows = window.map_or(default_max_rows, |w| w.max_rows);
+    let max_cols = window.map_or(default_max_cols, |w| w.max_cols);
+
+    let sheets = workbook
+        .get_sheet_collection()
+        .iter()
+        .map(|sheet| {
+            let (highest_col, highest_row) = sheet.get_highest_column_and_row();
+            let end_row = highest_row.min(start_row.saturating_add(max_rows).saturating_sub(1));
+            let end_col = highest_col.min(start_col.saturating_add(max_cols).saturating_sub(1));
+
+            let mut cells = Vec::new();
+            for (&(col, row), cell) in sheet.get_collection_to_hashmap() {
+                if row < start_row || row > end_row || col < start_col || col > end_col {
+                    continue;
+                }
+                let cv = cell.get_cell_value();
+                if cv.is_empty() {
+                    continue;
+                }
+                let cell_type = if cv.is_formula() {
+                    "formula"
+                } else {
+                    match cv.get_data_type() {
+                        "n" => "number",
+                        "b" => "boolean",
+                        _ => "string",
+                    }
+                };
+                let value = if cv.is_formula() {
+                    format!("={}", cv.get_formula())
+                } else {
+                    cv.get_value().to_string()
+                };
+                cells.push(CellRef {
+                    row,
+                    col,
+                    value,
+                    cell_type: Some(cell_type.to_string()),
+                });
+            }
+
+            SheetData {
+                name: sheet.get_name().to_string(),
+                max_row: highest_row,
+                max_col: highest_col,
+                cells,
+            }
+        })
+        .collect();
+
+    WorkbookData { sheets }
+}
+
+pub fn apply_deltas(
+    workbook: &mut umya_spreadsheet::Spreadsheet,
+    deltas: &[CellDelta],
+) -> Result<(), SheetError> {
+    for delta in deltas {
+        let sheet = match workbook.get_sheet_by_name(&delta.sheet) {
+            Some(_) => workbook.get_sheet_by_name_mut(&delta.sheet).unwrap(),
+            None => workbook
+                .new_sheet(&delta.sheet)
+                .map_err(|e| SheetError::InvalidRequest {
+                    message: format!("Failed to create sheet {}: {}", delta.sheet, e),
+                })?,
+        };
+
+        let col = delta.cell.col;
+        let row = delta.cell.row;
+        let cv = sheet.get_cell_value_mut((col, row));
+
+        let cell_type = delta.cell.cell_type.as_deref().unwrap_or_else(|| {
+            let v = &delta.cell.value;
+            if v.starts_with('=') {
+                "formula"
+            } else if v.parse::<f64>().is_ok() {
+                "number"
+            } else if v == "true" || v == "false" {
+                "boolean"
+            } else {
+                "string"
+            }
+        });
+
+        match cell_type {
+            "number" => {
+                if let Ok(n) = delta.cell.value.parse::<f64>() {
+                    cv.set_value_number(n);
+                } else {
+                    cv.set_value_string(&delta.cell.value);
+                }
+            }
+            "boolean" => {
+                cv.set_value_bool(delta.cell.value == "true");
+            }
+            "formula" => {
+                let formula = delta
+                    .cell
+                    .value
+                    .strip_prefix('=')
+                    .unwrap_or(&delta.cell.value);
+                cv.set_formula(formula);
+            }
+            _ => {
+                cv.set_value_string(&delta.cell.value);
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn apply_deltas_sets_string_value() {
+        let mut book = umya_spreadsheet::new_file_empty_worksheet();
+        book.new_sheet("Sheet1").unwrap();
+        let deltas = vec![CellDelta {
+            sheet: "Sheet1".into(),
+            cell: CellRef {
+                row: 1,
+                col: 1,
+                value: "hello".into(),
+                cell_type: Some("string".into()),
+            },
+        }];
+        apply_deltas(&mut book, &deltas).unwrap();
+        let sheet = book.get_sheet_by_name("Sheet1").unwrap();
+        assert_eq!(sheet.get_cell_value((1u32, 1u32)).get_value().to_string(), "hello");
+    }
+
+    #[test]
+    fn apply_deltas_creates_missing_sheet() {
+        let mut book = umya_spreadsheet::new_file_empty_worksheet();
+        let deltas = vec![CellDelta {
+            sheet: "NewSheet".into(),
+            cell: CellRef {
+                row: 2,
+                col: 3,
+                value: "42".into(),
+                cell_type: Some("number".into()),
+            },
+        }];
+        apply_deltas(&mut book, &deltas).unwrap();
+        assert!(book.get_sheet_by_name("NewSheet").is_some());
+    }
+}
