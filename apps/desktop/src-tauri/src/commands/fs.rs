@@ -221,8 +221,19 @@ pub fn get_revision(path: &Path) -> Result<FileRevision, FsError> {
     })
 }
 
-// ── Atomic write helper ──
-
+/// Atomic write via same-directory temp file + rename.                                                                                         
+///
+/// # Crash safety — known leak                                                                                                                 
+/// - Temp file `.<target>.tmp.<uuid>` lives in `target.parent()` until rename.
+/// - Userspace cleanup runs on normal errors only.
+/// - `SIGKILL` / OOM / power loss / panic in `write_fn` → temp file leaked on disk.
+/// - Leak is dot-hidden, bounded in size, cleared by workspace-level cleanup.
+///
+/// # Why not OS tempdir
+/// - `rename` / `linkat` / `MoveFileExW` are same-filesystem only.
+/// - `/tmp`, `%TEMP%`, `/var/folders` often sit on a different fs than the target.
+/// - Cross-fs → `EXDEV` failure; copy-fallback would break atomicity.
+/// - Same-dir temp is the only location that keeps the rename atomic on all OSes.
 pub fn atomic_write_with_lock(
     target: &Path,
     expected_revision: Option<&FileRevision>,
@@ -279,7 +290,7 @@ pub fn atomic_write_with_lock(
             })?;
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            if let Err(err) = exclusive_rename(&temp_path, target) {
+            if let Err(err) = exclusive_create(&temp_path, target) {
                 let _ = std::fs::remove_file(&temp_path);
                 return Err(FsError::Conflict {
                     message: format!("Failed to create new file, got error {:?}", err),
@@ -323,7 +334,7 @@ fn with_exclusive_lock<R>(
 }
 
 #[cfg(unix)]
-fn exclusive_rename(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
+fn exclusive_create(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
     use std::ffi::CString;
     use std::os::unix::ffi::OsStrExt;
     let src_c = CString::new(src.as_os_str().as_bytes())
@@ -347,7 +358,7 @@ fn exclusive_rename(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
 }
 
 #[cfg(windows)]
-fn exclusive_rename(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
+fn exclusive_create(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
     use std::os::windows::ffi::OsStrExt;
     let src_w: Vec<u16> = src
         .as_os_str()
@@ -424,6 +435,18 @@ pub async fn fs_read_file(
     }
 }
 
+/// File write in atomic mechanism.
+/// # Crash safety — known leak                                                                                                                 
+/// - Temp file `.<target>.tmp.<uuid>` lives in `target.parent()` until rename.
+/// - Userspace cleanup runs on normal errors only.
+/// - `SIGKILL` / OOM / power loss / panic in `write_fn` → temp file leaked on disk.
+/// - Leak is dot-hidden, bounded in size, cleared by workspace-level cleanup.
+///
+/// # Why not OS tempdir
+/// - `rename` / `linkat` / `MoveFileExW` are same-filesystem only.
+/// - `/tmp`, `%TEMP%`, `/var/folders` often sit on a different fs than the target.
+/// - Cross-fs → `EXDEV` failure; copy-fallback would break atomicity.
+/// - Same-dir temp is the only location that keeps the rename atomic on all OSes.
 #[tauri::command]
 pub async fn fs_write_file(
     req: FsWriteRequest,
@@ -571,32 +594,17 @@ mod tests {
     }
 
     #[test]
-    fn fs_error_serializes_revision_mismatch_with_tag_code() {
-        let err = FsError::RevisionMismatch { message: "rev bad".into() };
-        let v = serde_json::to_value(&err).unwrap();
-        assert_eq!(v["code"], "RevisionMismatch");
-        assert_eq!(v["message"], "rev bad");
-    }
-
-    #[test]
-    fn fs_error_serializes_cache_evicted_with_tag_code() {
-        let err = FsError::CacheEvicted { message: "gone".into() };
-        let v = serde_json::to_value(&err).unwrap();
-        assert_eq!(v["code"], "CacheEvicted");
-        assert_eq!(v["message"], "gone");
-    }
-
-    #[test]
-    fn fs_error_serializes_parse_error_with_tag_code() {
-        let err = FsError::ParseError { message: "parse".into() };
-        let v = serde_json::to_value(&err).unwrap();
-        assert_eq!(v["code"], "ParseError");
-    }
-
-    #[test]
-    fn fs_error_serializes_write_failed_with_tag_code() {
-        let err = FsError::WriteFailed { message: "w".into() };
-        let v = serde_json::to_value(&err).unwrap();
-        assert_eq!(v["code"], "WriteFailed");
+    fn fs_error_new_variants_serialize_with_tag_code() {
+        let cases: [(FsError, &str); 4] = [
+            (FsError::RevisionMismatch { message: "m".into() }, "RevisionMismatch"),
+            (FsError::CacheEvicted { message: "m".into() }, "CacheEvicted"),
+            (FsError::ParseError { message: "m".into() }, "ParseError"),
+            (FsError::WriteFailed { message: "m".into() }, "WriteFailed"),
+        ];
+        for (err, expected_code) in cases {
+            let v = serde_json::to_value(&err).unwrap();
+            assert_eq!(v["code"], expected_code);
+            assert_eq!(v["message"], "m");
+        }
     }
 }
