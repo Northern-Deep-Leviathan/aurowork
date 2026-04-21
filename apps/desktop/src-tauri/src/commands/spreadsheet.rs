@@ -251,10 +251,8 @@ impl WorkbookCache {
             });
         }
         let revision = get_revision(&key)?;
-        let book = umya_spreadsheet::reader::xlsx::read(&key).map_err(|e| {
-            FsError::ParseError {
-                message: format!("Failed to read spreadsheet: {}", e),
-            }
+        let book = umya_spreadsheet::reader::xlsx::read(&key).map_err(|e| FsError::ParseError {
+            message: format!("Failed to read spreadsheet: {}", e),
         })?;
         let data = translate_workbook(&book, window);
         self.entries.insert(
@@ -373,7 +371,10 @@ mod tests {
         }];
         apply_deltas(&mut book, &deltas).unwrap();
         let sheet = book.get_sheet_by_name("Sheet1").unwrap();
-        assert_eq!(sheet.get_cell_value((1u32, 1u32)).get_value().to_string(), "hello");
+        assert_eq!(
+            sheet.get_cell_value((1u32, 1u32)).get_value().to_string(),
+            "hello"
+        );
     }
 
     #[test]
@@ -440,7 +441,10 @@ mod tests {
         let (_dir, path) = fresh_workbook("wb.xlsx");
         let cache = WorkbookCache::new();
         cache.open(&path).unwrap();
-        let stale = FileRevision { mtime_ms: 0, size: 0 };
+        let stale = FileRevision {
+            mtime_ms: 0,
+            size: 0,
+        };
         let err = cache.mutate(&path, Some(&stale), &[]).unwrap_err();
         match err {
             crate::commands::fs::FsError::RevisionMismatch { .. } => {}
@@ -454,11 +458,25 @@ mod tests {
         let path = dir.path().join("new.xlsx");
 
         let cache = WorkbookCache::new();
-        let fake_rev = FileRevision { mtime_ms: 0, size: 0 };
-        let rev = cache.mutate(&path, None, &[CellDelta {
-            sheet: "Sheet1".into(),
-            cell: CellRef { row: 1, col: 1, value: "x".into(), cell_type: None },
-        }]).unwrap();
+        let fake_rev = FileRevision {
+            mtime_ms: 0,
+            size: 0,
+        };
+        let rev = cache
+            .mutate(
+                &path,
+                None,
+                &[CellDelta {
+                    sheet: "Sheet1".into(),
+                    cell: CellRef {
+                        row: 1,
+                        col: 1,
+                        value: "x".into(),
+                        cell_type: None,
+                    },
+                }],
+            )
+            .unwrap();
         assert!(path.exists());
         assert!(rev.size > 0);
         assert!(rev.mtime_ms > 0);
@@ -474,7 +492,10 @@ mod tests {
         cache.open(&path).unwrap();
         // No expected_revision on a cached workbook → InvalidRequest
         let result = cache.mutate(&path, None, &[]);
-        assert!(matches!(result, Err(crate::commands::fs::FsError::InvalidRequest { .. })));
+        assert!(matches!(
+            result,
+            Err(crate::commands::fs::FsError::InvalidRequest { .. })
+        ));
     }
 
     #[test]
@@ -487,10 +508,19 @@ mod tests {
 
         // mutate
         let rev1 = cache
-            .mutate(&path, Some(&rev0), &[CellDelta {
-                sheet: "Sheet1".into(),
-                cell: CellRef { row: 1, col: 1, value: "hello".into(), cell_type: None },
-            }])
+            .mutate(
+                &path,
+                Some(&rev0),
+                &[CellDelta {
+                    sheet: "Sheet1".into(),
+                    cell: CellRef {
+                        row: 1,
+                        col: 1,
+                        value: "hello".into(),
+                        cell_type: None,
+                    },
+                }],
+            )
             .unwrap();
         assert_ne!(rev0, rev1);
 
@@ -500,7 +530,11 @@ mod tests {
         // re-open — should re-parse disk and see the saved value
         let (data, _rev2) = cache.open(&path).unwrap();
         let sheet1 = data.sheets.iter().find(|s| s.name == "Sheet1").unwrap();
-        let cell = sheet1.cells.iter().find(|c| c.row == 1 && c.col == 1).unwrap();
+        let cell = sheet1
+            .cells
+            .iter()
+            .find(|c| c.row == 1 && c.col == 1)
+            .unwrap();
         assert_eq!(cell.value, "hello");
     }
 
@@ -515,16 +549,25 @@ mod tests {
         assert_eq!(canonical_key(&path).unwrap(), canon);
 
         // Dot segment "./" is stripped.
-        assert_eq!(canonical_key(&dir.path().join(".").join("x.xlsx")).unwrap(), canon);
+        assert_eq!(
+            canonical_key(&dir.path().join(".").join("x.xlsx")).unwrap(),
+            canon
+        );
 
         // Dot-dot segment ".." is resolved (up-and-back through a sibling dir).
         let sub = dir.path().join("sub");
         std::fs::create_dir(&sub).unwrap();
-        assert_eq!(canonical_key(&sub.join("..").join("x.xlsx")).unwrap(), canon);
+        assert_eq!(
+            canonical_key(&sub.join("..").join("x.xlsx")).unwrap(),
+            canon
+        );
 
         // New-file path (target missing, parent exists) canonicalizes the parent.
         let new_path = dir.path().join("does_not_exist.xlsx");
-        assert_eq!(canonical_key(&new_path).unwrap(), canon_dir.join("does_not_exist.xlsx"));
+        assert_eq!(
+            canonical_key(&new_path).unwrap(),
+            canon_dir.join("does_not_exist.xlsx")
+        );
 
         // Missing parent surfaces NotFound.
         let bogus = Path::new("/nonexistent_root_9f8e7d/dir/x.xlsx");
@@ -591,12 +634,11 @@ mod tests {
         let res1 = t1.join().unwrap();
         let res2 = t2.join().unwrap();
 
-        let (ok_count, rev_err_count) =
-            [&res1, &res2].iter().fold((0, 0), |(a, b), r| match r {
-                Ok(_) => (a + 1, b),
-                Err(crate::commands::fs::FsError::RevisionMismatch { .. }) => (a, b + 1),
-                other => panic!("unexpected: {:?}", other),
-            });
+        let (ok_count, rev_err_count) = [&res1, &res2].iter().fold((0, 0), |(a, b), r| match r {
+            Ok(_) => (a + 1, b),
+            Err(crate::commands::fs::FsError::RevisionMismatch { .. }) => (a, b + 1),
+            other => panic!("unexpected: {:?}", other),
+        });
         assert_eq!(ok_count, 1, "exactly one mutate should succeed");
         assert_eq!(
             rev_err_count, 1,

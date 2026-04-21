@@ -379,7 +379,6 @@ fn exclusive_create(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-
 #[tauri::command]
 pub async fn fs_read_file(
     req: FsReadRequest,
@@ -464,7 +463,9 @@ pub async fn fs_write_file(
                 Ok(())
             })?
         }
-        WritePayload::Sheet { deltas } => cache.mutate(&path, req.expected_revision.as_ref(), &deltas)?,
+        WritePayload::Sheet { deltas } => {
+            cache.mutate(&path, req.expected_revision.as_ref(), &deltas)?
+        }
     };
 
     Ok(FsWriteResponse { revision })
@@ -596,10 +597,30 @@ mod tests {
     #[test]
     fn fs_error_new_variants_serialize_with_tag_code() {
         let cases: [(FsError, &str); 4] = [
-            (FsError::RevisionMismatch { message: "m".into() }, "RevisionMismatch"),
-            (FsError::CacheEvicted { message: "m".into() }, "CacheEvicted"),
-            (FsError::ParseError { message: "m".into() }, "ParseError"),
-            (FsError::WriteFailed { message: "m".into() }, "WriteFailed"),
+            (
+                FsError::RevisionMismatch {
+                    message: "m".into(),
+                },
+                "RevisionMismatch",
+            ),
+            (
+                FsError::CacheEvicted {
+                    message: "m".into(),
+                },
+                "CacheEvicted",
+            ),
+            (
+                FsError::ParseError {
+                    message: "m".into(),
+                },
+                "ParseError",
+            ),
+            (
+                FsError::WriteFailed {
+                    message: "m".into(),
+                },
+                "WriteFailed",
+            ),
         ];
         for (err, expected_code) in cases {
             let v = serde_json::to_value(&err).unwrap();

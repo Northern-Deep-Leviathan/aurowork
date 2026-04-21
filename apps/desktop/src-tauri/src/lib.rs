@@ -26,7 +26,6 @@ use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
 };
 use commands::fs::{fs_close_file, fs_read_dir, fs_read_file, fs_write_file};
-use commands::spreadsheet::WorkbookCache;
 use commands::misc::{
     app_build_info, nuke_aurowork_and_opencode_config_and_exit, opencode_db_migrate,
     opencode_mcp_auth, reset_aurowork_state, reset_opencode_cache,
@@ -37,6 +36,7 @@ use commands::orchestrator::{
     orchestrator_workspace_activate,
 };
 use commands::skills::{list_local_skills, read_local_skill, uninstall_skill, write_local_skill};
+use commands::spreadsheet::WorkbookCache;
 use commands::updater::updater_environment;
 use commands::window::set_window_decorations;
 use commands::workspace::{
