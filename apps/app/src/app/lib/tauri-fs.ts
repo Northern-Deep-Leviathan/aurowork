@@ -104,22 +104,6 @@ export async function fsCloseFile(path: string): Promise<void> {
 
 // ── Error codes ──
 
-export type SheetErrorCode =
-  | "NotFound"
-  | "PermissionDenied"
-  | "RevisionMismatch"
-  | "FileLocked"
-  | "CacheEvicted"
-  | "ParseError"
-  | "WriteFailed"
-  | "InvalidRequest"
-  | "Internal";
-
-export interface SheetError {
-  code: SheetErrorCode;
-  message: string;
-}
-
 /** Returned by `invoke()` on error for fs_* commands. Narrow via `code`. */
 export type FsErrorCode =
   | "NotFound"
@@ -128,13 +112,13 @@ export type FsErrorCode =
   | "Conflict"
   | "FileLocked"
   | "InvalidRequest"
-  | "Internal";
+  | "Internal"
+  | "RevisionMismatch"
+  | "CacheEvicted"
+  | "ParseError"
+  | "WriteFailed";
 
 export interface FsError {
   code: FsErrorCode;
   message: string;
 }
-
-// TODO(spreadsheet-cache): once fs_read_file/fs_write_file return SheetError
-// directly for Sheet payloads, switch callers to FsError | SheetError
-// discriminated on shape.
