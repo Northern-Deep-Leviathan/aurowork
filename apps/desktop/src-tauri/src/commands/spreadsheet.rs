@@ -190,6 +190,33 @@ pub struct WorkbookCache {
     entries: DashMap<PathBuf, Arc<Mutex<WorkbookSnapshot>>>,
 }
 
+/// Compute a canonical `PathBuf` key for `WorkbookCache`.
+///
+/// For existing paths, `std::fs::canonicalize` produces the absolute, symlink-
+/// resolved form (on Windows this includes the `\\?\` verbatim prefix).
+/// For paths whose target does not yet exist (new-file creation through
+/// `WorkbookCache::mutate`), we canonicalize the parent directory and join
+/// the file name. The parent must exist; otherwise we surface `FsError::NotFound`.
+///
+/// Canonical keys are never surfaced to the frontend; they exist only to
+/// deduplicate DashMap entries that alias the same underlying file.
+fn canonical_key(path: &std::path::Path) -> Result<std::path::PathBuf, FsError> {
+    match std::fs::canonicalize(path) {
+        Ok(p) => Ok(p),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let parent = path.parent().ok_or_else(|| FsError::InvalidRequest {
+                message: format!("Path has no parent directory: {}", path.display()),
+            })?;
+            let file_name = path.file_name().ok_or_else(|| FsError::InvalidRequest {
+                message: format!("Path has no file name: {}", path.display()),
+            })?;
+            let canon_parent = std::fs::canonicalize(parent)?;
+            Ok(canon_parent.join(file_name))
+        }
+        Err(e) => Err(FsError::from(e)),
+    }
+}
+
 impl WorkbookCache {
     #[cfg(test)]
     pub fn new() -> Self {
@@ -529,5 +556,45 @@ mod tests {
         let sheet1 = data.sheets.iter().find(|s| s.name == "Sheet1").unwrap();
         let cell = sheet1.cells.iter().find(|c| c.row == 1 && c.col == 1).unwrap();
         assert_eq!(cell.value, "hello");
+    }
+
+    #[test]
+    fn canonical_key_identity_for_absolute_existing_path() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("x.xlsx");
+        std::fs::write(&path, b"").unwrap();
+        let k = canonical_key(&path).unwrap();
+        let expected = std::fs::canonicalize(&path).unwrap();
+        assert_eq!(k, expected);
+    }
+
+    #[test]
+    fn canonical_key_resolves_dot_segments() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("x.xlsx");
+        std::fs::write(&path, b"").unwrap();
+        // Both forms should canonicalize to the same PathBuf.
+        let simplified = dir.path().join("x.xlsx");
+        let k = canonical_key(&path).unwrap();
+        assert_eq!(canonical_key(&simplified).unwrap(), k);
+    }
+
+    #[test]
+    fn canonical_key_new_file_uses_parent_canonicalization() {
+        let dir = tempdir().unwrap();
+        let new_path = dir.path().join("does_not_exist.xlsx");
+        let k = canonical_key(&new_path).unwrap();
+        let expected_parent = std::fs::canonicalize(dir.path()).unwrap();
+        assert_eq!(k, expected_parent.join("does_not_exist.xlsx"));
+    }
+
+    #[test]
+    fn canonical_key_missing_parent_returns_not_found() {
+        let bogus = std::path::Path::new("/nonexistent_root_9f8e7d/dir/x.xlsx");
+        let err = canonical_key(bogus).unwrap_err();
+        match err {
+            crate::commands::fs::FsError::NotFound { .. } => {}
+            other => panic!("expected FsError::NotFound, got {:?}", other),
+        }
     }
 }
