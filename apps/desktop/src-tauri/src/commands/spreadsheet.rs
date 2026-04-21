@@ -538,4 +538,35 @@ mod tests {
         assert_eq!(ok_count, 1);
         assert_eq!(rev_err_count, 1);
     }
+
+    #[test]
+    fn full_lifecycle_open_mutate_close_reopen() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("life.xlsx");
+        let book = umya_spreadsheet::new_file();
+        umya_spreadsheet::writer::xlsx::write(&book, &path).unwrap();
+
+        let cache = WorkbookCache::new();
+
+        // open
+        let (_, rev0) = cache.open(&path).unwrap();
+
+        // mutate
+        let rev1 = cache
+            .mutate(&path, Some(&rev0), &[CellDelta {
+                sheet: "Sheet1".into(),
+                cell: CellRef { row: 1, col: 1, value: "hello".into(), cell_type: None },
+            }])
+            .unwrap();
+        assert_ne!(rev0, rev1);
+
+        // close
+        cache.close(&path);
+
+        // re-open — should re-parse disk and see the saved value
+        let (data, _rev2) = cache.open(&path).unwrap();
+        let sheet1 = data.sheets.iter().find(|s| s.name == "Sheet1").unwrap();
+        let cell = sheet1.cells.iter().find(|c| c.row == 1 && c.col == 1).unwrap();
+        assert_eq!(cell.value, "hello");
+    }
 }
