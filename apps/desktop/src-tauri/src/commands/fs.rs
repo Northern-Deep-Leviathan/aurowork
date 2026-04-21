@@ -369,24 +369,6 @@ fn exclusive_rename(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
 }
 
 
-/// Boundary adapter: map `SheetError` from the spreadsheet gateway into `FsError`
-/// for the Tauri fs_* commands. Kept until/unless those commands are rewritten
-/// to surface `SheetError` directly.
-fn sheet_err_to_fs(e: crate::commands::spreadsheet::SheetError) -> FsError {
-    use crate::commands::spreadsheet::SheetError as S;
-    match e {
-        S::NotFound { message } => FsError::NotFound { message },
-        S::PermissionDenied { message } => FsError::PermissionDenied { message },
-        S::InvalidRequest { message } => FsError::InvalidRequest { message },
-        S::RevisionMismatch { message }
-        | S::CacheEvicted { message } => FsError::Conflict { message },
-        S::FileLocked { message } => FsError::FileLocked { message },
-        S::ParseError { message } | S::WriteFailed { message } | S::Internal { message } => {
-            FsError::Internal { message }
-        }
-    }
-}
-
 #[tauri::command]
 pub async fn fs_read_file(
     req: FsReadRequest,
@@ -414,9 +396,7 @@ pub async fn fs_read_file(
             Ok(FsReadResponse::Text { content, revision })
         }
         FileType::Sheet => {
-            let (content, revision) = cache
-                .open_windowed(path, req.sheet_window.as_ref())
-                .map_err(sheet_err_to_fs)?;
+            let (content, revision) = cache.open_windowed(path, req.sheet_window.as_ref())?;
             let ext = path
                 .extension()
                 .and_then(|e| e.to_str())
@@ -461,9 +441,7 @@ pub async fn fs_write_file(
                 Ok(())
             })?
         }
-        WritePayload::Sheet { deltas } => cache
-            .mutate(&path, req.expected_revision.as_ref(), &deltas)
-            .map_err(sheet_err_to_fs)?,
+        WritePayload::Sheet { deltas } => cache.mutate(&path, req.expected_revision.as_ref(), &deltas)?,
     };
 
     Ok(FsWriteResponse { revision })

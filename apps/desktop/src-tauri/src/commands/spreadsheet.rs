@@ -9,44 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use crate::commands::fs::{atomic_write_with_lock, get_revision, FileRevision};
-
-// ── Error model ──
-
-#[derive(Debug, thiserror::Error, Serialize)]
-#[serde(tag = "code")]
-pub enum SheetError {
-    #[error("{message}")]
-    NotFound { message: String },
-    #[error("{message}")]
-    PermissionDenied { message: String },
-    #[error("{message}")]
-    RevisionMismatch { message: String },
-    #[error("{message}")]
-    FileLocked { message: String },
-    #[error("{message}")]
-    CacheEvicted { message: String },
-    #[error("{message}")]
-    ParseError { message: String },
-    #[error("{message}")]
-    WriteFailed { message: String },
-    #[error("{message}")]
-    InvalidRequest { message: String },
-    #[error("{message}")]
-    Internal { message: String },
-}
-
-impl From<std::io::Error> for SheetError {
-    fn from(e: std::io::Error) -> Self {
-        match e.kind() {
-            std::io::ErrorKind::NotFound => SheetError::NotFound { message: e.to_string() },
-            std::io::ErrorKind::PermissionDenied => {
-                SheetError::PermissionDenied { message: e.to_string() }
-            }
-            _ => SheetError::Internal { message: e.to_string() },
-        }
-    }
-}
+use crate::commands::fs::{atomic_write_with_lock, get_revision, FileRevision, FsError};
 
 // ── Workbook transport (sparse) ──
 
@@ -160,13 +123,13 @@ pub fn translate_workbook(
 pub fn apply_deltas(
     workbook: &mut umya_spreadsheet::Spreadsheet,
     deltas: &[CellDelta],
-) -> Result<(), SheetError> {
+) -> Result<(), FsError> {
     for delta in deltas {
         let sheet = match workbook.get_sheet_by_name(&delta.sheet) {
             Some(_) => workbook.get_sheet_by_name_mut(&delta.sheet).unwrap(),
             None => workbook
                 .new_sheet(&delta.sheet)
-                .map_err(|e| SheetError::InvalidRequest {
+                .map_err(|e| FsError::InvalidRequest {
                     message: format!("Failed to create sheet {}: {}", delta.sheet, e),
                 })?,
         };
@@ -236,7 +199,7 @@ impl WorkbookCache {
     /// Open (or return already-cached) workbook. Idempotent.
     /// Always returns the currently-cached snapshot's data and revision.
     #[cfg(test)]
-    pub fn open(&self, path: &Path) -> Result<(WorkbookData, FileRevision), SheetError> {
+    pub fn open(&self, path: &Path) -> Result<(WorkbookData, FileRevision), FsError> {
         self.open_windowed(path, None)
     }
 
@@ -244,24 +207,23 @@ impl WorkbookCache {
         &self,
         path: &Path,
         window: Option<&SheetWindowRequest>,
-    ) -> Result<(WorkbookData, FileRevision), SheetError> {
+    ) -> Result<(WorkbookData, FileRevision), FsError> {
         if let Some(entry) = self.entries.get(path) {
             let arc = entry.clone();
-            drop(entry); // release DashMap shard before acquiring inner mutex
+            drop(entry);
             let snap = arc.lock().unwrap();
             let data = translate_workbook(&snap.book, window);
             return Ok((data, snap.revision.clone()));
         }
 
-        // Cache miss. Parse from disk.
         if !path.exists() {
-            return Err(SheetError::NotFound {
+            return Err(FsError::NotFound {
                 message: format!("File not found: {}", path.display()),
             });
         }
-        let revision = get_revision(path).map_err(fs_to_sheet_err)?;
+        let revision = get_revision(path)?;
         let book = umya_spreadsheet::reader::xlsx::read(path).map_err(|e| {
-            SheetError::ParseError {
+            FsError::ParseError {
                 message: format!("Failed to read spreadsheet: {}", e),
             }
         })?;
@@ -277,23 +239,18 @@ impl WorkbookCache {
     }
 
     /// Apply deltas, atomically write to disk, update cache revision.
-    /// Returns the new revision.
-    ///
-    /// Cache miss while file exists on disk → `CacheEvicted`.
-    /// Cache miss and file does NOT exist → creates a new empty workbook.
     pub fn mutate(
         &self,
         path: &Path,
         expected_revision: Option<&FileRevision>,
         deltas: &[CellDelta],
-    ) -> Result<FileRevision, SheetError> {
-        // Fast path: cache hit. Requires expected_revision.
+    ) -> Result<FileRevision, FsError> {
         if let Some(entry) = self.entries.get(path) {
             let arc = entry.clone();
-            drop(entry); // release DashMap shard before acquiring inner mutex
+            drop(entry);
             let mut snap = arc.lock().unwrap();
 
-            let expected = expected_revision.ok_or_else(|| SheetError::InvalidRequest {
+            let expected = expected_revision.ok_or_else(|| FsError::InvalidRequest {
                 message: format!(
                     "expected_revision is required to mutate a cached workbook: {}",
                     path.display()
@@ -301,7 +258,7 @@ impl WorkbookCache {
             })?;
 
             if snap.revision != *expected {
-                return Err(SheetError::RevisionMismatch {
+                return Err(FsError::RevisionMismatch {
                     message: format!(
                         "Cached revision mismatch. Expected {:?}, got {:?}",
                         expected, snap.revision
@@ -312,36 +269,32 @@ impl WorkbookCache {
             apply_deltas(&mut snap.book, deltas)?;
             let new_rev = atomic_write_with_lock(path, Some(expected), |tmp| {
                 umya_spreadsheet::writer::xlsx::write(&snap.book, tmp).map_err(|e| {
-                    crate::commands::fs::FsError::Internal {
+                    FsError::WriteFailed {
                         message: format!("Failed to write spreadsheet: {}", e),
                     }
                 })
-            })
-            .map_err(fs_to_sheet_err)?;
+            })?;
             snap.revision = new_rev.clone();
             return Ok(new_rev);
         }
 
-        // Cache miss. Check disk.
         match path.try_exists() {
-            Ok(true) => Err(SheetError::CacheEvicted {
+            Ok(true) => Err(FsError::CacheEvicted {
                 message: format!(
                     "Workbook not in cache but file exists on disk. Re-open the file before saving: {}",
                     path.display()
                 ),
             }),
             Ok(false) => {
-                // New-file path: expected_revision is ignored.
                 let mut book = umya_spreadsheet::new_file_empty_worksheet();
                 apply_deltas(&mut book, deltas)?;
                 let new_rev = atomic_write_with_lock(path, None, |tmp| {
                     umya_spreadsheet::writer::xlsx::write(&book, tmp).map_err(|e| {
-                        crate::commands::fs::FsError::Internal {
+                        FsError::WriteFailed {
                             message: format!("Failed to write spreadsheet: {}", e),
                         }
                     })
-                })
-                .map_err(fs_to_sheet_err)?;
+                })?;
                 self.entries.insert(
                     path.to_path_buf(),
                     Arc::new(Mutex::new(WorkbookSnapshot {
@@ -351,7 +304,7 @@ impl WorkbookCache {
                 );
                 Ok(new_rev)
             }
-            Err(e) => Err(SheetError::Internal {
+            Err(e) => Err(FsError::Internal {
                 message: format!("Failed to stat {}: {}", path.display(), e),
             }),
         }
@@ -359,23 +312,6 @@ impl WorkbookCache {
 
     pub fn close(&self, path: &Path) {
         self.entries.remove(path);
-    }
-}
-
-fn fs_to_sheet_err(e: crate::commands::fs::FsError) -> SheetError {
-    use crate::commands::fs::FsError as F;
-    match e {
-        F::NotFound { message } => SheetError::NotFound { message },
-        F::PermissionDenied { message } => SheetError::PermissionDenied { message },
-        F::Conflict { message } => SheetError::RevisionMismatch { message },
-        F::FileLocked { message } => SheetError::FileLocked { message },
-        F::InvalidRequest { message } => SheetError::InvalidRequest { message },
-        F::NotSupported { message } => SheetError::InvalidRequest { message },
-        F::Internal { message } => SheetError::WriteFailed { message },
-        F::RevisionMismatch { message } => SheetError::RevisionMismatch { message },
-        F::CacheEvicted { message } => SheetError::CacheEvicted { message },
-        F::ParseError { message } => SheetError::ParseError { message },
-        F::WriteFailed { message } => SheetError::WriteFailed { message },
     }
 }
 
@@ -433,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    fn cache_mutate_missing_entry_errors_cache_evicted() {
+    fn mutate_on_cache_miss_with_existing_file_returns_fs_error_cache_evicted() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("wb.xlsx");
         let book = umya_spreadsheet::new_file();
@@ -441,10 +377,27 @@ mod tests {
 
         let cache = WorkbookCache::new();
         let fake_rev = FileRevision { mtime_ms: 0, size: 0 };
-        let result = cache.mutate(&path, Some(&fake_rev), &[]);
-        match result {
-            Err(SheetError::CacheEvicted { .. }) => {}
-            other => panic!("expected CacheEvicted, got {:?}", other),
+        let err = cache.mutate(&path, Some(&fake_rev), &[]).unwrap_err();
+        match err {
+            crate::commands::fs::FsError::CacheEvicted { .. } => {}
+            other => panic!("expected FsError::CacheEvicted, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn mutate_cached_with_stale_revision_returns_fs_error_revision_mismatch() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("wb.xlsx");
+        let book = umya_spreadsheet::new_file();
+        umya_spreadsheet::writer::xlsx::write(&book, &path).unwrap();
+
+        let cache = WorkbookCache::new();
+        cache.open(&path).unwrap();
+        let stale = FileRevision { mtime_ms: 0, size: 0 };
+        let err = cache.mutate(&path, Some(&stale), &[]).unwrap_err();
+        match err {
+            crate::commands::fs::FsError::RevisionMismatch { .. } => {}
+            other => panic!("expected FsError::RevisionMismatch, got {:?}", other),
         }
     }
 
@@ -478,7 +431,7 @@ mod tests {
         cache.open(&path).unwrap();
         // No expected_revision on a cached workbook → InvalidRequest
         let result = cache.mutate(&path, None, &[]);
-        assert!(matches!(result, Err(SheetError::InvalidRequest { .. })));
+        assert!(matches!(result, Err(crate::commands::fs::FsError::InvalidRequest { .. })));
     }
 
     #[test]
@@ -494,7 +447,7 @@ mod tests {
         // After close, mutate with any revision should hit CacheEvicted because file exists
         let fake_rev = FileRevision { mtime_ms: 0, size: 0 };
         let result = cache.mutate(&path, Some(&fake_rev), &[]);
-        assert!(matches!(result, Err(SheetError::CacheEvicted { .. })));
+        assert!(matches!(result, Err(crate::commands::fs::FsError::CacheEvicted { .. })));
     }
 
     #[test]
@@ -536,7 +489,7 @@ mod tests {
         // Exactly one succeeds; the other sees the revision bump and gets RevisionMismatch.
         let (ok_count, rev_err_count) = [&res1, &res2].iter().fold((0, 0), |(a, b), r| match r {
             Ok(_) => (a + 1, b),
-            Err(SheetError::RevisionMismatch { .. }) => (a, b + 1),
+            Err(crate::commands::fs::FsError::RevisionMismatch { .. }) => (a, b + 1),
             other => panic!("unexpected result: {:?}", other),
         });
         assert_eq!(ok_count, 1);
