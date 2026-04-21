@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::engine::manager::EngineManager;
 use crate::aurowork_server::manager::AuroworkServerManager;
+use crate::engine::manager::EngineManager;
 use crate::orchestrator;
 use crate::orchestrator::manager::OrchestratorManager;
 use crate::paths::{candidate_xdg_config_dirs, candidate_xdg_data_dirs, home_dir};
@@ -367,11 +367,7 @@ pub fn reset_aurowork_state(
         return Err("mode must be 'onboarding' or 'all'".to_string());
     }
 
-    stop_host_services(
-        &engine_manager,
-        &orchestrator_manager,
-        &aurowork_manager,
-    );
+    stop_host_services(&engine_manager, &orchestrator_manager, &aurowork_manager);
 
     let mut paths = vec![
         app.path()
@@ -425,11 +421,7 @@ pub fn nuke_aurowork_and_opencode_config_and_exit(
     orchestrator_manager: State<OrchestratorManager>,
     aurowork_manager: State<AuroworkServerManager>,
 ) -> Result<(), String> {
-    stop_host_services(
-        &engine_manager,
-        &orchestrator_manager,
-        &aurowork_manager,
-    );
+    stop_host_services(&engine_manager, &orchestrator_manager, &aurowork_manager);
 
     let dev_mode = env_truthy("AUROWORK_DEV_MODE");
     let mut paths = current_aurowork_state_paths(&app)?;

@@ -140,7 +140,10 @@ fn save_aurowork_server_state(
     Ok(())
 }
 
-fn read_preferred_aurowork_port(app: &AppHandle, workspace_key: &str) -> Result<Option<u16>, String> {
+fn read_preferred_aurowork_port(
+    app: &AppHandle,
+    workspace_key: &str,
+) -> Result<Option<u16>, String> {
     let path = aurowork_server_state_path(app)?;
     let state = load_aurowork_server_state(&path)?;
     let trimmed = workspace_key.trim();
@@ -155,7 +158,10 @@ fn read_preferred_aurowork_port(app: &AppHandle, workspace_key: &str) -> Result<
     Ok(state.preferred_port)
 }
 
-fn reserved_aurowork_ports(app: &AppHandle, exclude_workspace_key: &str) -> Result<HashSet<u16>, String> {
+fn reserved_aurowork_ports(
+    app: &AppHandle,
+    exclude_workspace_key: &str,
+) -> Result<HashSet<u16>, String> {
     let path = aurowork_server_state_path(app)?;
     let state = load_aurowork_server_state(&path)?;
     let excluded = exclude_workspace_key.trim();
@@ -459,11 +465,7 @@ mod tests {
     #[test]
     fn migrates_legacy_fixed_port_to_no_preference() {
         let path = unique_temp_path("port-migrate");
-        fs::write(
-            &path,
-            r#"{"version":1,"preferred_port":8787}"#,
-        )
-        .expect("write legacy state");
+        fs::write(&path, r#"{"version":1,"preferred_port":8787}"#).expect("write legacy state");
 
         let state = load_aurowork_server_state(&path).expect("load migrated state");
         assert_eq!(state.version, AUROWORK_SERVER_STATE_VERSION);

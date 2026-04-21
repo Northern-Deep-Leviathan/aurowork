@@ -33,7 +33,7 @@ type TreeNode = {
 
 type FileTreeProps = {
   rootPath: string | null;
-  onFileSelect: (path: string) => void;
+  onFileSelect: (entry: FsEntry) => void;
   selectedPath: string | null;
 };
 
@@ -187,7 +187,7 @@ type FileTreeNodeProps = {
   depth: number;
   indexPath: number[];
   onToggle: (indexPath: number[]) => void;
-  onFileSelect: (path: string) => void;
+  onFileSelect: (entry: FsEntry) => void;
   selectedPath: string | null;
 };
 
@@ -199,7 +199,7 @@ function FileTreeNode(props: FileTreeNodeProps) {
     if (props.node.entry.is_dir) {
       props.onToggle(props.indexPath);
     } else {
-      props.onFileSelect(props.node.entry.path);
+      props.onFileSelect(props.node.entry);
     }
   };
 

@@ -1,13 +1,14 @@
+pub mod aurowork_server;
 pub mod command_files;
 pub mod config;
 pub mod debug_log;
-pub mod fs;
 pub mod engine;
+pub mod fs;
 pub mod misc;
-pub mod aurowork_server;
 pub mod opkg;
 pub mod orchestrator;
 pub mod skills;
+pub mod spreadsheet;
 pub mod updater;
 pub mod window;
 pub mod workspace;

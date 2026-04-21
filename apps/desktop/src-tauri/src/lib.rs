@@ -1,9 +1,9 @@
+mod aurowork_server;
 mod bun_env;
 mod commands;
 mod config;
 mod engine;
 mod fs;
-mod aurowork_server;
 mod opkg;
 mod orchestrator;
 mod paths;
@@ -15,42 +15,40 @@ mod workspace;
 
 pub use types::*;
 
+use aurowork_server::manager::AuroworkServerManager;
+use commands::aurowork_server::{aurowork_server_info, aurowork_server_restart};
 use commands::command_files::{
     opencode_command_delete, opencode_command_list, opencode_command_write,
 };
 use commands::config::{read_opencode_config, write_opencode_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
-use commands::fs::{fs_read_dir, fs_read_text_file, fs_write_text_file};
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
 };
+use commands::fs::{fs_close_file, fs_read_dir, fs_read_file, fs_write_file};
 use commands::misc::{
     app_build_info, nuke_aurowork_and_opencode_config_and_exit, opencode_db_migrate,
-    opencode_mcp_auth, reset_opencode_cache, reset_aurowork_state,
+    opencode_mcp_auth, reset_aurowork_state, reset_opencode_cache,
 };
-use commands::aurowork_server::{aurowork_server_info, aurowork_server_restart};
 use commands::opkg::{import_skill, opkg_install};
 use commands::orchestrator::{
     orchestrator_instance_dispose, orchestrator_start_detached, orchestrator_status,
     orchestrator_workspace_activate,
 };
-use commands::skills::{
-    list_local_skills, read_local_skill, uninstall_skill, write_local_skill,
-};
+use commands::skills::{list_local_skills, read_local_skill, uninstall_skill, write_local_skill};
+use commands::spreadsheet::WorkbookCache;
 use commands::updater::updater_environment;
 use commands::window::set_window_decorations;
 use commands::workspace::{
-    workspace_add_authorized_root, workspace_bootstrap, workspace_check_folder, workspace_create,
-    workspace_create_remote,
+    workspace_add_authorized_root, workspace_aurowork_read, workspace_aurowork_write,
+    workspace_bootstrap, workspace_check_folder, workspace_create, workspace_create_remote,
     workspace_export_config, workspace_forget, workspace_import_config, workspace_register,
-    workspace_aurowork_read, workspace_aurowork_write, workspace_set_active,
-    workspace_set_runtime_active, workspace_set_selected, workspace_update_display_name,
-    workspace_update_remote,
+    workspace_set_active, workspace_set_runtime_active, workspace_set_selected,
+    workspace_update_display_name, workspace_update_remote,
 };
 use engine::manager::EngineManager;
-use aurowork_server::manager::AuroworkServerManager;
 use orchestrator::manager::OrchestratorManager;
-use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, RunEvent};
 use workspace::watch::WorkspaceWatchState;
 
 const NATIVE_DEEP_LINK_EVENT: &str = "aurowork:deep-link-native";
@@ -111,6 +109,7 @@ fn show_main_window(app_handle: &AppHandle) {
     }
 }
 
+#[allow(unused)]
 fn hide_main_window(app_handle: &AppHandle) {
     if let Some(window) = app_handle.get_webview_window("main") {
         let _ = window.hide();
@@ -155,6 +154,7 @@ pub fn run() {
         .manage(OrchestratorManager::default())
         .manage(AuroworkServerManager::default())
         .manage(WorkspaceWatchState::default())
+        .manage(WorkbookCache::default())
         .invoke_handler(tauri::generate_handler![
             engine_start,
             engine_stop,
@@ -206,8 +206,9 @@ pub fn run() {
             debug_log_append,
             debug_log_clear,
             fs_read_dir,
-            fs_read_text_file,
-            fs_write_text_file
+            fs_read_file,
+            fs_write_file,
+            fs_close_file
         ])
         .build(tauri::generate_context!())
         .expect("error while building AuroWork");
