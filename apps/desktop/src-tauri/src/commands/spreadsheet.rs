@@ -235,7 +235,9 @@ impl WorkbookCache {
         path: &Path,
         window: Option<&SheetWindowRequest>,
     ) -> Result<(WorkbookData, FileRevision), FsError> {
-        if let Some(entry) = self.entries.get(path) {
+        let key = canonical_key(path)?;
+
+        if let Some(entry) = self.entries.get(&key) {
             let arc = entry.clone();
             drop(entry); // release DashMap shard before acquiring inner mutex
             let snap = arc.lock().unwrap();
@@ -243,20 +245,20 @@ impl WorkbookCache {
             return Ok((data, snap.revision.clone()));
         }
 
-        if !path.exists() {
+        if !key.exists() {
             return Err(FsError::NotFound {
-                message: format!("File not found: {}", path.display()),
+                message: format!("File not found: {}", key.display()),
             });
         }
-        let revision = get_revision(path)?;
-        let book = umya_spreadsheet::reader::xlsx::read(path).map_err(|e| {
+        let revision = get_revision(&key)?;
+        let book = umya_spreadsheet::reader::xlsx::read(&key).map_err(|e| {
             FsError::ParseError {
                 message: format!("Failed to read spreadsheet: {}", e),
             }
         })?;
         let data = translate_workbook(&book, window);
         self.entries.insert(
-            path.to_path_buf(),
+            key,
             Arc::new(Mutex::new(WorkbookSnapshot {
                 book,
                 revision: revision.clone(),
@@ -276,7 +278,9 @@ impl WorkbookCache {
         expected_revision: Option<&FileRevision>,
         deltas: &[CellDelta],
     ) -> Result<FileRevision, FsError> {
-        if let Some(entry) = self.entries.get(path) {
+        let key = canonical_key(path)?;
+
+        if let Some(entry) = self.entries.get(&key) {
             let arc = entry.clone();
             drop(entry); // release DashMap shard before acquiring inner mutex
             let mut snap = arc.lock().unwrap();
@@ -284,7 +288,7 @@ impl WorkbookCache {
             let expected = expected_revision.ok_or_else(|| FsError::InvalidRequest {
                 message: format!(
                     "expected_revision is required to mutate a cached workbook: {}",
-                    path.display()
+                    key.display()
                 ),
             })?;
 
@@ -298,7 +302,7 @@ impl WorkbookCache {
             }
 
             apply_deltas(&mut snap.book, deltas)?;
-            let new_rev = atomic_write_with_lock(path, Some(expected), |tmp| {
+            let new_rev = atomic_write_with_lock(&key, Some(expected), |tmp| {
                 umya_spreadsheet::writer::xlsx::write(&snap.book, tmp).map_err(|e| {
                     FsError::WriteFailed {
                         message: format!("Failed to write spreadsheet: {}", e),
@@ -309,17 +313,17 @@ impl WorkbookCache {
             return Ok(new_rev);
         }
 
-        match path.try_exists() {
+        match key.try_exists() {
             Ok(true) => Err(FsError::CacheEvicted {
                 message: format!(
                     "Workbook not in cache but file exists on disk. Re-open the file before saving: {}",
-                    path.display()
+                    key.display()
                 ),
             }),
             Ok(false) => {
                 let mut book = umya_spreadsheet::new_file_empty_worksheet();
                 apply_deltas(&mut book, deltas)?;
-                let new_rev = atomic_write_with_lock(path, None, |tmp| {
+                let new_rev = atomic_write_with_lock(&key, None, |tmp| {
                     umya_spreadsheet::writer::xlsx::write(&book, tmp).map_err(|e| {
                         FsError::WriteFailed {
                             message: format!("Failed to write spreadsheet: {}", e),
@@ -327,7 +331,7 @@ impl WorkbookCache {
                     })
                 })?;
                 self.entries.insert(
-                    path.to_path_buf(),
+                    key,
                     Arc::new(Mutex::new(WorkbookSnapshot {
                         book,
                         revision: new_rev.clone(),
@@ -336,13 +340,15 @@ impl WorkbookCache {
                 Ok(new_rev)
             }
             Err(e) => Err(FsError::Internal {
-                message: format!("Failed to stat {}: {}", path.display(), e),
+                message: format!("Failed to stat {}: {}", key.display(), e),
             }),
         }
     }
 
     pub fn close(&self, path: &Path) {
-        self.entries.remove(path);
+        if let Ok(key) = canonical_key(path) {
+            self.entries.remove(&key);
+        }
     }
 }
 
@@ -602,5 +608,135 @@ mod tests {
             crate::commands::fs::FsError::NotFound { .. } => {}
             other => panic!("expected FsError::NotFound, got {:?}", other),
         }
+    }
+
+    use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn aliased_paths_dedup_cache_entries() {
+        let dir = tempdir().unwrap();
+        let abs_path = dir.path().join("x.xlsx");
+        let book = umya_spreadsheet::new_file();
+        umya_spreadsheet::writer::xlsx::write(&book, &abs_path).unwrap();
+
+        let prev_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
+        let rel_path = std::path::PathBuf::from("x.xlsx");
+
+        let cache = WorkbookCache::new();
+        cache.open(&abs_path).unwrap();
+        cache.open(&rel_path).unwrap();
+
+        assert_eq!(
+            cache.entries.len(),
+            1,
+            "aliased absolute+relative paths must collapse to one entry"
+        );
+
+        std::env::set_current_dir(prev_cwd).unwrap();
+    }
+
+    #[test]
+    #[serial]
+    fn concurrent_mutate_via_aliased_paths_serialises() {
+        use std::sync::Arc as StdArc;
+        use std::thread;
+
+        let dir = tempdir().unwrap();
+        let abs_path = dir.path().join("wb.xlsx");
+        let book = umya_spreadsheet::new_file();
+        umya_spreadsheet::writer::xlsx::write(&book, &abs_path).unwrap();
+
+        let prev_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
+        let rel_path = std::path::PathBuf::from("wb.xlsx");
+
+        let cache = StdArc::new(WorkbookCache::new());
+        let (_, rev0) = cache.open(&abs_path).unwrap();
+
+        let c1 = cache.clone();
+        let p1 = abs_path.clone();
+        let r1 = rev0.clone();
+        let t1 = thread::spawn(move || {
+            c1.mutate(
+                &p1,
+                Some(&r1),
+                &[CellDelta {
+                    sheet: "Sheet1".into(),
+                    cell: CellRef {
+                        row: 1,
+                        col: 1,
+                        value: "A".into(),
+                        cell_type: None,
+                    },
+                }],
+            )
+        });
+
+        let c2 = cache.clone();
+        let p2 = rel_path.clone();
+        let r2 = rev0.clone();
+        let t2 = thread::spawn(move || {
+            c2.mutate(
+                &p2,
+                Some(&r2),
+                &[CellDelta {
+                    sheet: "Sheet1".into(),
+                    cell: CellRef {
+                        row: 2,
+                        col: 1,
+                        value: "B".into(),
+                        cell_type: None,
+                    },
+                }],
+            )
+        });
+
+        let res1 = t1.join().unwrap();
+        let res2 = t2.join().unwrap();
+
+        let (ok_count, rev_err_count) =
+            [&res1, &res2].iter().fold((0, 0), |(a, b), r| match r {
+                Ok(_) => (a + 1, b),
+                Err(crate::commands::fs::FsError::RevisionMismatch { .. }) => (a, b + 1),
+                other => panic!("unexpected: {:?}", other),
+            });
+        assert_eq!(ok_count, 1, "exactly one mutate should succeed");
+        assert_eq!(
+            rev_err_count, 1,
+            "the aliased competitor should see RevisionMismatch"
+        );
+
+        std::env::set_current_dir(prev_cwd).unwrap();
+    }
+
+    #[test]
+    #[serial]
+    fn close_with_aliased_path_evicts_same_entry() {
+        let dir = tempdir().unwrap();
+        let abs_path = dir.path().join("wb.xlsx");
+        let book = umya_spreadsheet::new_file();
+        umya_spreadsheet::writer::xlsx::write(&book, &abs_path).unwrap();
+
+        let prev_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
+        let rel_path = std::path::PathBuf::from("wb.xlsx");
+
+        let cache = WorkbookCache::new();
+        cache.open(&abs_path).unwrap();
+        cache.close(&rel_path);
+
+        let fake_rev = FileRevision {
+            mtime_ms: 0,
+            size: 0,
+        };
+        let err = cache.mutate(&abs_path, Some(&fake_rev), &[]).unwrap_err();
+        assert!(matches!(
+            err,
+            crate::commands::fs::FsError::CacheEvicted { .. }
+        ));
+
+        std::env::set_current_dir(prev_cwd).unwrap();
     }
 }
