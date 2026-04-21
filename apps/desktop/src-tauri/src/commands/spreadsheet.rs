@@ -210,7 +210,7 @@ impl WorkbookCache {
     ) -> Result<(WorkbookData, FileRevision), FsError> {
         if let Some(entry) = self.entries.get(path) {
             let arc = entry.clone();
-            drop(entry);
+            drop(entry); // release DashMap shard before acquiring inner mutex
             let snap = arc.lock().unwrap();
             let data = translate_workbook(&snap.book, window);
             return Ok((data, snap.revision.clone()));
@@ -239,6 +239,10 @@ impl WorkbookCache {
     }
 
     /// Apply deltas, atomically write to disk, update cache revision.
+    /// Returns the new revision.
+    ///
+    /// Cache miss while file exists on disk → `FsError::CacheEvicted`.
+    /// Cache miss and file does NOT exist → creates a new empty workbook.
     pub fn mutate(
         &self,
         path: &Path,
@@ -247,7 +251,7 @@ impl WorkbookCache {
     ) -> Result<FileRevision, FsError> {
         if let Some(entry) = self.entries.get(path) {
             let arc = entry.clone();
-            drop(entry);
+            drop(entry); // release DashMap shard before acquiring inner mutex
             let mut snap = arc.lock().unwrap();
 
             let expected = expected_revision.ok_or_else(|| FsError::InvalidRequest {
