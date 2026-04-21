@@ -573,10 +573,16 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("x.xlsx");
         std::fs::write(&path, b"").unwrap();
-        // Both forms should canonicalize to the same PathBuf.
-        let simplified = dir.path().join("x.xlsx");
-        let k = canonical_key(&path).unwrap();
-        assert_eq!(canonical_key(&simplified).unwrap(), k);
+
+        // Alias with a "./" component — canonicalize must strip it.
+        let dot_alias = dir.path().join(".").join("x.xlsx");
+        assert_eq!(canonical_key(&dot_alias).unwrap(), canonical_key(&path).unwrap());
+
+        // Alias with a ".." component: create a sibling dir, traverse up-and-back.
+        let sub = dir.path().join("sub");
+        std::fs::create_dir(&sub).unwrap();
+        let dotdot_alias = sub.join("..").join("x.xlsx");
+        assert_eq!(canonical_key(&dotdot_alias).unwrap(), canonical_key(&path).unwrap());
     }
 
     #[test]
