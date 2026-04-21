@@ -152,7 +152,8 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
       }
     } catch (err: any) {
       const parsed = typeof err === "object" && err?.code ? err : null;
-      if (parsed?.code === "Conflict") {
+      const code = parsed?.code as string | undefined;
+      if (code === "Conflict" || code === "RevisionMismatch") {
         const reload = window.confirm(
           "File changed on disk. Reload latest version? (Cancel to overwrite)",
         );
@@ -181,6 +182,11 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
             window.alert(`Failed to save: ${retryErr}`);
           }
         }
+      } else if (code === "CacheEvicted") {
+        window.alert(
+          "This workbook is no longer cached. Re-opening it now; please retry your save.",
+        );
+        if (entry) void loadFile(entry);
       } else {
         window.alert(`Failed to save: ${err?.message ?? err}`);
       }
