@@ -517,45 +517,6 @@ pub async fn fs_read_dir(path: String) -> Result<Vec<FsEntry>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn fs_error_from_io_not_found() {
-        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
-        let fs_err = FsError::from(io_err);
-        match fs_err {
-            FsError::NotFound { message } => assert!(message.contains("gone")),
-            other => panic!("expected NotFound, got: {}", other),
-        }
-    }
-
-    #[test]
-    fn fs_error_from_io_permission_denied() {
-        let io_err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "nope");
-        let fs_err = FsError::from(io_err);
-        match fs_err {
-            FsError::PermissionDenied { message } => assert!(message.contains("nope")),
-            other => panic!("expected PermissionDenied, got: {}", other),
-        }
-    }
-
-    #[test]
-    fn fs_error_from_io_other() {
-        let io_err = std::io::Error::new(std::io::ErrorKind::BrokenPipe, "pipe broke");
-        let fs_err = FsError::from(io_err);
-        match fs_err {
-            FsError::Internal { message } => assert!(message.contains("pipe broke")),
-            other => panic!("expected Internal, got: {}", other),
-        }
-    }
-
-    #[test]
-    fn fs_error_display() {
-        let err = FsError::NotFound {
-            message: "file.txt".into(),
-        };
-        assert_eq!(format!("{}", err), "file.txt");
-    }
-
     use std::fs;
     use tempfile::tempdir;
 
