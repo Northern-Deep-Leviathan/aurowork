@@ -25,6 +25,14 @@ pub enum FsError {
     InvalidRequest { message: String },
     #[error("{message}")]
     Internal { message: String },
+    #[error("{message}")]
+    RevisionMismatch { message: String },
+    #[error("{message}")]
+    CacheEvicted { message: String },
+    #[error("{message}")]
+    ParseError { message: String },
+    #[error("{message}")]
+    WriteFailed { message: String },
 }
 
 impl From<std::io::Error> for FsError {
@@ -582,5 +590,35 @@ mod tests {
         .unwrap();
         assert_eq!(fs::read_to_string(&target).unwrap(), "updated");
         assert_ne!(new_rev.size, rev.size); // "updated" != "original" in length
+    }
+
+    #[test]
+    fn fs_error_serializes_revision_mismatch_with_tag_code() {
+        let err = FsError::RevisionMismatch { message: "rev bad".into() };
+        let v = serde_json::to_value(&err).unwrap();
+        assert_eq!(v["code"], "RevisionMismatch");
+        assert_eq!(v["message"], "rev bad");
+    }
+
+    #[test]
+    fn fs_error_serializes_cache_evicted_with_tag_code() {
+        let err = FsError::CacheEvicted { message: "gone".into() };
+        let v = serde_json::to_value(&err).unwrap();
+        assert_eq!(v["code"], "CacheEvicted");
+        assert_eq!(v["message"], "gone");
+    }
+
+    #[test]
+    fn fs_error_serializes_parse_error_with_tag_code() {
+        let err = FsError::ParseError { message: "parse".into() };
+        let v = serde_json::to_value(&err).unwrap();
+        assert_eq!(v["code"], "ParseError");
+    }
+
+    #[test]
+    fn fs_error_serializes_write_failed_with_tag_code() {
+        let err = FsError::WriteFailed { message: "w".into() };
+        let v = serde_json::to_value(&err).unwrap();
+        assert_eq!(v["code"], "WriteFailed");
     }
 }

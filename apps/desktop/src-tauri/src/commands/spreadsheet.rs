@@ -372,6 +372,10 @@ fn fs_to_sheet_err(e: crate::commands::fs::FsError) -> SheetError {
         F::InvalidRequest { message } => SheetError::InvalidRequest { message },
         F::NotSupported { message } => SheetError::InvalidRequest { message },
         F::Internal { message } => SheetError::WriteFailed { message },
+        F::RevisionMismatch { message } => SheetError::RevisionMismatch { message },
+        F::CacheEvicted { message } => SheetError::CacheEvicted { message },
+        F::ParseError { message } => SheetError::ParseError { message },
+        F::WriteFailed { message } => SheetError::WriteFailed { message },
     }
 }
 
