@@ -14,6 +14,8 @@
     "build": "node scripts/build.mjs",
     "build:ui": "pnpm --filter @aurowork/app build",
     "build:web": "pnpm --filter @aurowork-ee/den-web build",
+    "format:files:check": "prettier --check",
+    "format:files:fix": "prettier --write",
     "preview": "pnpm --filter @aurowork/app preview",
     "typecheck": "pnpm --filter @aurowork/app typecheck",
     "test:health": "pnpm --filter @aurowork/app test:health",
@@ -52,5 +54,8 @@
   "packageManager": "pnpm@10.27.0",
   "dependencies": {
     "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.3"
   }
 }
