@@ -6,7 +6,7 @@ import { upsertCommand } from "./commands.js";
 import { readJsoncFile, writeJsoncFile } from "./jsonc.js";
 import { ensureDir, exists } from "./utils.js";
 import { parseFrontmatter, buildFrontmatter } from "./frontmatter.js";
-import { presetSkills } from "./preset-skills/index.js";
+import { PRESET_SKILL_META_FILE, presetSkills } from "./preset-skills/index.js";
 import { ApiError } from "./errors.js";
 import { auroworkConfigPath, opencodeConfigPath, projectCommandsDir, projectSkillsDir } from "./workspace-files.js";
 
@@ -153,7 +153,7 @@ async function upsertPresetSkill(workspaceRoot: string, rawContent: string): Pro
 
   const skillDir = join(projectSkillsDir(workspaceRoot), name);
   const existingSkillPath = join(skillDir, "SKILL.md");
-  const metaPath = join(skillDir, ".meta.json");
+  const metaPath = join(skillDir, PRESET_SKILL_META_FILE);
 
   if (await exists(existingSkillPath)) {
     if (await exists(metaPath)) {
@@ -167,8 +167,7 @@ async function upsertPresetSkill(workspaceRoot: string, rawContent: string): Pro
         // Corrupted meta — overwrite
       }
     } else {
-      // SKILL.md exists but no .meta.json — user-created skill, don't touch
-      return;
+      // Overwrite for existing skills migration
     }
   }
 
@@ -184,7 +183,7 @@ async function upsertPresetSkill(workspaceRoot: string, rawContent: string): Pro
     description: (data.description as string) ?? "",
   });
 
-  // Write sidecar meta
+  // Write meta of skill
   await writeFile(metaPath, JSON.stringify({ aurowork_builtin_version: newVersion }, null, 2) + "\n", "utf8");
 }
 
