@@ -5,77 +5,10 @@ import { upsertSkill } from "./skills.js";
 import { upsertCommand } from "./commands.js";
 import { readJsoncFile, writeJsoncFile } from "./jsonc.js";
 import { ensureDir, exists } from "./utils.js";
+import { parseFrontmatter, buildFrontmatter } from "./frontmatter.js";
+import { PRESET_SKILL_META_FILE, presetSkills } from "./preset-skills/index.js";
 import { ApiError } from "./errors.js";
 import { auroworkConfigPath, opencodeConfigPath, projectCommandsDir, projectSkillsDir } from "./workspace-files.js";
-
-const WORKSPACE_GUIDE = `---
-name: workspace-guide
-description: Workspace guide to introduce AuroWork and onboard new users.
----
-
-# Welcome to AuroWork
-
-Hi, I'm Ben and this is AuroWork. It's an open-source alternative to Claude's cowork. It helps you work on your files with AI and automate the mundane tasks so you don't have to.
-
-Before we start, use the question tool to ask:
-"Are you more technical or non-technical? I'll tailor the explanation."
-
-## If the person is non-technical
-AuroWork feels like a chat app, but it can safely work with the files you allow. Put files in this workspace and I can summarize them, create new ones, or help organize them.
-
-Try:
-- "Summarize the files in this workspace."
-- "Create a checklist for my week."
-- "Draft a short summary from this document."
-
-## Skills and plugins (simple)
-Skills add new capabilities. Plugins add advanced features like scheduling or browser automation. We can add them later when you're ready.
-
-## If the person is technical
-AuroWork is a GUI for OpenCode. Everything that works in OpenCode works here.
-
-Most reliable setup today:
-1) Install OpenCode from opencode.ai
-2) Configure providers there (models and API keys)
-3) Come back to AuroWork and start a session
-
-Skills:
-- Install from the Skills tab, or add them to this workspace.
-- Docs: https://opencode.ai/docs/skills
-
-Plugins:
-- Configure in opencode.json or use the Plugins tab.
-- Docs: https://opencode.ai/docs/plugins/
-
-MCP servers:
-- Add external tools via opencode.json.
-- Docs: https://opencode.ai/docs/mcp-servers/
-
-Config reference:
-- Docs: https://opencode.ai/docs/config/
-
-End with two friendly next actions to try in AuroWork.
-`;
-
-const GET_STARTED_SKILL = `---
-name: get-started
-description: Guide users through the get started setup and Chrome DevTools demo.
----
-
-## When to use
-- Always load this skill when the user says "get started".
-
-## What to do
-- Reply with these four lines, exactly and in order:
-  1) hey there welcome this is aurowork
-  2) we've pre-configured you with a couple tools
-  3) Get Started
-  4) write "hey go on google.com"
-
-## Then
-- If the user writes "go on google.com" (or "hey go on google.com"), use the chrome-devtools MCP to open the site.
-- After the navigation completes, reply: "I'm on <site>" where <site> is the final URL or page title they asked for.
-`;
 
 const AUROWORK_AGENT = `---
 description: AuroWork default agent (safe, mobile-first, self-referential)
@@ -212,6 +145,48 @@ function mergePlugins(existing: string[], required: string[]): string[] {
   return next;
 }
 
+async function upsertPresetSkill(workspaceRoot: string, rawContent: string): Promise<void> {
+  const { data, body } = parseFrontmatter(rawContent);
+  const name = typeof data.name === "string" ? data.name : "";
+  if (!name) throw new Error("Preset skill missing 'name' in frontmatter");
+  const newVersion = typeof data.aurowork_builtin_version === "number" ? data.aurowork_builtin_version : 0;
+
+  const skillDir = join(projectSkillsDir(workspaceRoot), name);
+  const existingSkillPath = join(skillDir, "SKILL.md");
+  const metaPath = join(skillDir, PRESET_SKILL_META_FILE);
+
+  if (await exists(existingSkillPath)) {
+    if (await exists(metaPath)) {
+      // Built-in skill — check version
+      try {
+        const metaRaw = await readFile(metaPath, "utf8");
+        const meta = JSON.parse(metaRaw) as { aurowork_builtin_version?: number };
+        const installedVersion = typeof meta.aurowork_builtin_version === "number" ? meta.aurowork_builtin_version : 0;
+        if (newVersion <= installedVersion) return; // already current or newer
+      } catch {
+        // Corrupted meta — overwrite
+      }
+    } else {
+      // Overwrite for existing skills migration
+    }
+  }
+
+  // Strip internal metadata from frontmatter before writing
+  const cleanData = { ...data };
+  delete cleanData.aurowork_builtin_version;
+  delete cleanData.presets;
+  const cleanContent = buildFrontmatter(cleanData) + body.replace(/^\n/, "");
+
+  await upsertSkill(workspaceRoot, {
+    name,
+    content: cleanContent,
+    description: (data.description as string) ?? "",
+  });
+
+  // Write meta of skill
+  await writeFile(metaPath, JSON.stringify({ aurowork_builtin_version: newVersion }, null, 2) + "\n", "utf8");
+}
+
 async function ensureAuroworkAgent(workspaceRoot: string): Promise<void> {
   const agentsDir = join(workspaceRoot, ".opencode", "agents");
   const agentPath = join(agentsDir, "aurowork.md");
@@ -222,17 +197,12 @@ async function ensureAuroworkAgent(workspaceRoot: string): Promise<void> {
 
 async function ensureStarterSkills(workspaceRoot: string, preset: string): Promise<void> {
   await ensureDir(projectSkillsDir(workspaceRoot));
-  await upsertSkill(workspaceRoot, {
-    name: "workspace-guide",
-    description: "Workspace guide to introduce AuroWork and onboard new users.",
-    content: WORKSPACE_GUIDE,
-  });
-  if (preset === "starter") {
-    await upsertSkill(workspaceRoot, {
-      name: "get-started",
-      description: "Guide users through the get started setup and Chrome DevTools demo.",
-      content: GET_STARTED_SKILL,
-    });
+  for (const raw of presetSkills) {
+    const { data } = parseFrontmatter(raw);
+    const presets = Array.isArray(data.presets) ? (data.presets as string[]) : [];
+    if (presets.includes("all") || presets.includes(preset)) {
+      await upsertPresetSkill(workspaceRoot, raw);
+    }
   }
 }
 
