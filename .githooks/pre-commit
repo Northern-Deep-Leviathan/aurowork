@@ -1,0 +1,254 @@
+#!/bin/bash
+
+FIRST_FILE=1
+
+# ---------- Allowed folders for TS / Rust checks ----------
+# Add new folders here to extend pre-commit coverage.
+CHECKED_DIRS=("apps")
+
+# Build git pathspecs for TypeScript files from CHECKED_DIRS
+TS_ALLOWEDPATH=()
+for DIR in "${CHECKED_DIRS[@]}"; do
+    TS_ALLOWEDPATH+=("${DIR}/**/*.ts" "${DIR}/**/*.tsx")
+done
+
+# Build git pathspecs for Rust files from CHECKED_DIRS
+RS_ALLOWEDPATH=()
+for DIR in "${CHECKED_DIRS[@]}"; do
+    RS_ALLOWEDPATH+=("${DIR}/**/*.rs")
+done
+
+# Typescript specific pre-commit check (*.ts, *.tsx files)
+STAGED_TS_FILES=$(git diff --name-only --staged -- "${TS_ALLOWEDPATH[@]}")
+if [ -n "$STAGED_TS_FILES" ]; then
+    if ! bash -c 'bun --help' > /dev/null 2>&1; then
+        echo "bun is not available. Cannot validate typescript files. Aborting commit."
+        exit 1
+    fi
+
+    if ! bash -c 'bun pm ls | grep prettier' > /dev/null 2>&1; then
+        echo "Prettier is not available. Cannot format typescript files. Aborting commit."
+        exit 1
+    fi
+
+    declare -A PKG_DIRS
+    bun_files=""
+
+    for FILE in $STAGED_TS_FILES; do
+        if [ -f "$FILE" ]; then
+            # Only run bun format on files that exist on disk (exclude deleted files).
+            # Assemble a list of all modified TypeScript files.
+            bun_files="$bun_files $FILE"
+
+            # Find the nearest package.json with a typecheck script for this file
+            DIR=$(dirname "$FILE")
+            SEARCH_DIR="$DIR"
+            FOUND_PKG=""
+            while [[ "$SEARCH_DIR" != "." && "$SEARCH_DIR" != "/" ]]; do
+                if [[ -f "$SEARCH_DIR/package.json" ]] && grep -q '"typecheck"' "$SEARCH_DIR/package.json"; then
+                    FOUND_PKG="$SEARCH_DIR"
+                    break
+                fi
+                SEARCH_DIR=$(dirname "$SEARCH_DIR")
+            done
+            if [[ -n "$FOUND_PKG" ]]; then
+                PKG_DIRS["$FOUND_PKG"]=1
+            else
+                echo "Warning: No package.json with typecheck script found for $FILE, skipping type check."
+            fi
+        fi
+    done
+
+    # Run format and typecheck on each file
+    #
+    # --- Formatting checks first ---
+    if [[ -n "$bun_files" ]]; then
+        echo "Checking format issues on TypeScript files: $bun_files"
+        bun run format:files:check $bun_files
+        HAS_FMT_ISSUES="$?"
+        if [ "$HAS_FMT_ISSUES" -ne 0 ]; then
+            echo "Found format issues, use 'bun run format:files:fix $bun_files' to fix."
+            exit 1
+        fi
+    fi
+
+    # --- TypeScript compilation checks after all formatting passes ---
+    for PKG_DIR in "${!PKG_DIRS[@]}"; do
+        echo "Running typecheck in: $PKG_DIR"
+        (cd "$PKG_DIR" && bun run typecheck)
+        HAS_TSC_ISSUES="$?"
+        if [ "$HAS_TSC_ISSUES" -ne 0 ]; then
+            echo "Found TypeScript compilation issues in: $PKG_DIR"
+            exit 1
+        fi
+    done
+
+fi
+
+# Rust specific pre-commit checks (*.rs files)
+STAGED_RS_FILES=$(git diff --name-only --staged -- "${RS_ALLOWEDPATH[@]}")
+if [ -n "$STAGED_RS_FILES" ]; then
+    if ! bash -c 'cargo --help' > /dev/null 2>&1; then
+        echo "cargo is not available. Cannot validate Rust files. Aborting commit."
+        exit 1
+    fi
+
+    declare -A CRATES_LIST
+    declare -A CRATES_DIRS
+
+    for FILE in $STAGED_RS_FILES; do
+        # skip files from external crates
+        if [[ "${FILE}" == *"external/"* ]]; then
+	    echo "skipped external file ${FILE}"
+            continue
+        fi
+
+        if [ -f "$FILE" ]; then
+            DIR=$(dirname "$FILE")
+            CARGO_PATH=$(cd "$DIR" && cargo locate-project --message-format=plain) || {
+                echo "Failed to locate Cargo.toml for $FILE. Aborting commit."
+                exit 1
+            }
+
+            # Read the crate name from "Cargo.toml".
+            #
+            CRATE_NAME=$(grep -m1 '^name\s*=' "$CARGO_PATH" | sed 's/.*=\s*"\([^"]*\)".*/\1/')
+            if [ -z "$CRATE_NAME" ]; then
+                echo "Failed to extract crate name from $CARGO_PATH. Aborting commit."
+                exit 1
+            fi
+
+            echo "Found crate: $CRATE_NAME in directory: $DIR"
+            CRATES_LIST["$CRATE_NAME"]=1
+            CRATES_DIRS["$CRATE_NAME"]="$DIR"
+        fi
+    done
+
+    # Run fmt, clippy, doc on each crate
+    #
+    # --- Formatting checks first (fast) ---
+    for CRATE in "${!CRATES_LIST[@]}"; do
+        echo "Checking format issues on crates: $CRATE"
+        (cd "${CRATES_DIRS[$CRATE]}" && cargo fmt -p "$CRATE" -- --check)
+        HAS_FMT_ISSUES="$?"
+        if [ "$HAS_FMT_ISSUES" -ne 0 ]; then
+            echo "Found fmt issues, use 'cd ${CRATES_DIRS[$CRATE]} && cargo fmt -p $CRATE' to fix."
+            exit 1
+        fi
+    done
+
+    # --- Build checks (clippy + doc) after all formatting passes ---
+    for CRATE in "${!CRATES_LIST[@]}"; do
+        echo "Running Clippy on crates: $CRATE"
+        (cd "${CRATES_DIRS[$CRATE]}" && cargo clippy --all-features --all-targets -p "$CRATE" -- --no-deps -Dwarnings)
+        HAS_CLIPPY_ISSUES="$?"
+        if [ "$HAS_CLIPPY_ISSUES" -ne 0 ]; then
+            echo "Found clippy issues, use 'cd ${CRATES_DIRS[$CRATE]} && cargo clippy --all-features --all-targets -p $CRATE -- --no-deps -Dwarnings' to check."
+            exit 1
+        fi
+
+        echo "Checking doc errors on crates: $CRATE"
+        (cd "${CRATES_DIRS[$CRATE]}" && cargo doc -p "$CRATE" --no-deps)
+        HAS_DOC_ISSUES="$?"
+        if [ "$HAS_DOC_ISSUES" -ne 0 ]; then
+            echo "Found doc issues, use 'cd ${CRATES_DIRS[$CRATE]} && cargo doc -p $CRATE --no-deps' to check."
+            exit 1
+        fi
+    done
+fi
+
+# Bash (shell) specific pre-commit checks (*.sh files)
+STAGED_SH_FILES=$(git diff --name-only --staged -- '*.sh')
+if [ -n "$STAGED_SH_FILES" ]; then
+    HAS_SC_ISSUES=0
+    FIRST_FILE=1
+    if bash -c 'shellcheck --help' > /dev/null 2>&1; then
+        echo "Checking shellcheck errors..."
+        for FILE in $STAGED_SH_FILES; do
+            SC_RESULT=$(shellcheck -e SC2312,SC2013,SC1091,SC1090 -S style -o all "${FILE}" 2>/dev/null || true)
+            if [ "$SC_RESULT" != "" ]; then
+                if [ $FIRST_FILE -eq 0 ]; then
+                    echo -n ", "
+                fi
+                echo -n "${FILE}"
+                HAS_SC_ISSUES=1
+                FIRST_FILE=0
+            fi
+        done
+    else
+        echo "Skipping shellcheck linter, no shellcheck binary present"
+    fi
+
+    if [ "$HAS_SC_ISSUES" -ne 0 ]; then
+        echo ". Found shellcheck issues in above files, use 'shellcheck -e SC2312,SC2013,SC1091,SC1090 -S style -o all FILENAME' to list"
+        exit 1
+    fi
+
+fi
+
+# Python specific pre-commit checks (*.py files)
+MODIFIED_PY_FILES=$(git diff --name-only --staged -- '*.py')
+if [ -n "$MODIFIED_PY_FILES" ]; then
+    if ! bash -c 'black --help' > /dev/null 2>&1; then
+        echo "Please install black for python formatting. Otherwise, commits are going to be rejected."
+        exit 1
+    fi
+
+    WORKSPACE_DIR=$(git rev-parse --show-toplevel)
+
+    # --- Formatting checks first (fast) ---
+
+    HAS_BLACK_ISSUES=0
+    FIRST_FILE=1
+    echo -n "Checking python format errors... "
+    for FILE in $MODIFIED_PY_FILES; do
+        BLACK_RESULT=$(black --diff "${WORKSPACE_DIR}/${FILE}" 2> /dev/null)
+        if [ "$BLACK_RESULT" != "" ]; then
+            if [ $FIRST_FILE -eq 0 ]; then
+                echo -n ", "
+            fi
+            echo -n "${FILE}"
+            HAS_BLACK_ISSUES=1
+            FIRST_FILE=0
+        fi
+    done
+
+    if [ "$HAS_BLACK_ISSUES" -ne 0 ]; then
+        echo ". Found python formatting issues in above files, use 'black --diff filename' to list and 'black filename' to fix these."
+        exit 1
+    else
+        echo ""
+    fi
+fi
+
+# Markdown specific pre-commit checks (*.md files)
+MODIFIED_MD_FILES=$(git diff --name-only --staged --diff-filter=ACMR -- '*.md')
+if [ -n "$MODIFIED_MD_FILES" ]; then
+    if command -v markdownlint-cli2 > /dev/null 2>&1; then
+        echo "Checking markdown lint errors..."
+        MD_LINT_TMPDIR=$(mktemp -d)
+        MD_LINT_PIDS=()
+        for FILE in $MODIFIED_MD_FILES; do
+            SAFE_NAME=$(echo "$FILE" | tr '/' '_')
+            markdownlint-cli2 "$FILE" > "$MD_LINT_TMPDIR/$SAFE_NAME" 2>&1 &
+            MD_LINT_PIDS+=($!)
+        done
+        for PID in "${MD_LINT_PIDS[@]}"; do
+            wait "$PID" 2>/dev/null || true
+        done
+        MD_LINT_OUTPUT=$(cat "$MD_LINT_TMPDIR"/* 2>/dev/null)
+        rm -rf "$MD_LINT_TMPDIR"
+        if [ -n "$MD_LINT_OUTPUT" ]; then
+            echo "$MD_LINT_OUTPUT"
+            echo ""
+            echo "Found markdownlint issues in the above files."
+            echo "Fix them manually or run 'markdownlint-cli2 --fix <file>' for auto-fixable rules."
+            exit 1
+        fi
+    else
+        echo "Skipping markdownlint check, no markdownlint-cli2 binary present."
+        echo "Install with: sudo npm install -g markdownlint-cli2"
+        echo "For real-time linting in VS Code, install the markdownlint extension:"
+        echo "  https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint"
+    fi
+fi
