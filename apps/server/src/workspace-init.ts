@@ -147,7 +147,8 @@ function mergePlugins(existing: string[], required: string[]): string[] {
 
 async function upsertPresetSkill(workspaceRoot: string, rawContent: string): Promise<void> {
   const { data, body } = parseFrontmatter(rawContent);
-  const name = data.name as string;
+  const name = typeof data.name === "string" ? data.name : "";
+  if (!name) throw new Error("Preset skill missing 'name' in frontmatter");
   const newVersion = typeof data.aurowork_builtin_version === "number" ? data.aurowork_builtin_version : 0;
 
   const skillDir = join(projectSkillsDir(workspaceRoot), name);
