@@ -12,7 +12,12 @@
     "noEmit": true,
     "strict": true,
     "skipLibCheck": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "noLib": false,            // Keeps the basic JS library types (like Array, String)
+    "maxNodeModuleJsDepth": 0  // Prevents tsc from searching inside node_modules
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts"],
+  "exclude": [
+    "node_modules"             // Explicitly tells tsc not to look in this folder
+  ]
 }
