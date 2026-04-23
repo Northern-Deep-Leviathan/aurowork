@@ -78,6 +78,9 @@ jobs:
           TAG="${{ needs.prepare.outputs.release_tag }}"
           NAME="${{ needs.prepare.outputs.release_name }}"
 
+          echo "Release tag: $TAG"
+          echo "Release name: $NAME"
+
           # Check if release already exists
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG already exists — skipping."
@@ -212,6 +215,7 @@ jobs:
         run: |
           set -euo pipefail
 
+          echo "Installed OpenCode version: $PINNED_OPENCODE_VERSION"
           repo="${OPENCODE_GITHUB_REPO:-anomalyco/opencode}"
           asset="${{ matrix.opencode_asset }}"
           url="https://github.com/${repo}/releases/download/v${PINNED_OPENCODE_VERSION}/${asset}"
