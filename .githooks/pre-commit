@@ -2,6 +2,20 @@
 
 FIRST_FILE=1
 
+# ---------- pnpm lockfile consistency check ----------
+# Detect if any package.json or pnpm-lock.yaml changed; if so, verify lockfile is in sync.
+STAGED_PKG_FILES=$(git diff --name-only --staged -- '**/package.json' 'pnpm-lock.yaml')
+if [ -n "$STAGED_PKG_FILES" ]; then
+    echo "Checking pnpm lockfile consistency..."
+    if ! bash -c 'pnpm install --frozen-lockfile --prefer-offline' > /dev/null 2>&1; then
+        echo ""
+        echo "ERROR: pnpm lockfile is out of sync with package.json dependencies."
+        echo "Please check and verify newly updated dependencies carefully. Once verified, please step into the next."
+        echo "Run 'pnpm install --no-frozen-lockfile' to update pnpm-lock.yaml, then stage and commit it."
+        exit 1
+    fi
+fi
+
 # ---------- Allowed folders for TS / Rust checks ----------
 # Add new folders here to extend pre-commit coverage.
 CHECKED_DIRS=("apps")
