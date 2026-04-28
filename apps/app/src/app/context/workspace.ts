@@ -36,7 +36,7 @@ import { downloadDir, homeDir } from "@tauri-apps/api/path";
 import {
   engineDoctor,
   engineInfo,
-  opencodeDbMigrate,
+  auroDbMigrate,
   engineInstall,
   engineStart,
   engineStop,
@@ -3057,7 +3057,7 @@ export function createWorkspaceStore(options: {
       }
 
       const source = options.engineSource();
-      const result = await opencodeDbMigrate({
+      const result = await auroDbMigrate({
         projectDir: root,
         preferSidecar: source === "sidecar",
         opencodeBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,

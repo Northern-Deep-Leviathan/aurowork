@@ -27,8 +27,8 @@ use commands::engine::{
 };
 use commands::fs::{fs_close_file, fs_read_dir, fs_read_file, fs_write_file};
 use commands::misc::{
-    app_build_info, nuke_aurowork_and_opencode_config_and_exit, opencode_db_migrate,
-    opencode_mcp_auth, reset_aurowork_state, reset_opencode_cache,
+    app_build_info, nuke_aurowork_and_auro_config_and_exit, auro_db_migrate,
+    auro_mcp_auth, reset_aurowork_state, reset_auro_cache,
 };
 use commands::opkg::{import_skill, opkg_install};
 use commands::orchestrator::{
@@ -197,11 +197,11 @@ pub fn run() {
             write_auro_config,
             updater_environment,
             app_build_info,
-            nuke_aurowork_and_opencode_config_and_exit,
+            nuke_aurowork_and_auro_config_and_exit,
             reset_aurowork_state,
-            reset_opencode_cache,
-            opencode_db_migrate,
-            opencode_mcp_auth,
+            reset_auro_cache,
+            auro_db_migrate,
+            auro_mcp_auth,
             set_window_decorations,
             debug_log_append,
             debug_log_clear,

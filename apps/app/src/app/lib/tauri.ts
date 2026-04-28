@@ -449,8 +449,8 @@ export async function appBuildInfo(): Promise<AppBuildInfo> {
   return invoke<AppBuildInfo>("app_build_info");
 }
 
-export async function nukeAuroworkAndOpencodeConfigAndExit(): Promise<void> {
-  return invoke<void>("nuke_aurowork_and_opencode_config_and_exit");
+export async function nukeAuroworkAndAuroConfigAndExit(): Promise<void> {
+  return invoke<void>("nuke_aurowork_and_auro_config_and_exit");
 }
 
 export type OrchestratorDetachedHost = {
@@ -660,11 +660,11 @@ export type CacheResetResult = {
   errors: string[];
 };
 
-export async function resetOpencodeCache(): Promise<CacheResetResult> {
-  return invoke<CacheResetResult>("reset_opencode_cache");
+export async function resetAuroCache(): Promise<CacheResetResult> {
+  return invoke<CacheResetResult>("reset_auro_cache");
 }
 
-export async function opencodeDbMigrate(input: {
+export async function auroDbMigrate(input: {
   projectDir: string;
   preferSidecar?: boolean;
   opencodeBinPath?: string | null;
@@ -674,14 +674,14 @@ export async function opencodeDbMigrate(input: {
     throw new Error("project_dir is required");
   }
 
-  return invoke<ExecResult>("opencode_db_migrate", {
+  return invoke<ExecResult>("auro_db_migrate", {
     projectDir: safeProjectDir,
     preferSidecar: input.preferSidecar ?? false,
     opencodeBinPath: input.opencodeBinPath ?? null,
   });
 }
 
-export async function opencodeMcpAuth(
+export async function auroMcpAuth(
   projectDir: string,
   serverName: string,
 ): Promise<ExecResult> {
@@ -692,7 +692,7 @@ export async function opencodeMcpAuth(
 
   const safeServerName = validateMcpServerName(serverName);
 
-  return invoke<ExecResult>("opencode_mcp_auth", {
+  return invoke<ExecResult>("auro_mcp_auth", {
     projectDir: safeProjectDir,
     serverName: safeServerName,
   });

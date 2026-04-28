@@ -77,7 +77,7 @@ import type {
 import {
   appBuildInfo,
   engineRestart,
-  nukeAuroworkAndOpencodeConfigAndExit,
+  nukeAuroworkAndAuroConfigAndExit,
   auroworkServerRestart,
   pickFile,
 } from "../lib/tauri";
@@ -1292,7 +1292,7 @@ export default function SettingsView(props: SettingsViewProps) {
         window.requestAnimationFrame(() => resolve());
       });
 
-      await nukeAuroworkAndOpencodeConfigAndExit();
+      await nukeAuroworkAndAuroConfigAndExit();
       setNukeConfigStatus(
         translate("settings.nuke_success"),
       );

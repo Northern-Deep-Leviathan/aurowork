@@ -329,7 +329,7 @@ fn resolve_auro_program(
 }
 
 #[tauri::command]
-pub fn reset_opencode_cache() -> Result<CacheResetResult, String> {
+pub fn reset_auro_cache() -> Result<CacheResetResult, String> {
     let candidates = auro_cache_candidates();
     let mut removed = Vec::new();
     let mut missing = Vec::new();
@@ -415,7 +415,7 @@ pub fn app_build_info(app: AppHandle) -> AppBuildInfo {
 }
 
 #[tauri::command]
-pub fn nuke_aurowork_and_opencode_config_and_exit(
+pub fn nuke_aurowork_and_auro_config_and_exit(
     app: AppHandle,
     engine_manager: State<EngineManager>,
     orchestrator_manager: State<OrchestratorManager>,
@@ -447,7 +447,7 @@ pub fn nuke_aurowork_and_opencode_config_and_exit(
 }
 
 #[tauri::command]
-pub fn opencode_db_migrate(
+pub fn auro_db_migrate(
     app: AppHandle,
     project_dir: String,
     prefer_sidecar: Option<bool>,
@@ -480,7 +480,7 @@ pub fn opencode_db_migrate(
 /// Run `opencode mcp auth <server_name>` in the given project directory.
 /// This spawns the process detached so the OAuth flow can open a browser.
 #[tauri::command]
-pub fn opencode_mcp_auth(
+pub fn auro_mcp_auth(
     app: AppHandle,
     project_dir: String,
     server_name: String,
