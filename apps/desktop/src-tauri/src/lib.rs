@@ -20,7 +20,7 @@ use commands::aurowork_server::{aurowork_server_info, aurowork_server_restart};
 use commands::command_files::{
     auro_command_delete, auro_command_list, auro_command_write,
 };
-use commands::config::{read_opencode_config, write_opencode_config};
+use commands::config::{read_auro_config, write_auro_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
@@ -193,8 +193,8 @@ pub fn run() {
             read_local_skill,
             uninstall_skill,
             write_local_skill,
-            read_opencode_config,
-            write_opencode_config,
+            read_auro_config,
+            write_auro_config,
             updater_environment,
             app_build_info,
             nuke_aurowork_and_opencode_config_and_exit,

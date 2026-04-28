@@ -214,8 +214,8 @@ import { useGlobalSync } from "./context/global-sync";
 import { createWorkspaceStore } from "./context/workspace";
 import {
   updaterEnvironment,
-  readOpencodeConfig,
-  writeOpencodeConfig,
+  readAuroConfig,
+  writeAuroConfig,
   auroworkServerRestart,
   auroworkServerInfo,
   orchestratorStatus,
@@ -6146,7 +6146,7 @@ export default function App() {
           },
         });
       } else {
-        const config = await readOpencodeConfig("project", projectDir);
+        const config = await readAuroConfig("project", projectDir);
         const raw = config.content ?? "";
         const nextConfig = raw.trim()
           ? (parse(raw) as Record<string, unknown>)
@@ -6164,7 +6164,7 @@ export default function App() {
         nextConfig.mcp = mcp;
         const formatted = JSON.stringify(nextConfig, null, 2);
 
-        const result = await writeOpencodeConfig("project", projectDir, `${formatted}\n`);
+        const result = await writeAuroConfig("project", projectDir, `${formatted}\n`);
         if (!result.ok) {
           throw new Error(result.stderr || result.stdout || "Failed to update opencode.json");
         }
@@ -6296,7 +6296,7 @@ export default function App() {
 
     try {
       setMcpStatus(null);
-      const config = await readOpencodeConfig("project", projectDir);
+      const config = await readAuroConfig("project", projectDir);
       if (!config.exists || !config.content) {
         setMcpServers([]);
         setMcpStatuses({});
@@ -6339,12 +6339,12 @@ export default function App() {
       resolvedAuroworkCapabilities()?.config?.read;
 
     if (canUseAuroworkServer && auroworkClient && auroworkWorkspaceId) {
-      return auroworkClient.readOpencodeConfigFile(auroworkWorkspaceId, scope);
+      return auroworkClient.readAuroConfigFile(auroworkWorkspaceId, scope);
     }
     if (!isTauriRuntime()) {
       return null;
     }
-    return readOpencodeConfig(scope, projectDir);
+    return readAuroConfig(scope, projectDir);
   };
 
   async function connectMcp(entry: (typeof MCP_QUICK_CONNECT)[number]) {
@@ -6497,7 +6497,7 @@ export default function App() {
           config: mcpEntryConfig,
         });
       } else {
-        const configFile = await readOpencodeConfig("project", resolvedProjectDir);
+        const configFile = await readAuroConfig("project", resolvedProjectDir);
 
         let existingConfig: Record<string, unknown> = {};
         if (configFile.exists && configFile.content?.trim()) {
@@ -6519,7 +6519,7 @@ export default function App() {
         existingConfig["mcp"] = mcpSection;
         mcpSection[slug] = mcpEntryConfig;
 
-        const writeResult = await writeOpencodeConfig(
+        const writeResult = await writeAuroConfig(
           "project",
           resolvedProjectDir,
           `${JSON.stringify(existingConfig, null, 2)}\n`
@@ -7372,7 +7372,7 @@ export default function App() {
           }
         } else if (isTauriRuntime()) {
           try {
-            const configFile = await readOpencodeConfig("project", workspaceRoot);
+            const configFile = await readAuroConfig("project", workspaceRoot);
             configFileContent = configFile.content;
             configDefault = parseDefaultModelFromConfig(configFile.content);
           } catch {
@@ -7450,12 +7450,12 @@ export default function App() {
           return;
         }
 
-        const configFile = await readOpencodeConfig("project", root);
+        const configFile = await readAuroConfig("project", root);
         const existingModel = parseDefaultModelFromConfig(configFile.content);
         if (existingModel && modelEquals(existingModel, nextModel)) return;
 
         const content = formatConfigWithDefaultModel(configFile.content, nextModel);
-        const result = await writeOpencodeConfig("project", root, content);
+        const result = await writeAuroConfig("project", root, content);
         if (!result.ok) {
           throw new Error(result.stderr || result.stdout || "Failed to update opencode.json");
         }

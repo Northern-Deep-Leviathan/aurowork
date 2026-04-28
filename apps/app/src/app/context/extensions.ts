@@ -21,9 +21,9 @@ import {
   uninstallSkill as uninstallSkillCommand,
   writeLocalSkill,
   pickDirectory,
-  readOpencodeConfig,
-  writeOpencodeConfig,
-  type OpencodeConfigFile,
+  readAuroConfig,
+  writeAuroConfig,
+  type AuroConfigFile,
 } from "../lib/tauri";
 import type {
   AuroworkHubRepo,
@@ -101,7 +101,7 @@ export function createExtensionsStore(options: {
   };
 
   const [pluginScope, setPluginScope] = createSignal<PluginScope>("project");
-  const [pluginConfig, setPluginConfig] = createSignal<OpencodeConfigFile | null>(null);
+  const [pluginConfig, setPluginConfig] = createSignal<AuroConfigFile | null>(null);
   const [pluginConfigPath, setPluginConfigPath] = createSignal<string | null>(null);
   const [pluginList, setPluginList] = createSignal<string[]>([]);
   const [pluginInput, setPluginInput] = createSignal("");
@@ -361,7 +361,7 @@ export function createExtensionsStore(options: {
   const isPluginInstalledByName = (pluginName: string, aliases: string[] = []) =>
     isPluginInstalled(pluginList(), pluginName, aliases);
 
-  const loadPluginsFromConfig = (config: OpencodeConfigFile | null) => {
+  const loadPluginsFromConfig = (config: AuroConfigFile | null) => {
     loadPluginsFromConfigHelpers(config, setPluginList, (message) => setPluginStatus(message));
   };
 
@@ -650,7 +650,7 @@ export function createExtensionsStore(options: {
 
       if (refreshPluginsAborted) return;
 
-      const config = await readOpencodeConfig(scope, targetDir);
+      const config = await readAuroConfig(scope, targetDir);
 
       if (refreshPluginsAborted) return;
 
@@ -749,7 +749,7 @@ export function createExtensionsStore(options: {
 
     try {
       setPluginStatus(null);
-      const config = await readOpencodeConfig(scope, targetDir);
+      const config = await readAuroConfig(scope, targetDir);
       const raw = config.content ?? "";
 
       if (!raw.trim()) {
@@ -757,7 +757,7 @@ export function createExtensionsStore(options: {
           $schema: "https://opencode.ai/config.json",
           plugin: [pluginName],
         };
-        await writeOpencodeConfig(scope, targetDir, `${JSON.stringify(payload, null, 2)}\n`);
+        await writeAuroConfig(scope, targetDir, `${JSON.stringify(payload, null, 2)}\n`);
         options.markReloadRequired?.("plugins", { type: "plugin", name: triggerName, action: "added" });
         if (isManualInput) {
           setPluginInput("");
@@ -780,7 +780,7 @@ export function createExtensionsStore(options: {
       });
       const updated = applyEdits(raw, edits);
 
-      await writeOpencodeConfig(scope, targetDir, updated);
+      await writeAuroConfig(scope, targetDir, updated);
       options.markReloadRequired?.("plugins", { type: "plugin", name: triggerName, action: "added" });
       if (isManualInput) {
         setPluginInput("");
@@ -843,7 +843,7 @@ export function createExtensionsStore(options: {
 
     try {
       setPluginStatus(null);
-      const config = await readOpencodeConfig(scope, targetDir);
+      const config = await readAuroConfig(scope, targetDir);
       const raw = config.content ?? "";
       if (!raw.trim()) {
         setPluginStatus("No plugins configured yet.");
@@ -862,7 +862,7 @@ export function createExtensionsStore(options: {
         formattingOptions: { insertSpaces: true, tabSize: 2 },
       });
       const updated = applyEdits(raw, edits);
-      await writeOpencodeConfig(scope, targetDir, updated);
+      await writeAuroConfig(scope, targetDir, updated);
       options.markReloadRequired?.("plugins", { type: "plugin", name: triggerName, action: "removed" });
       await refreshPlugins(scope);
     } catch (e) {

@@ -618,7 +618,7 @@ export async function uninstallSkill(projectDir: string, name: string): Promise<
   return invoke<ExecResult>("uninstall_skill", { projectDir, name });
 }
 
-export type OpencodeConfigFile = {
+export type AuroConfigFile = {
   path: string;
   exists: boolean;
   content: string | null;
@@ -635,19 +635,19 @@ export async function updaterEnvironment(): Promise<UpdaterEnvironment> {
   return invoke<UpdaterEnvironment>("updater_environment");
 }
 
-export async function readOpencodeConfig(
+export async function readAuroConfig(
   scope: "project" | "global",
   projectDir: string,
-): Promise<OpencodeConfigFile> {
-  return invoke<OpencodeConfigFile>("read_opencode_config", { scope, projectDir });
+): Promise<AuroConfigFile> {
+  return invoke<AuroConfigFile>("read_auro_config", { scope, projectDir });
 }
 
-export async function writeOpencodeConfig(
+export async function writeAuroConfig(
   scope: "project" | "global",
   projectDir: string,
   content: string,
 ): Promise<ExecResult> {
-  return invoke<ExecResult>("write_opencode_config", { scope, projectDir, content });
+  return invoke<ExecResult>("write_auro_config", { scope, projectDir, content });
 }
 
 export async function resetAuroworkState(mode: "onboarding" | "all"): Promise<void> {

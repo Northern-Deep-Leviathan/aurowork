@@ -1,6 +1,6 @@
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { isTauriRuntime } from "../utils";
-import type { ExecResult, OpencodeConfigFile, WorkspaceInfo, WorkspaceList } from "./tauri";
+import type { ExecResult, AuroConfigFile, WorkspaceInfo, WorkspaceList } from "./tauri";
 
 export type AuroworkServerCapabilities = {
   skills: { read: boolean; write: boolean; source: "aurowork" | "opencode" };
@@ -1059,14 +1059,14 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
         method: "PATCH",
         body: payload,
       }),
-    readOpencodeConfigFile: (workspaceId: string, scope: "project" | "global" = "project") => {
+    readAuroConfigFile: (workspaceId: string, scope: "project" | "global" = "project") => {
       const query = `?scope=${scope}`;
-      return requestJson<OpencodeConfigFile>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/opencode-config${query}`, {
+      return requestJson<AuroConfigFile>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/opencode-config${query}`, {
         token,
         hostToken,
       });
     },
-    writeOpencodeConfigFile: (workspaceId: string, scope: "project" | "global", content: string) =>
+    writeAuroConfigFile: (workspaceId: string, scope: "project" | "global", content: string) =>
       requestJson<ExecResult>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/opencode-config`, {
         token,
         hostToken,
