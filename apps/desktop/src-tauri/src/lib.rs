@@ -217,7 +217,7 @@ pub fn run() {
     // running after the UI quits (especially during dev), leading to multiple
     // orchestrator/opencode/aurowork-server processes and stale ports.
     app.run(|app_handle, event| match event {
-        RunEvent::ExitRequested { .. } | RunEvent::Exit => stop_managed_services(&app_handle),
+        RunEvent::ExitRequested { .. } | RunEvent::Exit => stop_managed_services(app_handle),
         #[cfg(target_os = "macos")]
         RunEvent::WindowEvent {
             label,

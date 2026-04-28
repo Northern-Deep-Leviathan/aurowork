@@ -65,53 +65,6 @@ pub fn resolve_aurowork_port(
     Err("Failed to find a free AuroWork server port".to_string())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{resolve_aurowork_port, AUROWORK_PORT_RANGE_END, AUROWORK_PORT_RANGE_START};
-    use std::collections::HashSet;
-    use std::net::TcpListener;
-
-    #[test]
-    fn uses_preferred_port_when_available() {
-        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind test listener");
-        let port = listener.local_addr().expect("listener addr").port();
-        drop(listener);
-
-        let resolved = resolve_aurowork_port("127.0.0.1", Some(port), &HashSet::new())
-            .expect("resolve preferred port");
-        assert_eq!(resolved, port);
-    }
-
-    #[test]
-    fn falls_back_to_ephemeral_port_when_preferred_port_is_unavailable() {
-        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind preferred port");
-        let preferred_port = listener.local_addr().expect("listener addr").port();
-        let resolved = resolve_aurowork_port("127.0.0.1", Some(preferred_port), &HashSet::new())
-            .expect("resolve fallback port");
-        assert_ne!(resolved, preferred_port);
-        drop(listener);
-    }
-
-    #[test]
-    fn uses_range_port_when_no_preference_exists() {
-        let resolved =
-            resolve_aurowork_port("127.0.0.1", None, &HashSet::new()).expect("resolve range port");
-        assert!(resolved >= AUROWORK_PORT_RANGE_START);
-        assert!(resolved <= AUROWORK_PORT_RANGE_END);
-    }
-
-    #[test]
-    fn skips_reserved_ports_from_other_workspaces() {
-        let reserved = HashSet::from([AUROWORK_PORT_RANGE_START]);
-        let resolved =
-            resolve_aurowork_port("127.0.0.1", Some(AUROWORK_PORT_RANGE_START), &reserved)
-                .expect("resolve non-reserved port");
-        assert_ne!(resolved, AUROWORK_PORT_RANGE_START);
-        assert!(resolved >= AUROWORK_PORT_RANGE_START);
-        assert!(resolved <= AUROWORK_PORT_RANGE_END);
-    }
-}
-
 pub fn build_aurowork_args(
     host: &str,
     port: u16,
@@ -193,7 +146,7 @@ pub fn spawn_aurowork_server(
     );
     let cwd = workspace_paths
         .first()
-        .map(|path| Path::new(path))
+        .map(Path::new)
         .unwrap_or_else(|| Path::new("."));
     let mut command = command.args(args).current_dir(cwd);
 
@@ -216,4 +169,51 @@ pub fn spawn_aurowork_server(
     command
         .spawn()
         .map_err(|e| format!("Failed to start AuroWork server: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{resolve_aurowork_port, AUROWORK_PORT_RANGE_END, AUROWORK_PORT_RANGE_START};
+    use std::collections::HashSet;
+    use std::net::TcpListener;
+
+    #[test]
+    fn uses_preferred_port_when_available() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind test listener");
+        let port = listener.local_addr().expect("listener addr").port();
+        drop(listener);
+
+        let resolved = resolve_aurowork_port("127.0.0.1", Some(port), &HashSet::new())
+            .expect("resolve preferred port");
+        assert_eq!(resolved, port);
+    }
+
+    #[test]
+    fn falls_back_to_ephemeral_port_when_preferred_port_is_unavailable() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind preferred port");
+        let preferred_port = listener.local_addr().expect("listener addr").port();
+        let resolved = resolve_aurowork_port("127.0.0.1", Some(preferred_port), &HashSet::new())
+            .expect("resolve fallback port");
+        assert_ne!(resolved, preferred_port);
+        drop(listener);
+    }
+
+    #[test]
+    fn uses_range_port_when_no_preference_exists() {
+        let resolved =
+            resolve_aurowork_port("127.0.0.1", None, &HashSet::new()).expect("resolve range port");
+        assert!(resolved >= AUROWORK_PORT_RANGE_START);
+        assert!(resolved <= AUROWORK_PORT_RANGE_END);
+    }
+
+    #[test]
+    fn skips_reserved_ports_from_other_workspaces() {
+        let reserved = HashSet::from([AUROWORK_PORT_RANGE_START]);
+        let resolved =
+            resolve_aurowork_port("127.0.0.1", Some(AUROWORK_PORT_RANGE_START), &reserved)
+                .expect("resolve non-reserved port");
+        assert_ne!(resolved, AUROWORK_PORT_RANGE_START);
+        assert!(resolved >= AUROWORK_PORT_RANGE_START);
+        assert!(resolved <= AUROWORK_PORT_RANGE_END);
+    }
 }

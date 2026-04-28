@@ -454,8 +454,7 @@ pub fn opencode_db_migrate(
     auro_bin_path: Option<String>,
 ) -> Result<ExecResult, String> {
     let project_dir = validate_project_dir(&app, &project_dir)?;
-    let program =
-        resolve_opencode_program(&app, prefer_sidecar.unwrap_or(false), auro_bin_path)?;
+    let program = resolve_opencode_program(&app, prefer_sidecar.unwrap_or(false), auro_bin_path)?;
 
     let mut command = command_for_program(&program);
     for (key, value) in crate::bun_env::bun_env_overrides() {

@@ -2,8 +2,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use crate::engine::paths::{
-    resolve_auro_env_override, resolve_auro_executable,
-    resolve_auro_executable_without_override,
+    resolve_auro_env_override, resolve_auro_executable, resolve_auro_executable_without_override,
 };
 use crate::platform::command_for_program;
 use crate::utils::truncate_output;

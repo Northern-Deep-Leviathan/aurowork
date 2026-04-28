@@ -183,10 +183,11 @@ fn ensure_orchestrator_sidecar() {
         return;
     }
 
-    if target_dest_path.exists() && !dest_path.exists() {
-        if copy_sidecar(&target_dest_path, &dest_path, &target) {
-            return;
-        }
+    if target_dest_path.exists()
+        && !dest_path.exists()
+        && copy_sidecar(&target_dest_path, &dest_path, &target)
+    {
+        return;
     }
 
     let source_path = env::var("AUROWORK_ORCHESTRATOR_BIN_PATH")
@@ -280,10 +281,11 @@ fn ensure_auro_sidecar() {
         return;
     }
 
-    if target_dest_path.exists() && !dest_path.exists() {
-        if copy_sidecar(&target_dest_path, &dest_path, &target) {
-            return;
-        }
+    if target_dest_path.exists()
+        && !dest_path.exists()
+        && copy_sidecar(&target_dest_path, &dest_path, &target)
+    {
+        return;
     }
 
     let source_path = env::var("AURO_BIN_PATH")
@@ -300,9 +302,9 @@ fn ensure_auro_sidecar() {
 
     let Some(source_path) = source_path else {
         println!(
-      "cargo:warning=Auro sidecar missing at {} (set AURO_BIN_PATH or install Auro)",
-      dest_path.display()
-    );
+            "cargo:warning=Auro sidecar missing at {} (set AURO_BIN_PATH or install Auro)",
+            dest_path.display()
+        );
 
         create_debug_stub(&dest_path, &sidecar_dir, &profile, &target);
         return;
@@ -362,10 +364,8 @@ fn ensure_aurowork_server_sidecar() {
         return;
     }
 
-    if target_dest_path.exists() {
-        if copy_sidecar(&target_dest_path, &dest_path, &target) {
-            return;
-        }
+    if target_dest_path.exists() && copy_sidecar(&target_dest_path, &dest_path, &target) {
+        return;
     }
 
     let source_path = env::var("AUROWORK_SERVER_BIN_PATH")
@@ -427,10 +427,8 @@ fn copy_sidecar(source_path: &PathBuf, dest_path: &PathBuf, target: &str) -> boo
     let mut copied = fs::copy(source_path, dest_path).is_ok();
 
     #[cfg(unix)]
-    if !copied {
-        if std::os::unix::fs::symlink(source_path, dest_path).is_ok() {
-            copied = true;
-        }
+    if !copied && std::os::unix::fs::symlink(source_path, dest_path).is_ok() {
+        copied = true;
     }
 
     #[cfg(windows)]

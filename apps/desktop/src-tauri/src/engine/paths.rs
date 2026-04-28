@@ -44,8 +44,7 @@ pub fn candidate_auro_paths() -> Vec<PathBuf> {
             candidates.push(scoop.join(AURO_CMD));
         }
 
-        candidates
-            .push(PathBuf::from("C:\\ProgramData\\chocolatey\\bin").join(AURO_EXECUTABLE));
+        candidates.push(PathBuf::from("C:\\ProgramData\\chocolatey\\bin").join(AURO_EXECUTABLE));
         candidates.push(PathBuf::from("C:\\ProgramData\\chocolatey\\bin").join(AURO_CMD));
     }
 
@@ -81,9 +80,7 @@ pub(crate) fn resolve_auro_env_override() -> (Option<PathBuf>, Vec<String>) {
     (None, notes)
 }
 
-fn resolve_auro_executable_impl(
-    mut notes: Vec<String>,
-) -> (Option<PathBuf>, bool, Vec<String>) {
+fn resolve_auro_executable_impl(mut notes: Vec<String>) -> (Option<PathBuf>, bool, Vec<String>) {
     if let Some(path) = resolve_in_path(AURO_EXECUTABLE) {
         notes.push(format!("Found in PATH: {}", path.display()));
         return (Some(path), true, notes);
@@ -120,7 +117,6 @@ pub fn resolve_auro_executable() -> (Option<PathBuf>, bool, Vec<String>) {
     resolve_auro_executable_impl(notes)
 }
 
-pub(crate) fn resolve_auro_executable_without_override() -> (Option<PathBuf>, bool, Vec<String>)
-{
+pub(crate) fn resolve_auro_executable_without_override() -> (Option<PathBuf>, bool, Vec<String>) {
     resolve_auro_executable_impl(Vec::new())
 }

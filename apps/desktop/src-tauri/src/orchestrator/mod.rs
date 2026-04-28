@@ -32,7 +32,7 @@ pub struct OrchestratorStateFile {
     #[allow(dead_code)]
     pub version: Option<u32>,
     pub daemon: Option<OrchestratorDaemonState>,
-    pub opencode: Option<OrchestratorAuroState>,
+    pub auro: Option<OrchestratorAuroState>,
     pub cli_version: Option<String>,
     pub sidecar: Option<OrchestratorSidecarInfo>,
     pub binaries: Option<OrchestratorBinaryState>,
@@ -312,7 +312,7 @@ pub fn orchestrator_status_from_state(
         running: false,
         data_dir: data_dir.to_string(),
         daemon: state.as_ref().and_then(|state| state.daemon.clone()),
-        auro: state.as_ref().and_then(|state| state.opencode.clone()),
+        auro: state.as_ref().and_then(|state| state.auro.clone()),
         cli_version: state.as_ref().and_then(|state| state.cli_version.clone()),
         sidecar: state.as_ref().and_then(|state| state.sidecar.clone()),
         binaries: state.as_ref().and_then(|state| state.binaries.clone()),
