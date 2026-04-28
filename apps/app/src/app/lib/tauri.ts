@@ -163,8 +163,8 @@ export async function engineStart(
   return invoke<EngineInfo>("engine_start", {
     projectDir,
     preferSidecar: options?.preferSidecar ?? false,
-    opencodeBinPath: options?.opencodeBinPath ?? null,
-    opencodeEnableExa: options?.opencodeEnableExa ?? null,
+    auroBinPath: options?.opencodeBinPath ?? null,
+    auroEnableExa: options?.opencodeEnableExa ?? null,
     auroworkRemoteAccess: options?.auroworkRemoteAccess ?? null,
     runtime: options?.runtime ?? null,
     workspacePaths: options?.workspacePaths ?? null,

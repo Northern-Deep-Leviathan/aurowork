@@ -8,7 +8,7 @@ use std::os::unix::fs::PermissionsExt;
 
 fn main() {
     emit_build_info();
-    ensure_opencode_sidecar();
+    ensure_auro_sidecar();
     ensure_aurowork_server_sidecar();
     ensure_orchestrator_sidecar();
     ensure_chrome_devtools_mcp_sidecar();
@@ -240,7 +240,7 @@ fn ensure_orchestrator_sidecar() {
     }
 }
 
-fn ensure_opencode_sidecar() {
+fn ensure_auro_sidecar() {
     let target = env::var("CARGO_CFG_TARGET_TRIPLE")
         .or_else(|_| env::var("TARGET"))
         .or_else(|_| env::var("TAURI_ENV_TARGET_TRIPLE"))
@@ -255,12 +255,12 @@ fn ensure_opencode_sidecar() {
     let sidecar_dir = manifest_dir.join("sidecars");
 
     let canonical_name = if target.contains("windows") {
-        "opencode.exe"
+        "auro.exe"
     } else {
-        "opencode"
+        "auro"
     };
 
-    let mut target_name = format!("opencode-{target}");
+    let mut target_name = format!("auro-{target}");
     if target.contains("windows") {
         target_name.push_str(".exe");
     }
@@ -286,21 +286,21 @@ fn ensure_opencode_sidecar() {
         }
     }
 
-    let source_path = env::var("OPENCODE_BIN_PATH")
+    let source_path = env::var("AURO_BIN_PATH")
         .ok()
         .map(PathBuf::from)
         .filter(|path| path.is_file())
         .or_else(|| {
             find_in_path(if target.contains("windows") {
-                "opencode.exe"
+                "auro.exe"
             } else {
-                "opencode"
+                "auro"
             })
         });
 
     let Some(source_path) = source_path else {
         println!(
-      "cargo:warning=OpenCode sidecar missing at {} (set OPENCODE_BIN_PATH or install OpenCode)",
+      "cargo:warning=Auro sidecar missing at {} (set AURO_BIN_PATH or install Auro)",
       dest_path.display()
     );
 
@@ -322,7 +322,7 @@ fn ensure_opencode_sidecar() {
         let _ = copy_sidecar(&dest_path, &target_dest_path, &target);
     } else {
         println!(
-            "cargo:warning=Failed to copy OpenCode sidecar from {} to {}",
+            "cargo:warning=Failed to copy Aruo sidecar from {} to {}",
             source_path.display(),
             dest_path.display()
         );

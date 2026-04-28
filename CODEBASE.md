@@ -392,7 +392,7 @@ The desktop shell manages **three independent sidecar processes**:
 - Binary bundled at `src-tauri/sidecars/opencode[-<target-triple>]`
 - CLI: `opencode serve --hostname 127.0.0.1 --port <free_port> --cors *`
 - Environment: `OPENCODE_CLIENT=aurowork`, `AUROWORK=1`, random 512-char UUID-chain credentials (`OPENCODE_SERVER_USERNAME/PASSWORD`)
-- **Binary resolution order:** `OPENCODE_BIN_PATH` env -> bundled sidecar -> PATH -> well-known locations (`~/.opencode/bin`, `/opt/homebrew/bin`, npm globals, scoop, chocolatey)
+- **Binary resolution order:** `AURO_BIN_PATH` env -> bundled sidecar -> PATH -> well-known locations (`~/.opencode/bin`, `/opt/homebrew/bin`, npm globals, scoop, chocolatey)
 
 #### B. `aurowork-orchestrator` (process manager)
 
@@ -1350,7 +1350,7 @@ OpenCode Engine
 
 | Variable | Component | Description |
 |----------|-----------|-------------|
-| `OPENCODE_BIN_PATH` | Desktop/Orchestrator | Override opencode binary path |
+| `AURO_BIN_PATH` | Desktop/Orchestrator | Override opencode binary path |
 | `OPENCODE_CLIENT` | Engine | Set to `aurowork` |
 | `AUROWORK_WORKSPACE` | Orchestrator | Working directory override |
 | `AUROWORK_DATA_DIR` | Orchestrator | State directory |

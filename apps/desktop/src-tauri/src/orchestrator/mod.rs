@@ -20,8 +20,8 @@ pub mod manager;
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrchestratorAuthFile {
-    pub opencode_username: Option<String>,
-    pub opencode_password: Option<String>,
+    pub auro_username: Option<String>,
+    pub auro_password: Option<String>,
     pub project_dir: Option<String>,
     pub updated_at: Option<u64>,
 }
@@ -46,7 +46,7 @@ pub struct OrchestratorStateFile {
 pub struct OrchestratorHealth {
     pub ok: bool,
     pub daemon: Option<OrchestratorDaemonState>,
-    pub opencode: Option<OrchestratorOpencodeState>,
+    pub auro: Option<OrchestratorOpencodeState>,
     pub cli_version: Option<String>,
     pub sidecar: Option<OrchestratorSidecarInfo>,
     pub binaries: Option<OrchestratorBinaryState>,

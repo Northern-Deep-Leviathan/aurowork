@@ -145,12 +145,12 @@ pub fn engine_info(
         // EngineManager state (including opencode basic auth) is lost. Persist a small
         // auth snapshot next to aurowork-orchestrator-state.json so the UI can reconnect.
         let auth_snapshot = orchestrator::read_orchestrator_auth(&data_dir);
-        let opencode_username = state.opencode_username.clone().or_else(|| {
+        let auro_username = state.auro_username.clone().or_else(|| {
             auth_snapshot
                 .as_ref()
                 .and_then(|auth| auth.opencode_username.clone())
         });
-        let opencode_password = state.opencode_password.clone().or_else(|| {
+        let auro_password = state.auro_password.clone().or_else(|| {
             auth_snapshot
                 .as_ref()
                 .and_then(|auth| auth.opencode_password.clone())
@@ -163,8 +163,8 @@ pub fn engine_info(
             project_dir,
             hostname: Some("127.0.0.1".to_string()),
             port: opencode.as_ref().map(|entry| entry.port),
-            opencode_username,
-            opencode_password,
+            auro_username,
+            auro_password,
             pid: opencode.as_ref().map(|entry| entry.pid),
             last_stdout,
             last_stderr,
@@ -196,7 +196,7 @@ pub fn engine_restart(
     manager: State<EngineManager>,
     orchestrator_manager: State<OrchestratorManager>,
     aurowork_manager: State<AuroworkServerManager>,
-    opencode_enable_exa: Option<bool>,
+    auro_enable_exa: Option<bool>,
     aurowork_remote_access: Option<bool>,
 ) -> Result<EngineInfo, String> {
     let (project_dir, runtime) = {
@@ -205,7 +205,7 @@ pub fn engine_restart(
             state
                 .project_dir
                 .clone()
-                .ok_or_else(|| "OpenCode is not configured for a local workspace".to_string())?,
+                .ok_or_else(|| "Auro is not configured for a local workspace".to_string())?,
             state.runtime.clone(),
         )
     };
@@ -219,7 +219,7 @@ pub fn engine_restart(
         project_dir,
         None,
         None,
-        opencode_enable_exa,
+        auro_enable_exa,
         aurowork_remote_access,
         Some(runtime),
         Some(workspace_paths),
@@ -230,7 +230,7 @@ pub fn engine_restart(
 pub fn engine_doctor(
     app: AppHandle,
     prefer_sidecar: Option<bool>,
-    opencode_bin_path: Option<String>,
+    auro_bin_path: Option<String>,
 ) -> EngineDoctorResult {
     let prefer_sidecar = prefer_sidecar.unwrap_or(false);
     let resource_dir = app.path().resource_dir().ok();
@@ -239,7 +239,7 @@ pub fn engine_doctor(
         .ok()
         .and_then(|path| path.parent().map(|parent| parent.to_path_buf()));
 
-    let _guard = EnvVarGuard::apply("OPENCODE_BIN_PATH", opencode_bin_path.as_deref());
+    let _guard = EnvVarGuard::apply("AURO_BIN_PATH", auro_bin_path.as_deref());
 
     let (resolved, in_path, notes) = resolve_engine_path(
         prefer_sidecar,
@@ -319,8 +319,8 @@ pub fn engine_start(
     aurowork_manager: State<AuroworkServerManager>,
     project_dir: String,
     prefer_sidecar: Option<bool>,
-    opencode_bin_path: Option<String>,
-    opencode_enable_exa: Option<bool>,
+    auro_bin_path: Option<String>,
+    auro_enable_exa: Option<bool>,
     aurowork_remote_access: Option<bool>,
     runtime: Option<EngineRuntime>,
     workspace_paths: Option<Vec<String>>,
@@ -362,8 +362,8 @@ pub fn engine_start(
     let aurowork_remote_access_enabled = aurowork_remote_access.unwrap_or(false);
     let (managed_opencode_username, managed_opencode_password) =
         generate_managed_opencode_credentials();
-    let opencode_username = Some(managed_opencode_username);
-    let opencode_password = Some(managed_opencode_password);
+    let auro_username = Some(managed_opencode_username);
+    let auro_password = Some(managed_opencode_password);
 
     let mut state = manager.inner.lock().expect("engine mutex poisoned");
     EngineManager::stop_locked(&mut state);
@@ -377,7 +377,7 @@ pub fn engine_start(
         .ok()
         .and_then(|path| path.parent().map(|parent| parent.to_path_buf()));
     let prefer_sidecar = prefer_sidecar.unwrap_or(false);
-    let _guard = EnvVarGuard::apply("OPENCODE_BIN_PATH", opencode_bin_path.as_deref());
+    let _guard = EnvVarGuard::apply("AURO_BIN_PATH", auro_bin_path.as_deref());
     let (program, _in_path, notes) = resolve_engine_path(
         prefer_sidecar,
         resource_dir.as_deref(),
@@ -416,9 +416,9 @@ pub fn engine_start(
             opencode_host: bind_host.clone(),
             opencode_workdir: project_dir.clone(),
             opencode_port: Some(port),
-            opencode_username: opencode_username.clone(),
-            opencode_password: opencode_password.clone(),
-            opencode_enable_exa: opencode_enable_exa.unwrap_or(false),
+            opencode_username: auro_username.clone(),
+            opencode_password: auro_password.clone(),
+            opencode_enable_exa: auro_enable_exa.unwrap_or(false),
             cors: Some("*".to_string()),
         };
 
@@ -427,8 +427,8 @@ pub fn engine_start(
         // Persist basic auth (and project dir) so relaunches can attach.
         let _ = orchestrator::write_orchestrator_auth(
             &data_dir,
-            opencode_username.as_deref(),
-            opencode_password.as_deref(),
+            auro_username.as_deref(),
+            auro_password.as_deref(),
             Some(project_dir.as_str()),
         );
 
@@ -515,8 +515,8 @@ pub fn engine_start(
             state.hostname = Some("127.0.0.1".to_string());
             state.port = Some(opencode_port);
             state.base_url = Some(opencode_base_url.clone());
-            state.opencode_username = opencode_username.clone();
-            state.opencode_password = opencode_password.clone();
+            state.auro_username = auro_username.clone();
+            state.auro_password = auro_password.clone();
             state.last_stdout = None;
             state.last_stderr = None;
         }
@@ -526,8 +526,8 @@ pub fn engine_start(
             &aurowork_manager,
             &workspace_paths,
             Some(&opencode_connect_url),
-            opencode_username.as_deref(),
-            opencode_password.as_deref(),
+            auro_username.as_deref(),
+            auro_password.as_deref(),
             aurowork_remote_access_enabled,
         ) {
             if let Ok(mut state) = manager.inner.lock() {
@@ -543,8 +543,8 @@ pub fn engine_start(
             project_dir: Some(project_dir),
             hostname: Some("127.0.0.1".to_string()),
             port: Some(opencode_port),
-            opencode_username,
-            opencode_password,
+            auro_username,
+            auro_password,
             pid: Some(opencode.pid),
             last_stdout: None,
             last_stderr: None,
@@ -559,8 +559,8 @@ pub fn engine_start(
         &project_dir,
         use_sidecar,
         dev_mode,
-        opencode_username.as_deref(),
-        opencode_password.as_deref(),
+        auro_username.as_deref(),
+        auro_password.as_deref(),
     )?;
 
     state.last_stdout = None;
@@ -672,18 +672,18 @@ pub fn engine_start(
     state.hostname = Some(client_host.clone());
     state.port = Some(port);
     state.base_url = Some(format!("http://{client_host}:{port}"));
-    state.opencode_username = opencode_username.clone();
-    state.opencode_password = opencode_password.clone();
+    state.auro_username = auro_username.clone();
+    state.auro_password = auro_password.clone();
 
-    let opencode_connect_url = format!("http://{client_host}:{port}");
+    let auro_connect_url = format!("http://{client_host}:{port}");
 
     if let Err(error) = start_aurowork_server(
         &app,
         &aurowork_manager,
         &workspace_paths,
-        Some(&opencode_connect_url),
-        opencode_username.as_deref(),
-        opencode_password.as_deref(),
+        Some(&auro_connect_url),
+        auro_username.as_deref(),
+        auro_password.as_deref(),
         aurowork_remote_access_enabled,
     ) {
         state.last_stderr = Some(truncate_output(&format!("AuroWork server: {error}"), 8000));

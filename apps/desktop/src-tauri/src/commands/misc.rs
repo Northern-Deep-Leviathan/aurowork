@@ -298,9 +298,9 @@ fn validate_project_dir(app: &AppHandle, project_dir: &str) -> Result<PathBuf, S
 fn resolve_opencode_program(
     app: &AppHandle,
     prefer_sidecar: bool,
-    opencode_bin_path: Option<String>,
+    auro_bin_path: Option<String>,
 ) -> Result<PathBuf, String> {
-    if let Some(custom) = opencode_bin_path {
+    if let Some(custom) = auro_bin_path {
         let trimmed = custom.trim();
         if !trimmed.is_empty() {
             return Ok(PathBuf::from(trimmed));
@@ -451,11 +451,11 @@ pub fn opencode_db_migrate(
     app: AppHandle,
     project_dir: String,
     prefer_sidecar: Option<bool>,
-    opencode_bin_path: Option<String>,
+    auro_bin_path: Option<String>,
 ) -> Result<ExecResult, String> {
     let project_dir = validate_project_dir(&app, &project_dir)?;
     let program =
-        resolve_opencode_program(&app, prefer_sidecar.unwrap_or(false), opencode_bin_path)?;
+        resolve_opencode_program(&app, prefer_sidecar.unwrap_or(false), auro_bin_path)?;
 
     let mut command = command_for_program(&program);
     for (key, value) in crate::bun_env::bun_env_overrides() {

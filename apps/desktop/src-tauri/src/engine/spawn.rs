@@ -79,15 +79,15 @@ pub fn spawn_engine(
     project_dir: &str,
     use_sidecar: bool,
     dev_mode: bool,
-    opencode_username: Option<&str>,
-    opencode_password: Option<&str>,
+    auro_username: Option<&str>,
+    auro_password: Option<&str>,
 ) -> Result<(Receiver<CommandEvent>, CommandChild), String> {
     let args = build_engine_args(hostname, port);
 
     let command = if use_sidecar {
         app.shell()
-            .sidecar("opencode")
-            .map_err(|e| format!("Failed to locate bundled OpenCode sidecar: {e}"))?
+            .sidecar("auro")
+            .map_err(|e| format!("Failed to locate bundled Auro sidecar: {e}"))?
     } else {
         app.shell().command(program)
     };
@@ -148,13 +148,13 @@ pub fn spawn_engine(
         command = command.env("PATH", path_env);
     }
 
-    if let Some(username) = opencode_username {
+    if let Some(username) = auro_username {
         if !username.trim().is_empty() {
             command = command.env("OPENCODE_SERVER_USERNAME", username);
         }
     }
 
-    if let Some(password) = opencode_password {
+    if let Some(password) = auro_password {
         if !password.trim().is_empty() {
             command = command.env("OPENCODE_SERVER_PASSWORD", password);
         }
