@@ -791,78 +791,92 @@ git commit --allow-empty -m "test(server,desktop): manual smoke verification aft
 
 ---
 
-## Phase D — Bucket 3b orchestrator daemon contract (lockstep desktop ↔ daemon repo)
+## Phase D — Bucket 3b orchestrator daemon contract (in-repo lockstep)
 
-> **Lockstep rule:** Phase D requires a coordinated release of the orchestrator daemon. The daemon lives in a separate repo and must ship a new binary version that writes the renamed JSON keys. The desktop bumps `constants.json` to that version *in the same PR* as the desktop-side struct rename. Until both ship together, do NOT merge Phase D.
+> **Correction from earlier draft:** The orchestrator daemon source lives in **this repo** at `apps/orchestrator/` (TypeScript/Bun, package `aurowork-orchestrator`). It is built locally via `pnpm --filter aurowork-orchestrator build:bin` and bundled as the `aurowork-orchestrator` Tauri sidecar. There is no separate-repo coordination, no GitHub release pin in `constants.json` for it, and no version bump required for cross-repo compatibility — everything ships together in this single PR.
 >
-> **Pre-Phase-D order:** Phase D should be planned but NOT executed in this branch until the daemon repo's matching PR is merged and the daemon binary is published. The desktop tasks below assume the daemon side is ready.
+> **Lockstep rule:** Each task in Phase D updates the JSON producer (in `apps/orchestrator/src/`) AND the JSON consumer (Rust deserializers in `apps/desktop/src-tauri/src/orchestrator/mod.rs` + `types.rs`) in the SAME commit. Then the orchestrator sidecar must be rebuilt for the desktop to pick up the new shape.
 
-### Task D1: Coordinate daemon repo PR
+### Task D1: Rename JSON-emitting fields in the orchestrator daemon source
 
-**Files (in the orchestrator daemon repo, NOT this repo):**
-- The struct that serializes to `aurowork-orchestrator-auth.json`
-- The struct that serializes to `aurowork-orchestrator-state.json`
-- The HTTP API response models for `/health`, `/binaries`, `/sidecar`, etc.
+**Files:**
+- Modify: `apps/orchestrator/src/cli.ts` (the daemon entry — emits state and auth JSON; grep for `opencode_username`, `opencode_password`, `opencode`, `opencodeUsername`, `opencodePassword`, `opencodeSource`)
+- Modify: `apps/orchestrator/src/tui/app.tsx` (only if it shares types with the daemon's emitted JSON; the TUI's *display* fields like `state.connect.opencodePassword` are bucket-1 internal *if* they originate from a shared type that also feeds the JSON writer; otherwise treat them as Phase B/internal renames)
 
-- [ ] **Step 1: Open daemon repo and locate the auth + health serialization**
+- [ ] **Step 1: Locate every JSON producer**
 
-In the daemon repo, grep for the field names: `opencode_username`, `opencode_password`, `opencode` (as an object name in health/binaries), `opencode_source`.
+Run:
+```bash
+grep -rn "opencode_username\|opencode_password\|opencodeUsername\|opencodePassword\|opencodeSource\|opencode_source" apps/orchestrator/src
+grep -rn "writeFile.*aurowork-orchestrator-\(state\|auth\)\.json" apps/orchestrator/src
+```
 
-- [ ] **Step 2: Rename in the daemon**
+Note every site. The daemon writes `aurowork-orchestrator-state.json` and `aurowork-orchestrator-auth.json`; track the object literals that are serialized and the property names they emit.
 
-Rename each Rust struct field per the spec §3b table. Keep `#[serde(rename_all = "camelCase")]` so wire keys auto-convert (`auro_username` → `auroUsername`, etc.). Where an object key is just `opencode`, rename to `auro`.
+- [ ] **Step 2: Rename the producer property names**
 
-- [ ] **Step 3: Bump daemon version, publish release**
+For each emitted JSON object, rename the property keys per the spec §3b table:
+- `opencodeUsername` → `auroUsername`
+- `opencodePassword` → `auroPassword`
+- `opencode` (when used as an object key inside health / binaries / state) → `auro`
+- `opencodeSource` → `auroSource`
 
-Bump the daemon's `Cargo.toml` version (e.g. `0.x.y` → `0.x.(y+1)`) or a calendar version. Tag and publish a release that uploads the binary to the same GitHub release infrastructure the desktop downloads from.
+Do NOT rename:
+- The object key under `binaries.opencode` *if* it represents a slot for the upstream opencode binary metadata — wait, this IS the slot per spec §3b; rename to `auro`. The metadata it holds (path, version) is opaque to this rename.
+- Any string-literal value `"opencode"` used as a discriminant (e.g., `service: "opencode"` in a switch). Bucket 4.
+- Path segments addressing opencode dirs (`join(".opencode", ...)`, `"opencode.db"`).
+- Env var literals `OPENCODE_*`.
 
-- [ ] **Step 4: Capture the new version string**
+Run a follow-up grep on each touched file to confirm only allowlisted occurrences remain.
 
-Note the new pinned version (e.g. `v0.x.y`); it goes into `constants.json` in Task D2.
+- [ ] **Step 3: Update intra-daemon consumers**
 
-- [ ] **Step 5: Commit (in daemon repo)**
+Run: `grep -rn "opencodeUsername\|opencodePassword\|\.opencode\b\|opencodeSource" apps/orchestrator/src`
+
+For each remaining hit (intra-daemon read of the renamed keys), rename to the `auro*` form. This includes the TUI's `state.connect.opencodePassword` reads if they originate from the same shared type — rename them too so the daemon's internal type stays consistent.
+
+- [ ] **Step 4: Rebuild the sidecar**
 
 ```bash
-# In daemon repo:
-git commit -am "refactor: rename opencode* JSON keys to auro* in orchestrator state files"
-git tag vX.Y.Z
-git push --tags
+pnpm --filter aurowork-orchestrator build:bin
+```
+
+Expected: produces `apps/orchestrator/dist/bin/aurowork` (or platform-target equivalent). The desktop's `tauri.conf.json` consumes this via the prepare-sidecar pipeline.
+
+- [ ] **Step 5: Verify and commit**
+
+```bash
+pnpm --filter aurowork-orchestrator typecheck
+git add apps/orchestrator/src/
+git commit -m "refactor(orchestrator): rename emitted JSON keys opencode* to auro*"
 ```
 
 ---
 
-### Task D2: Bump orchestrator pin in `constants.json`
+### Task D2: Verify the desktop build pipeline picks up the new sidecar
 
 **Files:**
-- Modify: `constants.json`
-- Modify: any download script that reads `aurowork-orchestrator` version (grep `constants.json` references in `apps/desktop/src-tauri/build.rs` and `.github/workflows/build-desktop.yml`)
+- Read-only: `apps/desktop/src-tauri/build.rs` (orchestrator sidecar copy step), `apps/desktop/scripts/prepare-sidecar.mjs`, `apps/orchestrator/scripts/build-sidecars.mjs`
 
-- [ ] **Step 1: Verify current orchestrator version pin**
-
-```bash
-cat constants.json
-grep -rn "aurowork-orchestrator\|orchestratorVersion" apps/desktop/src-tauri/build.rs .github/workflows/
-```
-
-- [ ] **Step 2: Add or update the orchestrator version field**
-
-Edit `constants.json` to include:
-```json
-{
-  "auroVersion": "v0.1.0",
-  "orchestratorVersion": "vX.Y.Z"
-}
-```
-Replace `vX.Y.Z` with the version published in D1.
-
-(If the field name already exists with a different name, e.g. `auroworkOrchestratorVersion`, keep that name — only update the value.)
-
-- [ ] **Step 3: Verify and commit**
+- [ ] **Step 1: Confirm the desktop build copies the freshly-built sidecar**
 
 ```bash
-git add constants.json
-git commit -m "chore: bump orchestrator pin to vX.Y.Z (auro JSON keys)"
+ls -la apps/orchestrator/dist/bin/
+ls -la apps/desktop/src-tauri/sidecars/
 ```
+
+If `apps/desktop/src-tauri/sidecars/aurowork-orchestrator-<target>` is older than `apps/orchestrator/dist/bin/aurowork`, run the desktop's prepare-sidecar step (or `cargo build` triggers `build.rs` which copies it):
+
+```bash
+cargo check -p aurowork
+ls -la apps/desktop/src-tauri/sidecars/
+```
+
+- [ ] **Step 2: No version pin to bump**
+
+`constants.json` only pins `auroVersion` (the upstream opencode binary). The orchestrator is built locally; no pin update needed in this task.
+
+- [ ] **Step 3: No commit needed** if Step 1 confirms the sidecar is current.
 
 ---
 
