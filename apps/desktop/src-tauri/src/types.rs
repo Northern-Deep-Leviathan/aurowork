@@ -276,7 +276,8 @@ pub enum WorkspaceType {
 #[derive(Default)]
 pub enum RemoteType {
     #[default]
-    Opencode,
+    #[serde(rename = "opencode")]
+    Auro,
     Aurowork,
 }
 
@@ -375,3 +376,20 @@ impl Default for WorkspaceState {
 }
 
 pub const WORKSPACE_STATE_VERSION: u8 = 5;
+
+#[cfg(test)]
+mod remote_type_serde_tests {
+    use super::RemoteType;
+
+    #[test]
+    fn auro_variant_serializes_as_opencode_string() {
+        let json = serde_json::to_string(&RemoteType::Auro).expect("serialize");
+        assert_eq!(json, "\"opencode\"");
+    }
+
+    #[test]
+    fn opencode_string_deserializes_to_auro_variant() {
+        let value: RemoteType = serde_json::from_str("\"opencode\"").expect("deserialize");
+        assert!(matches!(value, RemoteType::Auro));
+    }
+}
