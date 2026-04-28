@@ -1,7 +1,7 @@
 use tauri::{AppHandle, Manager, State};
 
 use crate::aurowork_server::{manager::AuroworkServerManager, start_aurowork_server};
-use crate::config::{read_opencode_config, write_opencode_config};
+use crate::config::{read_auro_config, write_auro_config};
 use crate::engine::doctor::{
     opencode_serve_help, opencode_version, resolve_engine_path, resolve_sidecar_candidate,
 };
@@ -336,13 +336,13 @@ pub fn engine_start(
     std::fs::create_dir_all(&project_dir)
         .map_err(|e| format!("Failed to create projectDir directory: {e}"))?;
 
-    let config = read_opencode_config("project", &project_dir)?;
+    let config = read_auro_config("project", &project_dir)?;
     if !config.exists {
         let content = serde_json::to_string_pretty(&json!({
             "$schema": "https://opencode.ai/config.json",
         }))
         .map_err(|e| format!("Failed to serialize opencode config: {e}"))?;
-        let write_result = write_opencode_config("project", &project_dir, &format!("{content}\n"))?;
+        let write_result = write_auro_config("project", &project_dir, &format!("{content}\n"))?;
         if !write_result.ok {
             return Err(write_result.stderr);
         }

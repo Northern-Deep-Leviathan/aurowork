@@ -2,12 +2,9 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::types::{ExecResult, OpencodeConfigFile};
+use crate::types::{AuroConfigFile, ExecResult};
 
-fn opencode_config_candidates(
-    scope: &str,
-    project_dir: &str,
-) -> Result<(PathBuf, PathBuf), String> {
+fn auro_config_candidates(scope: &str, project_dir: &str) -> Result<(PathBuf, PathBuf), String> {
     match scope {
         "project" => {
             if project_dir.trim().is_empty() {
@@ -32,8 +29,8 @@ fn opencode_config_candidates(
     }
 }
 
-pub fn resolve_opencode_config_path(scope: &str, project_dir: &str) -> Result<PathBuf, String> {
-    let (jsonc_path, json_path) = opencode_config_candidates(scope, project_dir)?;
+pub fn resolve_auro_config_path(scope: &str, project_dir: &str) -> Result<PathBuf, String> {
+    let (jsonc_path, json_path) = auro_config_candidates(scope, project_dir)?;
 
     if jsonc_path.exists() {
         return Ok(jsonc_path);
@@ -46,8 +43,8 @@ pub fn resolve_opencode_config_path(scope: &str, project_dir: &str) -> Result<Pa
     Ok(jsonc_path)
 }
 
-pub fn read_opencode_config(scope: &str, project_dir: &str) -> Result<OpencodeConfigFile, String> {
-    let path = resolve_opencode_config_path(scope.trim(), project_dir)?;
+pub fn read_auro_config(scope: &str, project_dir: &str) -> Result<AuroConfigFile, String> {
+    let path = resolve_auro_config_path(scope.trim(), project_dir)?;
     let exists = path.exists();
 
     let content = if exists {
@@ -59,19 +56,19 @@ pub fn read_opencode_config(scope: &str, project_dir: &str) -> Result<OpencodeCo
         None
     };
 
-    Ok(OpencodeConfigFile {
+    Ok(AuroConfigFile {
         path: path.to_string_lossy().to_string(),
         exists,
         content,
     })
 }
 
-pub fn write_opencode_config(
+pub fn write_auro_config(
     scope: &str,
     project_dir: &str,
     content: &str,
 ) -> Result<ExecResult, String> {
-    let path = resolve_opencode_config_path(scope.trim(), project_dir)?;
+    let path = resolve_auro_config_path(scope.trim(), project_dir)?;
 
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)

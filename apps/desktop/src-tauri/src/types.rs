@@ -205,7 +205,7 @@ pub struct ExecResult {
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct OpencodeConfigFile {
+pub struct AuroConfigFile {
     pub path: String,
     pub exists: bool,
     pub content: Option<String>,
