@@ -130,7 +130,7 @@ pub fn engine_info(
             .ok()
             .and_then(|state| state.last_stderr.clone());
         let status = orchestrator::resolve_orchestrator_status(&data_dir, last_stderr.clone());
-        let opencode = status.opencode.clone();
+        let opencode = status.auro.clone();
         let base_url = opencode
             .as_ref()
             .map(|entry| format!("http://127.0.0.1:{}", entry.port));
@@ -148,12 +148,12 @@ pub fn engine_info(
         let auro_username = state.auro_username.clone().or_else(|| {
             auth_snapshot
                 .as_ref()
-                .and_then(|auth| auth.opencode_username.clone())
+                .and_then(|auth| auth.auro_username.clone())
         });
         let auro_password = state.auro_password.clone().or_else(|| {
             auth_snapshot
                 .as_ref()
-                .and_then(|auth| auth.opencode_password.clone())
+                .and_then(|auth| auth.auro_password.clone())
         });
         let project_dir = project_dir.or_else(|| auth_snapshot.and_then(|auth| auth.project_dir));
         return EngineInfo {
@@ -501,7 +501,7 @@ pub fn engine_start(
                 format!("Failed to start orchestrator (waited {health_timeout_ms}ms): {e}")
             })?;
         let opencode = health
-            .opencode
+            .auro
             .ok_or_else(|| "Orchestrator did not report OpenCode status".to_string())?;
         let opencode_port = opencode.port;
         let opencode_base_url = format!("http://127.0.0.1:{opencode_port}");
