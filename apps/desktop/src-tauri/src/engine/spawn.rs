@@ -15,7 +15,7 @@ struct DevModePaths {
     xdg_data_home: PathBuf,
     xdg_cache_home: PathBuf,
     xdg_state_home: PathBuf,
-    opencode_config_dir: PathBuf,
+    auro_config_dir: PathBuf,
 }
 
 const AUROWORK_DEV_DATA_DIR: &str = "aurowork-dev-data";
@@ -33,7 +33,7 @@ fn resolve_dev_mode_paths(app: &AppHandle) -> Result<DevModePaths, String> {
         xdg_data_home: root_dir.join("xdg").join("data"),
         xdg_cache_home: root_dir.join("xdg").join("cache"),
         xdg_state_home: root_dir.join("xdg").join("state"),
-        opencode_config_dir: root_dir.join("config").join("opencode"),
+        auro_config_dir: root_dir.join("config").join("opencode"),
     };
 
     for dir in [
@@ -42,7 +42,7 @@ fn resolve_dev_mode_paths(app: &AppHandle) -> Result<DevModePaths, String> {
         &paths.xdg_data_home,
         &paths.xdg_cache_home,
         &paths.xdg_state_home,
-        &paths.opencode_config_dir,
+        &paths.auro_config_dir,
         &paths.xdg_data_home.join("opencode"),
     ] {
         fs::create_dir_all(dir).map_err(|e| format!("Failed to create {}: {e}", dir.display()))?;
@@ -103,7 +103,7 @@ pub fn spawn_engine(
         command = command.env("XDG_DATA_HOME", dev_paths.xdg_data_home);
         command = command.env("XDG_CACHE_HOME", dev_paths.xdg_cache_home);
         command = command.env("XDG_STATE_HOME", dev_paths.xdg_state_home);
-        command = command.env("OPENCODE_CONFIG_DIR", dev_paths.opencode_config_dir);
+        command = command.env("OPENCODE_CONFIG_DIR", dev_paths.auro_config_dir);
     } else {
         if let Some(xdg_data_home) = maybe_infer_xdg_home(
             "XDG_DATA_HOME",
