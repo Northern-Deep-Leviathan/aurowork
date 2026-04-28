@@ -372,34 +372,34 @@ export async function workspaceAuroworkWrite(input: {
   });
 }
 
-export async function opencodeCommandList(input: {
+export async function auroCommandList(input: {
   scope: "workspace" | "global";
   projectDir: string;
 }): Promise<string[]> {
-  return invoke<string[]>("opencode_command_list", {
+  return invoke<string[]>("auro_command_list", {
     scope: input.scope,
     projectDir: input.projectDir,
   });
 }
 
-export async function opencodeCommandWrite(input: {
+export async function auroCommandWrite(input: {
   scope: "workspace" | "global";
   projectDir: string;
   command: OpencodeCommandDraft;
 }): Promise<ExecResult> {
-  return invoke<ExecResult>("opencode_command_write", {
+  return invoke<ExecResult>("auro_command_write", {
     scope: input.scope,
     projectDir: input.projectDir,
     command: input.command,
   });
 }
 
-export async function opencodeCommandDelete(input: {
+export async function auroCommandDelete(input: {
   scope: "workspace" | "global";
   projectDir: string;
   name: string;
 }): Promise<ExecResult> {
-  return invoke<ExecResult>("opencode_command_delete", {
+  return invoke<ExecResult>("auro_command_delete", {
     scope: input.scope,
     projectDir: input.projectDir,
     name: input.name,

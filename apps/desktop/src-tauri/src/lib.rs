@@ -18,7 +18,7 @@ pub use types::*;
 use aurowork_server::manager::AuroworkServerManager;
 use commands::aurowork_server::{aurowork_server_info, aurowork_server_restart};
 use commands::command_files::{
-    opencode_command_delete, opencode_command_list, opencode_command_write,
+    auro_command_delete, auro_command_list, auro_command_write,
 };
 use commands::config::{read_opencode_config, write_opencode_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
@@ -182,9 +182,9 @@ pub fn run() {
             workspace_add_authorized_root,
             workspace_export_config,
             workspace_import_config,
-            opencode_command_list,
-            opencode_command_write,
-            opencode_command_delete,
+            auro_command_list,
+            auro_command_write,
+            auro_command_delete,
             workspace_aurowork_read,
             workspace_aurowork_write,
             opkg_install,
