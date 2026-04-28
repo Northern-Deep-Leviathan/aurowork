@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use zip::ZipArchive;
 
-use crate::types::{OpencodeCommand, WorkspaceAuroworkConfig};
+use crate::types::{AuroCommand, WorkspaceAuroworkConfig};
 use crate::utils::now_ms;
 use crate::workspace::commands::{sanitize_command_name, serialize_command_frontmatter};
 
@@ -343,7 +343,7 @@ fn seed_commands(commands_dir: &PathBuf, preset: &str) -> Result<(), String> {
     }
 
     let defaults = vec![
-    OpencodeCommand {
+    AuroCommand {
       name: "learn-files".to_string(),
       description: Some("Safe, practical file workflows".to_string()),
       template: "Show me how to interact with files in this workspace. Include safe examples for reading, summarizing, and editing.".to_string(),
@@ -351,7 +351,7 @@ fn seed_commands(commands_dir: &PathBuf, preset: &str) -> Result<(), String> {
       model: None,
       subtask: None,
     },
-    OpencodeCommand {
+    AuroCommand {
       name: "learn-skills".to_string(),
       description: Some("How skills work and how to create your own".to_string()),
       template: "Explain what skills are, how to use them, and how to create a new skill for this workspace.".to_string(),
@@ -359,7 +359,7 @@ fn seed_commands(commands_dir: &PathBuf, preset: &str) -> Result<(), String> {
       model: None,
       subtask: None,
     },
-    OpencodeCommand {
+    AuroCommand {
       name: "learn-plugins".to_string(),
       description: Some("What plugins are and how to install them".to_string()),
       template: "Explain what plugins are and how to install them in this workspace.".to_string(),
@@ -371,7 +371,7 @@ fn seed_commands(commands_dir: &PathBuf, preset: &str) -> Result<(), String> {
 
     let mut defaults = defaults;
     if preset == "starter" {
-        defaults.push(OpencodeCommand {
+        defaults.push(AuroCommand {
             name: "Get Started".to_string(),
             description: Some("Get started".to_string()),
             template: "get started".to_string(),

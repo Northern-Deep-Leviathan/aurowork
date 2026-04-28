@@ -332,7 +332,7 @@ pub struct WorkspaceList {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct OpencodeCommand {
+pub struct AuroCommand {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
