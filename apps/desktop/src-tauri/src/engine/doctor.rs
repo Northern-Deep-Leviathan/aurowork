@@ -7,7 +7,7 @@ use crate::engine::paths::{
 use crate::platform::command_for_program;
 use crate::utils::truncate_output;
 
-pub fn opencode_version(program: &OsStr) -> Option<String> {
+pub fn auro_version(program: &OsStr) -> Option<String> {
     let mut command = command_for_program(Path::new(program));
     for (key, value) in crate::bun_env::bun_env_overrides() {
         command.env(key, value);
@@ -26,7 +26,7 @@ pub fn opencode_version(program: &OsStr) -> Option<String> {
     None
 }
 
-pub fn opencode_serve_help(program: &OsStr) -> (bool, Option<i32>, Option<String>, Option<String>) {
+pub fn auro_serve_help(program: &OsStr) -> (bool, Option<i32>, Option<String>, Option<String>) {
     let mut command = command_for_program(Path::new(program));
     for (key, value) in crate::bun_env::bun_env_overrides() {
         command.env(key, value);
@@ -224,10 +224,10 @@ mod tests {
     fn resolve_engine_path_honors_env_override() {
         let _lock = ENV_LOCK.lock().expect("lock env");
 
-        let override_dir = unique_temp_dir("opencode-override");
+        let override_dir = unique_temp_dir("auro-override");
         std::fs::create_dir_all(&override_dir).expect("create override dir");
 
-        let override_path = override_dir.join("opencode-custom");
+        let override_path = override_dir.join("auro-custom");
         std::fs::write(&override_path, b"").expect("create override file");
 
         let _guard = EnvVarGuard::set("AURO_BIN_PATH", &override_path);

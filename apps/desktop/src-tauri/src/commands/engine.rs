@@ -3,7 +3,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::aurowork_server::{manager::AuroworkServerManager, start_aurowork_server};
 use crate::config::{read_auro_config, write_auro_config};
 use crate::engine::doctor::{
-    opencode_serve_help, opencode_version, resolve_engine_path, resolve_sidecar_candidate,
+    auro_serve_help, auro_version, resolve_engine_path, resolve_sidecar_candidate,
 };
 use crate::engine::manager::EngineManager;
 use crate::engine::spawn::{find_free_port, spawn_engine};
@@ -15,7 +15,7 @@ use serde_json::json;
 use tauri_plugin_shell::process::CommandEvent;
 use uuid::Uuid;
 
-const MANAGED_OPENCODE_CREDENTIAL_LENGTH: usize = 512;
+const MANAGED_AURO_CREDENTIAL_LENGTH: usize = 512;
 
 struct EnvVarGuard {
     key: &'static str,
@@ -60,7 +60,7 @@ fn aurowork_dev_mode_enabled() -> bool {
     env_truthy("AUROWORK_DEV_MODE").unwrap_or(cfg!(debug_assertions))
 }
 
-fn pinned_opencode_version() -> String {
+fn pinned_auro_version() -> String {
     let constants = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../constants.json"
@@ -75,10 +75,10 @@ fn pinned_opencode_version() -> String {
         .to_string()
 }
 
-fn pinned_opencode_install_command() -> String {
+fn pinned_auro_install_command() -> String {
     format!(
         "curl -fsSL https://opencode.ai/install | bash -s -- --version {} --no-modify-path",
-        pinned_opencode_version()
+        pinned_auro_version()
     )
 }
 
@@ -91,11 +91,11 @@ struct OutputState {
 }
 
 fn generate_managed_opencode_secret() -> String {
-    let mut value = String::with_capacity(MANAGED_OPENCODE_CREDENTIAL_LENGTH);
-    while value.len() < MANAGED_OPENCODE_CREDENTIAL_LENGTH {
+    let mut value = String::with_capacity(MANAGED_AURO_CREDENTIAL_LENGTH);
+    while value.len() < MANAGED_AURO_CREDENTIAL_LENGTH {
         value.push_str(&Uuid::new_v4().simple().to_string());
     }
-    value.truncate(MANAGED_OPENCODE_CREDENTIAL_LENGTH);
+    value.truncate(MANAGED_AURO_CREDENTIAL_LENGTH);
     value
 }
 
@@ -250,9 +250,9 @@ pub fn engine_doctor(
     let (version, supports_serve, serve_help_status, serve_help_stdout, serve_help_stderr) =
         match resolved.as_ref() {
             Some(path) => {
-                let (ok, status, stdout, stderr) = opencode_serve_help(path.as_os_str());
+                let (ok, status, stdout, stderr) = auro_serve_help(path.as_os_str());
                 (
-                    opencode_version(path.as_os_str()),
+                    auro_version(path.as_os_str()),
                     ok,
                     status,
                     stdout,
@@ -296,7 +296,7 @@ pub fn engine_install() -> Result<ExecResult, String> {
 
         let output = std::process::Command::new("bash")
             .arg("-lc")
-            .arg(pinned_opencode_install_command())
+            .arg(pinned_auro_install_command())
             .env("OPENCODE_INSTALL_DIR", install_dir)
             .output()
             .map_err(|e| format!("Failed to run installer: {e}"))?;
@@ -385,7 +385,7 @@ pub fn engine_start(
     );
     let Some(program) = program else {
         let notes_text = notes.join("\n");
-        let install_command = pinned_opencode_install_command();
+        let install_command = pinned_auro_install_command();
         return Err(format!(
             "OpenCode CLI not found.\n\nInstall with:\n- {install_command}\n\nNotes:\n{notes_text}"
         ));
