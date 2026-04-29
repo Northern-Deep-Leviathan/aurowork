@@ -60,7 +60,7 @@ When AuroWork is edited from `aurowork-enterprise`, architecture and runtime beh
 | --- | --- | --- |
 | `aurowork-enterprise/AGENTS.md` | AuroWork Factory multi-repo orchestration | Defers AuroWork runtime flow, server-vs-shell ownership, and filesystem mutation behavior to `_repos/aurowork/ARCHITECTURE.md`. |
 | `aurowork-enterprise/.opencode/agents/aurowork-surgeon.md` | Surgical fix agent for `_repos/aurowork` | Uses `_repos/aurowork/ARCHITECTURE.md` as the runtime and architecture source of truth before changing product behavior. |
-| `_repos/aurowork/AGENTS.md` | Product vocabulary, audience, and repo-local development guidance | Refers to `ARCHITECTURE.md` for runtime flow, server ownership, and architectural boundaries. |
+| `_repos/aurowork/AGENTS.md` | Product vocabulary, audience, and repo-local development guidance | Refers to `docs/architecture/overview.md` for runtime flow, server ownership, and architectural boundaries. |
 | Skills / commands / agents that mutate workspace state | Capability layer on top of the product runtime | Should assume the AuroWork server path is canonical for workspace creation, config writes, `.opencode/` mutation, and reload signaling. |
 
 ### Agent access to server-owned behavior

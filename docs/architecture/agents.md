@@ -38,7 +38,7 @@ User mental model:
 * A worker is a remote runtime destination.
 * Connecting to a worker happens through `Add worker` -> `Connect remote` using URL + token (or deep link).
 
-Read `ARCHITECTURE.md` for runtime flow, server-vs-shell ownership, and architecture behavior. Read `INFRASTRUCTURE.md` for deployment and control-plane details.
+Read `docs/architecture/overview.md` for runtime flow, server-vs-shell ownership, and architecture behavior. Read `docs/architecture/infrastructure.md` for deployment and control-plane details.
 
 ## Why AuroWork Exists
 
@@ -125,9 +125,9 @@ Design principles for hot reload:
 
 ## Repository Guidance
 
-* Use `VISION.md`, `PRINCIPLES.md`, `PRODUCT.md`, `ARCHITECTURE.md`, and `INFRASTRUCTURE.md` to understand the "why" and requirements so you can guide your decisions.
-* Treat `ARCHITECTURE.md` as the authoritative system design source for runtime flow, server ownership, filesystem mutation policy, and agent/runtime boundaries. If those behaviors change, update `ARCHITECTURE.md` in the same task.
-* Use `DESIGN-LANGUAGE.md` as the default visual reference for AuroWork app and landing work.
+* Use `docs/product/vision.md`, `docs/product/principles.md`, `docs/product/product.md`, `docs/architecture/overview.md`, and `docs/architecture/infrastructure.md` to understand the "why" and requirements so you can guide your decisions.
+* Treat `docs/architecture/overview.md` as the authoritative system design source for runtime flow, server ownership, filesystem mutation policy, and agent/runtime boundaries. If those behaviors change, update `docs/architecture/overview.md` in the same task.
+* Use `docs/design/design-language.md` as the default visual reference for AuroWork app and landing work.
 * For AuroWork session-surface details, also reference `packages/docs/orbita-layout-style.mdx`.
 
 ## Dev Debugging

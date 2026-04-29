@@ -198,7 +198,7 @@ All three isolated features converge into a single cloud-authenticated system:
 - [ ] **1.1** Define auth provider strategy
   - Decision: self-hosted auth (e.g. Supabase/Auth.js) vs cloud-only vs hybrid
   - Consider: local-first desktop app needs offline-capable auth
-  - Deliverable: ADR in `ARCHITECTURE.md`
+  - Deliverable: ADR in `docs/architecture/overview.md`
 
 - [ ] **1.2** Design unified token model
   - Merge the three separate token layers into a coherent hierarchy
