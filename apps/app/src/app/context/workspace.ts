@@ -150,7 +150,7 @@ export function createWorkspaceStore(options: {
   refreshPlugins: () => Promise<void>;
   engineSource: () => "path" | "sidecar" | "custom";
   engineCustomBinPath?: () => string;
-  opencodeEnableExa?: () => boolean;
+  auroEnableExa?: () => boolean;
   setEngineSource: (value: "path" | "sidecar" | "custom") => void;
   setView: (value: any) => void;
   setTab: (value: any) => void;
@@ -876,8 +876,8 @@ export function createWorkspaceStore(options: {
       const connectedWorkspace = workspaces().find((workspace) => workspace.id === connectedWorkspaceId()) ?? null;
       const syncLocalState = connectedWorkspace?.workspaceType !== "remote";
 
-      const username = info.opencodeUsername?.trim() ?? "";
-      const password = info.opencodePassword?.trim() ?? "";
+      const username = info.auroUsername?.trim() ?? "";
+      const password = info.auroPassword?.trim() ?? "";
       const auth = username && password ? { username, password } : null;
       setEngineAuth(auth);
 
@@ -931,7 +931,7 @@ export function createWorkspaceStore(options: {
       const source = options.engineSource();
       const result = await engineDoctor({
         preferSidecar: source === "sidecar",
-        opencodeBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
+        auroBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
       });
       setEngineDoctorResult(result);
       setEngineDoctorCheckedAt(Date.now());
@@ -1319,8 +1319,8 @@ export function createWorkspaceStore(options: {
           const nextInfo = await engineInfo();
           setEngine(nextInfo);
 
-          const username = nextInfo.opencodeUsername?.trim() ?? "";
-          const password = nextInfo.opencodePassword?.trim() ?? "";
+          const username = nextInfo.auroUsername?.trim() ?? "";
+          const password = nextInfo.auroPassword?.trim() ?? "";
           const auth = username && password ? { username, password } : undefined;
           setEngineAuth(auth ?? null);
 
@@ -1377,8 +1377,8 @@ export function createWorkspaceStore(options: {
           const newInfo = await engineInfo();
           setEngine(newInfo);
 
-          const username = newInfo.opencodeUsername?.trim() ?? "";
-          const password = newInfo.opencodePassword?.trim() ?? "";
+          const username = newInfo.auroUsername?.trim() ?? "";
+          const password = newInfo.auroPassword?.trim() ?? "";
           const auth = username && password ? { username, password } : undefined;
           setEngineAuth(auth ?? null);
 
@@ -1402,17 +1402,17 @@ export function createWorkspaceStore(options: {
           // Start engine with new workspace directory
           const newInfo = await engineStart(next.path, {
             preferSidecar: options.engineSource() === "sidecar",
-            opencodeBinPath:
+            auroBinPath:
               options.engineSource() === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
-            opencodeEnableExa: options.opencodeEnableExa?.() ?? false,
+            auroEnableExa: options.auroEnableExa?.() ?? false,
             auroworkRemoteAccess: options.auroworkServerSettings().remoteAccessEnabled === true,
             runtime,
             workspacePaths: resolveWorkspacePaths(),
           });
           setEngine(newInfo);
 
-          const username = newInfo.opencodeUsername?.trim() ?? "";
-          const password = newInfo.opencodePassword?.trim() ?? "";
+          const username = newInfo.auroUsername?.trim() ?? "";
+          const password = newInfo.auroPassword?.trim() ?? "";
           const auth = username && password ? { username, password } : undefined;
           setEngineAuth(auth ?? null);
 
@@ -3060,7 +3060,7 @@ export function createWorkspaceStore(options: {
       const result = await auroDbMigrate({
         projectDir: root,
         preferSidecar: source === "sidecar",
-        opencodeBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
+        auroBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
       });
 
       if (!result.ok) {
@@ -3135,7 +3135,7 @@ export function createWorkspaceStore(options: {
         const source = options.engineSource();
         const result = await engineDoctor({
           preferSidecar: source === "sidecar",
-          opencodeBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
+          auroBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
         });
         setEngineDoctorResult(result);
         setEngineDoctorCheckedAt(Date.now());
@@ -3177,17 +3177,17 @@ export function createWorkspaceStore(options: {
 
       const info = await engineStart(dir, {
         preferSidecar: options.engineSource() === "sidecar",
-        opencodeBinPath:
+        auroBinPath:
           options.engineSource() === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
-        opencodeEnableExa: options.opencodeEnableExa?.() ?? false,
+        auroEnableExa: options.auroEnableExa?.() ?? false,
         auroworkRemoteAccess: options.auroworkServerSettings().remoteAccessEnabled === true,
         runtime: resolveEngineRuntime(),
         workspacePaths: resolveWorkspacePaths(),
       });
       setEngine(info);
 
-      const username = info.opencodeUsername?.trim() ?? "";
-      const password = info.opencodePassword?.trim() ?? "";
+      const username = info.auroUsername?.trim() ?? "";
+      const password = info.auroPassword?.trim() ?? "";
       const auth = username && password ? { username, password } : undefined;
       setEngineAuth(auth ?? null);
 
@@ -3355,8 +3355,8 @@ export function createWorkspaceStore(options: {
         const nextInfo = await engineInfo();
         setEngine(nextInfo);
 
-        const username = nextInfo.opencodeUsername?.trim() ?? "";
-        const password = nextInfo.opencodePassword?.trim() ?? "";
+        const username = nextInfo.auroUsername?.trim() ?? "";
+        const password = nextInfo.auroPassword?.trim() ?? "";
         const auth = username && password ? { username, password } : undefined;
         setEngineAuth(auth ?? null);
 
@@ -3381,17 +3381,17 @@ export function createWorkspaceStore(options: {
 
       const nextInfo = await engineStart(root, {
         preferSidecar: options.engineSource() === "sidecar",
-        opencodeBinPath:
+        auroBinPath:
           options.engineSource() === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
-        opencodeEnableExa: options.opencodeEnableExa?.() ?? false,
+        auroEnableExa: options.auroEnableExa?.() ?? false,
         auroworkRemoteAccess: options.auroworkServerSettings().remoteAccessEnabled === true,
         runtime,
         workspacePaths: resolveWorkspacePaths(),
       });
       setEngine(nextInfo);
 
-      const username = nextInfo.opencodeUsername?.trim() ?? "";
-      const password = nextInfo.opencodePassword?.trim() ?? "";
+      const username = nextInfo.auroUsername?.trim() ?? "";
+      const password = nextInfo.auroPassword?.trim() ?? "";
       const auth = username && password ? { username, password } : undefined;
       setEngineAuth(auth ?? null);
 

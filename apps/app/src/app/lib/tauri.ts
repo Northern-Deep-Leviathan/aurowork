@@ -8,8 +8,8 @@ export type EngineInfo = {
   projectDir: string | null;
   hostname: string | null;
   port: number | null;
-  opencodeUsername: string | null;
-  opencodePassword: string | null;
+  auroUsername: string | null;
+  auroPassword: string | null;
   pid: number | null;
   lastStdout: string | null;
   lastStderr: string | null;
@@ -155,16 +155,16 @@ export async function engineStart(
     preferSidecar?: boolean;
     runtime?: "direct" | "aurowork-orchestrator";
     workspacePaths?: string[];
-    opencodeBinPath?: string | null;
-    opencodeEnableExa?: boolean;
+    auroBinPath?: string | null;
+    auroEnableExa?: boolean;
     auroworkRemoteAccess?: boolean;
   },
 ): Promise<EngineInfo> {
   return invoke<EngineInfo>("engine_start", {
     projectDir,
     preferSidecar: options?.preferSidecar ?? false,
-    auroBinPath: options?.opencodeBinPath ?? null,
-    auroEnableExa: options?.opencodeEnableExa ?? null,
+    auroBinPath: options?.auroBinPath ?? null,
+    auroEnableExa: options?.auroEnableExa ?? null,
     auroworkRemoteAccess: options?.auroworkRemoteAccess ?? null,
     runtime: options?.runtime ?? null,
     workspacePaths: options?.workspacePaths ?? null,
@@ -411,11 +411,11 @@ export async function engineStop(): Promise<EngineInfo> {
 }
 
 export async function engineRestart(options?: {
-  opencodeEnableExa?: boolean;
+  auroEnableExa?: boolean;
   auroworkRemoteAccess?: boolean;
 }): Promise<EngineInfo> {
   return invoke<EngineInfo>("engine_restart", {
-    opencodeEnableExa: options?.opencodeEnableExa ?? null,
+    auroEnableExa: options?.auroEnableExa ?? null,
     auroworkRemoteAccess: options?.auroworkRemoteAccess ?? null,
   });
 }
@@ -498,11 +498,11 @@ export async function engineInfo(): Promise<EngineInfo> {
 
 export async function engineDoctor(options?: {
   preferSidecar?: boolean;
-  opencodeBinPath?: string | null;
+  auroBinPath?: string | null;
 }): Promise<EngineDoctorResult> {
   return invoke<EngineDoctorResult>("engine_doctor", {
     preferSidecar: options?.preferSidecar ?? false,
-    opencodeBinPath: options?.opencodeBinPath ?? null,
+    auroBinPath: options?.auroBinPath ?? null,
   });
 }
 
@@ -667,7 +667,7 @@ export async function resetAuroCache(): Promise<CacheResetResult> {
 export async function auroDbMigrate(input: {
   projectDir: string;
   preferSidecar?: boolean;
-  opencodeBinPath?: string | null;
+  auroBinPath?: string | null;
 }): Promise<ExecResult> {
   const safeProjectDir = input.projectDir.trim();
   if (!safeProjectDir) {
@@ -677,7 +677,7 @@ export async function auroDbMigrate(input: {
   return invoke<ExecResult>("auro_db_migrate", {
     projectDir: safeProjectDir,
     preferSidecar: input.preferSidecar ?? false,
-    opencodeBinPath: input.opencodeBinPath ?? null,
+    auroBinPath: input.auroBinPath ?? null,
   });
 }
 

@@ -1025,7 +1025,7 @@ export default function App() {
   const [engineCustomBinPath, setEngineCustomBinPath] = createSignal("");
 
   const [engineRuntime, setEngineRuntime] = createSignal<EngineRuntime>("aurowork-orchestrator");
-  const [opencodeEnableExa, setOpencodeEnableExa] = createSignal(false);
+  const [auroEnableExa, setOpencodeEnableExa] = createSignal(false);
 
   const [baseUrl, setBaseUrl] = createSignal("http://127.0.0.1:4096");
   const [clientDirectory, setClientDirectory] = createSignal("");
@@ -3294,7 +3294,7 @@ export default function App() {
     refreshPlugins,
     engineSource,
     engineCustomBinPath,
-    opencodeEnableExa,
+    auroEnableExa,
     setEngineSource,
     setView,
     setTab,
@@ -3392,8 +3392,8 @@ export default function App() {
       const info = workspaceStore.engine();
       const baseUrl = info?.baseUrl?.trim() ?? "";
       const directory = toSessionTransportDirectory(workspace.path?.trim() ?? "");
-      const username = info?.opencodeUsername?.trim() ?? "";
-      const password = info?.opencodePassword?.trim() ?? "";
+      const username = info?.auroUsername?.trim() ?? "";
+      const password = info?.auroPassword?.trim() ?? "";
       const auth: OpencodeAuth | undefined = username && password ? { username, password } : undefined;
       return {
         baseUrl,
@@ -3565,8 +3565,8 @@ export default function App() {
   createEffect(() => {
     const engineInfo = workspaceStore.engine();
     const engineBaseUrl = engineInfo?.baseUrl?.trim() ?? "";
-    const engineUser = engineInfo?.opencodeUsername?.trim() ?? "";
-    const enginePass = engineInfo?.opencodePassword?.trim() ?? "";
+    const engineUser = engineInfo?.auroUsername?.trim() ?? "";
+    const enginePass = engineInfo?.auroPassword?.trim() ?? "";
 
     const engineKey = [engineBaseUrl, engineUser, enginePass].join("::");
     const workspaceKey = workspaceStore
@@ -6984,7 +6984,7 @@ export default function App() {
         }
 
         const storedOpencodeEnableExa = window.localStorage.getItem(
-          "aurowork.opencodeEnableExa"
+          "aurowork.auroEnableExa"
         );
         if (storedOpencodeEnableExa === "0" || storedOpencodeEnableExa === "1") {
           setOpencodeEnableExa(storedOpencodeEnableExa === "1");
@@ -7548,8 +7548,8 @@ export default function App() {
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(
-        "aurowork.opencodeEnableExa",
-        opencodeEnableExa() ? "1" : "0"
+        "aurowork.auroEnableExa",
+        auroEnableExa() ? "1" : "0"
       );
     } catch {
       // ignore
@@ -8080,7 +8080,7 @@ export default function App() {
       setEngineCustomBinPath,
       engineRuntime: engineRuntime(),
       setEngineRuntime,
-      opencodeEnableExa: opencodeEnableExa(),
+      auroEnableExa: auroEnableExa(),
       toggleOpencodeEnableExa: () => setOpencodeEnableExa((v) => !v),
       isWindows: isWindowsPlatform(),
       toggleDeveloperMode: () => {
