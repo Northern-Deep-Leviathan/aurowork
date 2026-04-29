@@ -27,9 +27,6 @@ const pinnedOpencodeVersion = String(
   .trim()
   .replace(/^v/, "");
 const serverPkg = readJson(resolve(root, "apps", "server", "package.json"));
-const opencodeRouterPkg = readJson(
-  resolve(root, "apps", "opencode-router", "package.json"),
-);
 const tauriConfig = readJson(
   resolve(root, "apps", "desktop", "src-tauri", "tauri.conf.json"),
 );
@@ -44,9 +41,7 @@ const versions = {
   cargo: cargoVersion ?? null,
   server: serverPkg.version ?? null,
   orchestrator: orchestratorPkg.version ?? null,
-  opencodeRouter: opencodeRouterPkg.version ?? null,
   opencode: pinnedOpencodeVersion || null,
-  opencodeRouterVersionPinned: desktopPkg.opencodeRouterVersion ?? null,
   orchestratorAuroworkServerRange:
     orchestratorPkg.dependencies?.["aurowork-server"] ?? null,
 };
@@ -80,13 +75,6 @@ addCheck(
   `${versions.app ?? "?"} vs ${versions.server ?? "?"}`,
 );
 addCheck(
-  "App/opencode-router versions match",
-  versions.app &&
-    versions.opencodeRouter &&
-    versions.app === versions.opencodeRouter,
-  `${versions.app ?? "?"} vs ${versions.opencodeRouter ?? "?"}`,
-);
-addCheck(
   "Desktop/Tauri versions match",
   versions.desktop && versions.tauri && versions.desktop === versions.tauri,
   `${versions.desktop ?? "?"} vs ${versions.tauri ?? "?"}`,
@@ -95,13 +83,6 @@ addCheck(
   "Desktop/Cargo versions match",
   versions.desktop && versions.cargo && versions.desktop === versions.cargo,
   `${versions.desktop ?? "?"} vs ${versions.cargo ?? "?"}`,
-);
-addCheck(
-  "OpenCodeRouter version pinned in desktop",
-  versions.opencodeRouter &&
-    versions.opencodeRouterVersionPinned &&
-    versions.opencodeRouter === versions.opencodeRouterVersionPinned,
-  `${versions.opencodeRouterVersionPinned ?? "?"} vs ${versions.opencodeRouter ?? "?"}`,
 );
 if (versions.opencode) {
   addCheck(
@@ -147,19 +128,11 @@ if (existsSync(sidecarManifestPath)) {
     `${manifest.version ?? "?"} vs ${versions.orchestrator ?? "?"}`,
   );
   const serverEntry = manifest.entries?.["aurowork-server"]?.version;
-  const routerEntry = manifest.entries?.["opencode-router"]?.version;
   if (serverEntry) {
     addCheck(
       "Sidecar manifest aurowork-server version matches",
       versions.server && serverEntry === versions.server,
       `${serverEntry ?? "?"} vs ${versions.server ?? "?"}`,
-    );
-  }
-  if (routerEntry) {
-    addCheck(
-      "Sidecar manifest opencode-router version matches",
-      versions.opencodeRouter && routerEntry === versions.opencodeRouter,
-      `${routerEntry ?? "?"} vs ${versions.opencodeRouter ?? "?"}`,
     );
   }
 } else {

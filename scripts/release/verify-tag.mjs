@@ -29,7 +29,6 @@ const desktopVersion = readJson(resolve(root, "apps", "desktop", "package.json")
 const orchestratorVersion =
   readJson(resolve(root, "apps", "orchestrator", "package.json")).version ?? null;
 const serverVersion = readJson(resolve(root, "apps", "server", "package.json")).version ?? null;
-const opencodeRouterVersion = readJson(resolve(root, "apps", "opencode-router", "package.json")).version ?? null;
 const tauriVersion = readJson(resolve(root, "apps", "desktop", "src-tauri", "tauri.conf.json")).version ?? null;
 const cargoVersion = readCargoVersion(resolve(root, "apps", "desktop", "src-tauri", "Cargo.toml"));
 
@@ -48,7 +47,6 @@ check("app", appVersion);
 check("desktop", desktopVersion);
 check("aurowork-orchestrator", orchestratorVersion);
 check("aurowork-server", serverVersion);
-check("opencode-router", opencodeRouterVersion);
 check("tauri", tauriVersion);
 check("cargo", cargoVersion);
 
