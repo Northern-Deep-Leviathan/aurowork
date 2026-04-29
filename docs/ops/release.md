@@ -14,7 +14,7 @@ AuroWork releases should be deterministic, easy to reproduce, and fully verifiab
     - `pnpm bump:patch` or `pnpm bump:minor` or `pnpm bump:major`
 2. Re-run `pnpm release:review`.
 3. Build sidecars for the desktop bundle:
-   - `pnpm --filter @nld/aurowork prepare:sidecar`
+   - `pnpm --filter @aurowork/desktop prepare:sidecar`
 4. Commit the version bump.
 5. Tag and push:
    - `git tag vX.Y.Z`
