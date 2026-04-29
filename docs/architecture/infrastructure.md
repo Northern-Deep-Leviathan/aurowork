@@ -97,7 +97,7 @@ But what you can do is:
 
 ## References
 
-* `VISION.md`
-* `PRINCIPLES.md`
-* `ARCHITECTURE.md`
+* `docs/product/vision.md`
+* `docs/product/principles.md`
+* `docs/architecture/overview.md`
 * `packages/app/pr/aurowork-server.md`

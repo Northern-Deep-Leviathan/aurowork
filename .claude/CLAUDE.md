@@ -163,9 +163,10 @@ rm -rf ~/AuroWork/
 
 ## 关键参考文档
 
-- @ARCHITECTURE.md — 系统架构设计 (runtime flow, server ownership)
-- @AGENTS.md — 代理开发指南
-- @PRODUCT.md — 产品需求和用户流程
-- @DESIGN-LANGUAGE.md — 视觉设计参考
-- @INFRASTRUCTURE.md — 部署和控制平面
+- @docs/architecture/overview.md — 系统架构设计 (runtime flow, server ownership)
+- @docs/architecture/agents.md — 代理开发指南
+- @docs/product/product.md — 产品需求和用户流程
+- @docs/design/design-language.md — 视觉设计参考
+- @docs/architecture/infrastructure.md — 部署和控制平面
+- @docs/INDEX.md — 文档总索引（按主题导航）
 - @.claude/DEV_PROGRESS.md — 开发进度追踪（每次 session 必读）

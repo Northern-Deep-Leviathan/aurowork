@@ -1411,15 +1411,15 @@ Command prompt content here
 
 | Document | Purpose |
 |----------|---------|
-| `ARCHITECTURE.md` | Runtime architecture, design principles, Mode A/B |
-| `PRINCIPLES.md` | Decision framework for features and bugs |
-| `DESIGN-LANGUAGE.md` | Visual design system rules |
-| `INFRASTRUCTURE.md` | Infrastructure principles |
-| `PRODUCT.md` | Product requirements, target users, UI/UX spec |
-| `VISION.md` | Mission statement |
-| `AGENTS.md` | Agent development guide |
-| `BACKEND_DETAILS.md` | Rust/TypeScript API reference |
-| `RELEASE.md` | Release procedures |
+| `docs/architecture/overview.md` | Runtime architecture, design principles, Mode A/B |
+| `docs/product/principles.md` | Decision framework for features and bugs |
+| `docs/design/design-language.md` | Visual design system rules |
+| `docs/architecture/infrastructure.md` | Infrastructure principles |
+| `docs/product/product.md` | Product requirements, target users, UI/UX spec |
+| `docs/product/vision.md` | Mission statement |
+| `docs/architecture/agents.md` | Agent development guide |
+| `docs/architecture/backend.md` | Rust/TypeScript API reference |
+| `docs/ops/release.md` | Release procedures |
 | `project-plan.md` | Current development roadmap |
 | `apps/orchestrator/README.md` | Orchestrator CLI docs |
 | `apps/server/README.md` | AuroWork Server docs |
