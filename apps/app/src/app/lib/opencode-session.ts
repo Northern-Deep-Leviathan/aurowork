@@ -9,7 +9,7 @@
  */
 import type { Session } from "@opencode-ai/sdk/v2/client";
 import type { Client, ModelRef } from "../types";
-import { unwrap } from "./opencode";
+import { unwrap } from "./auro";
 
 // ---------------------------------------------------------------------------
 // Session helpers

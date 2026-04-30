@@ -4,7 +4,7 @@ import Button from "./button";
 import TextInput from "./text-input";
 import type { Client } from "../types";
 import type { McpDirectoryInfo } from "../constants";
-import { unwrap } from "../lib/opencode";
+import { unwrap } from "../lib/auro";
 import { auroMcpAuth } from "../lib/tauri";
 import { validateMcpServerName } from "../mcp";
 import { t, type Language } from "../../i18n";

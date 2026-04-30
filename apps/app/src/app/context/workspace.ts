@@ -20,7 +20,7 @@ import {
   safeStringify,
   writeStartupPreference,
 } from "../utils";
-import { unwrap } from "../lib/opencode";
+import { unwrap } from "../lib/auro";
 import { describeDirectoryScope, resolveScopedClientDirectory } from "../lib/session-scope";
 import {
   buildAuroworkWorkspaceBaseUrl,
@@ -64,7 +64,7 @@ import {
   type EngineInfo,
   type WorkspaceInfo,
 } from "../lib/tauri";
-import { waitForHealthy, createClient, type OpencodeAuth } from "../lib/opencode";
+import { waitForHealthy, createClient, type AuroAuth } from "../lib/auro";
 import type { OpencodeConnectStatus, ProviderListItem } from "../types";
 import { t, currentLocale } from "../../i18n";
 import { filterProviderList, mapConfigProvidersToList } from "../utils/providers";
@@ -224,7 +224,7 @@ export function createWorkspaceStore(options: {
       targetRoot?: string;
       reason?: string;
     },
-    auth?: OpencodeAuth,
+    auth?: AuroAuth,
     connectOptions?: { quiet?: boolean; navigate?: boolean },
   ) =>
     [
@@ -260,7 +260,7 @@ export function createWorkspaceStore(options: {
   };
 
   const [engine, setEngine] = createSignal<EngineInfo | null>(null);
-  const [engineAuth, setEngineAuth] = createSignal<OpencodeAuth | null>(null);
+  const [engineAuth, setEngineAuth] = createSignal<AuroAuth | null>(null);
   const [engineDoctorResult, setEngineDoctorResult] = createSignal<EngineDoctorResult | null>(null);
   const [engineDoctorCheckedAt, setEngineDoctorCheckedAt] = createSignal<number | null>(null);
   const [engineInstallLogs, setEngineInstallLogs] = createSignal<string | null>(null);
@@ -714,7 +714,7 @@ export function createWorkspaceStore(options: {
     const workspaceScopedBaseUrl =
       buildAuroworkWorkspaceBaseUrl(normalizedHostUrl, workspace.id) ?? workspaceBaseUrl;
     const opencodeBaseUrl = `${workspaceScopedBaseUrl.replace(/\/+$/, "")}/opencode`;
-    const opencodeAuth: OpencodeAuth | undefined = trimmedToken
+    const auroAuth: AuroAuth | undefined = trimmedToken
       ? { token: trimmedToken, mode: "aurowork" }
       : undefined;
 
@@ -724,7 +724,7 @@ export function createWorkspaceStore(options: {
       workspace,
       opencodeBaseUrl,
       directory: workspace.opencode?.directory?.trim() ?? workspace.directory?.trim() ?? "",
-      auth: opencodeAuth,
+      auth: auroAuth,
     };
   };
 
@@ -1047,7 +1047,7 @@ export function createWorkspaceStore(options: {
           let resolvedBaseUrl = baseUrl;
           let resolvedDirectory = next.directory?.trim() ?? "";
           let workspaceInfo: AuroworkWorkspaceInfo | null = null;
-          let resolvedAuth: OpencodeAuth | undefined = undefined;
+          let resolvedAuth: AuroAuth | undefined = undefined;
 
           try {
             const resolved = await resolveAuroworkHost({
@@ -1460,7 +1460,7 @@ export function createWorkspaceStore(options: {
       targetRoot?: string;
       reason?: string;
     },
-    auth?: OpencodeAuth,
+    auth?: AuroAuth,
     connectOptions?: { quiet?: boolean; navigate?: boolean },
   ) {
     const requestKey = connectRequestKey(nextBaseUrl, directory, context, auth, connectOptions);
@@ -2151,7 +2151,7 @@ export function createWorkspaceStore(options: {
     let resolvedBaseUrl = "";
     let resolvedDirectory = directory;
     let auroworkWorkspace: AuroworkWorkspaceInfo | null = null;
-    let resolvedAuth: OpencodeAuth | undefined = undefined;
+    let resolvedAuth: AuroAuth | undefined = undefined;
     let resolvedHostUrl = hostUrl;
 
     options.updateAuroworkServerSettings({
@@ -2377,7 +2377,7 @@ export function createWorkspaceStore(options: {
     let resolvedBaseUrl = "";
     let resolvedDirectory = directory;
     let auroworkWorkspace: AuroworkWorkspaceInfo | null = null;
-    let resolvedAuth: OpencodeAuth | undefined = undefined;
+    let resolvedAuth: AuroAuth | undefined = undefined;
     let resolvedHostUrl = hostUrl;
 
     options.updateAuroworkServerSettings({

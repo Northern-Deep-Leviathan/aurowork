@@ -6,7 +6,7 @@ import type {
   ProviderListResponse,
   Session,
 } from "@opencode-ai/sdk/v2/client";
-import type { createClient } from "./lib/opencode";
+import type { createClient } from "./lib/auro";
 import type { AuroConfigFile, WorkspaceInfo } from "./lib/tauri";
 
 export type Client = ReturnType<typeof createClient>;

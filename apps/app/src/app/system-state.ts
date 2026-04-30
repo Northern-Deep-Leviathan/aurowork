@@ -21,7 +21,7 @@ import {
   resetAuroworkState,
   resetAuroCache,
 } from "./lib/tauri";
-import { unwrap, waitForHealthy } from "./lib/opencode";
+import { unwrap, waitForHealthy } from "./lib/auro";
 
 function throttle<T extends (...args: any[]) => any>(
   fn: T,

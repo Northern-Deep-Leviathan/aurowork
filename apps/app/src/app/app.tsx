@@ -41,7 +41,7 @@ import DashboardView from "./pages/dashboard";
 import SessionView from "./pages/session";
 import ProtoWorkspacesView from "./pages/proto-workspaces";
 import ProtoV1UxView from "./pages/proto-v1-ux";
-import { createClient, unwrap, waitForHealthy, type OpencodeAuth } from "./lib/opencode";
+import { createClient, unwrap, waitForHealthy, type AuroAuth } from "./lib/auro";
 import { createDenClient, normalizeDenBaseUrl, writeDenSettings, DEFAULT_DEN_BASE_URL } from "./lib/den";
 import {
   abortSession as abortSessionTyped,
@@ -3394,7 +3394,7 @@ export default function App() {
       const directory = toSessionTransportDirectory(workspace.path?.trim() ?? "");
       const username = info?.auroUsername?.trim() ?? "";
       const password = info?.auroPassword?.trim() ?? "";
-      const auth: OpencodeAuth | undefined = username && password ? { username, password } : undefined;
+      const auth: AuroAuth | undefined = username && password ? { username, password } : undefined;
       return {
         baseUrl,
         directory,
@@ -3409,7 +3409,7 @@ export default function App() {
       // global AuroWork server settings, otherwise switching between remotes can cause other
       // workspace task lists to appear/disappear.
       const token = workspace.auroworkToken?.trim() ?? "";
-      const auth: OpencodeAuth | undefined = token ? { token, mode: "aurowork" } : undefined;
+      const auth: AuroAuth | undefined = token ? { token, mode: "aurowork" } : undefined;
       return {
         baseUrl,
         directory,
@@ -3419,7 +3419,7 @@ export default function App() {
     return {
       baseUrl,
       directory,
-      auth: undefined as OpencodeAuth | undefined,
+      auth: undefined as AuroAuth | undefined,
     };
   };
 
