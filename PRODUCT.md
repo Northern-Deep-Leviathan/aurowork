@@ -32,7 +32,7 @@ We should also eventually guide ther to:
 
 ## Product Primitives (What AuroWork Exposes)
 
-AuroWork must feel like "OpenCode, but for everyone."
+AuroWork must feel like "Auro, but for everyone."
 
 ### 1) Tasks
 
