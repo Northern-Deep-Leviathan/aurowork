@@ -24,8 +24,8 @@ export type TuiConnectInfo = {
   ownerToken?: string;
   hostToken: string;
   opencodeUrl: string;
-  opencodePassword?: string;
-  opencodeUsername?: string;
+  auroPassword?: string;
+  auroUsername?: string;
   attachCommand: string;
 };
 
@@ -647,9 +647,9 @@ export function startOrchestratorTui(options: TuiOptions): TuiHandle {
                 <text fg={theme.text}>{state.connect.hostToken}</text>
                 <text fg={theme.textMuted}>OpenCode URL</text>
                 <text fg={theme.text}>{state.connect.opencodeUrl}</text>
-                <Show when={state.connect.opencodePassword}>
+                <Show when={state.connect.auroPassword}>
                   <text fg={theme.textMuted}>OpenCode Server Password</text>
-                  <text fg={theme.text}>{state.connect.opencodePassword}</text>
+                  <text fg={theme.text}>{state.connect.auroPassword}</text>
                 </Show>
                 <text fg={theme.textMuted}>Attach command</text>
                 <text fg={theme.text}>{state.connect.attachCommand}</text>
