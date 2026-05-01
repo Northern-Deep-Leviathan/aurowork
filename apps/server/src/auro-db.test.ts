@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { Database } from "bun:sqlite";
 
-import { resolveOpencodeDbPath, seedOpencodeSessionMessages } from "./opencode-db.js";
+import { resolveAuroDbPath, seedAuroSessionMessages } from "./auro-db.js";
 
 async function createDb(): Promise<{ path: string; dispose: () => void }> {
   const dir = await mkdtemp(join(tmpdir(), "aurowork-opencode-db-"));
@@ -41,10 +41,10 @@ async function createDb(): Promise<{ path: string; dispose: () => void }> {
   };
 }
 
-describe("seedOpencodeSessionMessages", () => {
+describe("seedAuroSessionMessages", () => {
   test("writes seeded transcript messages into the OpenCode db", async () => {
     const fixture = await createDb();
-    const result = seedOpencodeSessionMessages({
+    const result = seedAuroSessionMessages({
       dbPath: fixture.path,
       sessionId: "ses_test123",
       workspaceRoot: "/tmp/workspace",
@@ -87,13 +87,13 @@ describe("seedOpencodeSessionMessages", () => {
 
   test("does not seed a session twice", async () => {
     const fixture = await createDb();
-    const first = seedOpencodeSessionMessages({
+    const first = seedAuroSessionMessages({
       dbPath: fixture.path,
       sessionId: "ses_test123",
       workspaceRoot: "/tmp/workspace",
       messages: [{ role: "assistant", text: "Welcome" }],
     });
-    const second = seedOpencodeSessionMessages({
+    const second = seedAuroSessionMessages({
       dbPath: fixture.path,
       sessionId: "ses_test123",
       workspaceRoot: "/tmp/workspace",
@@ -105,7 +105,7 @@ describe("seedOpencodeSessionMessages", () => {
   });
 });
 
-describe("resolveOpencodeDbPath", () => {
+describe("resolveAuroDbPath", () => {
   test("prefers an existing XDG opencode.db when present", async () => {
     const xdg = await mkdtemp(join(tmpdir(), "aurowork-opencode-xdg-"));
     const dir = join(xdg, "opencode");
@@ -121,7 +121,7 @@ describe("resolveOpencodeDbPath", () => {
       process.env.OPENCODE_CHANNEL = "local";
       delete process.env.OPENCODE_DB;
 
-      expect(resolveOpencodeDbPath()).toBe(file);
+      expect(resolveAuroDbPath()).toBe(file);
     } finally {
       if (previousXdg === undefined) delete process.env.XDG_DATA_HOME;
       else process.env.XDG_DATA_HOME = previousXdg;
@@ -149,7 +149,7 @@ describe("resolveOpencodeDbPath", () => {
       process.env.OPENCODE_CHANNEL = "local";
       delete process.env.OPENCODE_DB;
 
-      expect(resolveOpencodeDbPath()).toBe(file);
+      expect(resolveAuroDbPath()).toBe(file);
     } finally {
       if (previousDataDir === undefined) delete process.env.AUROWORK_DATA_DIR;
       else process.env.AUROWORK_DATA_DIR = previousDataDir;
@@ -179,7 +179,7 @@ describe("resolveOpencodeDbPath", () => {
       process.env.OPENCODE_CHANNEL = "local";
       delete process.env.OPENCODE_DB;
 
-      expect(resolveOpencodeDbPath()).toBe(file);
+      expect(resolveAuroDbPath()).toBe(file);
     } finally {
       if (previousDataDir === undefined) delete process.env.AUROWORK_DATA_DIR;
       else process.env.AUROWORK_DATA_DIR = previousDataDir;

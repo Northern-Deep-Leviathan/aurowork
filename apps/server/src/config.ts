@@ -12,10 +12,10 @@ interface CliArgs {
   hostToken?: string;
   approvalMode?: ApprovalMode;
   approvalTimeoutMs?: number;
-  opencodeBaseUrl?: string;
-  opencodeDirectory?: string;
-  opencodeUsername?: string;
-  opencodePassword?: string;
+  auroBaseUrl?: string;
+  auroDirectory?: string;
+  auroUsername?: string;
+  auroPassword?: string;
   workspaces: string[];
   corsOrigins?: string[];
   readOnly?: boolean;
@@ -36,10 +36,10 @@ interface FileConfig {
   corsOrigins?: string[];
   authorizedRoots?: string[];
   readOnly?: boolean;
-  opencodeBaseUrl?: string;
-  opencodeDirectory?: string;
-  opencodeUsername?: string;
-  opencodePassword?: string;
+  auroBaseUrl?: string;
+  auroDirectory?: string;
+  auroUsername?: string;
+  auroPassword?: string;
   logFormat?: LogFormat;
   logRequests?: boolean;
 }
@@ -135,22 +135,22 @@ export function parseCliArgs(argv: string[]): CliArgs {
       continue;
     }
     if (value === "--auro-base-url") {
-      args.opencodeBaseUrl = argv[index + 1];
+      args.auroBaseUrl = argv[index + 1];
       index += 1;
       continue;
     }
     if (value === "--auro-directory") {
-      args.opencodeDirectory = argv[index + 1];
+      args.auroDirectory = argv[index + 1];
       index += 1;
       continue;
     }
     if (value === "--auro-username") {
-      args.opencodeUsername = argv[index + 1];
+      args.auroUsername = argv[index + 1];
       index += 1;
       continue;
     }
     if (value === "--auro-password") {
-      args.opencodePassword = argv[index + 1];
+      args.auroPassword = argv[index + 1];
       index += 1;
       continue;
     }
@@ -220,26 +220,26 @@ export async function resolveServerConfig(cli: CliArgs): Promise<ServerConfig> {
         ? envWorkspaces.map((path) => ({ path }))
         : fileConfig.workspaces ?? [];
 
-  const envOpencodeBaseUrl = process.env.AUROWORK_AURO_BASE_URL;
-  const envOpencodeDirectory = process.env.AUROWORK_AURO_DIRECTORY;
-  const envOpencodeUsername = process.env.AUROWORK_AURO_USERNAME;
-  const envOpencodePassword = process.env.AUROWORK_AURO_PASSWORD;
-  const opencodeBaseUrl = cli.opencodeBaseUrl ?? envOpencodeBaseUrl ?? fileConfig.opencodeBaseUrl;
-  const opencodeDirectory = cli.opencodeDirectory ?? envOpencodeDirectory ?? fileConfig.opencodeDirectory;
-  const opencodeUsername = cli.opencodeUsername ?? envOpencodeUsername ?? fileConfig.opencodeUsername;
-  const opencodePassword = cli.opencodePassword ?? envOpencodePassword ?? fileConfig.opencodePassword;
+  const envAuroBaseUrl = process.env.AUROWORK_AURO_BASE_URL;
+  const envAuroDirectory = process.env.AUROWORK_AURO_DIRECTORY;
+  const envAuroUsername = process.env.AUROWORK_AURO_USERNAME;
+  const envAuroPassword = process.env.AUROWORK_AURO_PASSWORD;
+  const auroBaseUrl = cli.auroBaseUrl ?? envAuroBaseUrl ?? fileConfig.auroBaseUrl;
+  const auroDirectory = cli.auroDirectory ?? envAuroDirectory ?? fileConfig.auroDirectory;
+  const auroUsername = cli.auroUsername ?? envAuroUsername ?? fileConfig.auroUsername;
+  const auroPassword = cli.auroPassword ?? envAuroPassword ?? fileConfig.auroPassword;
 
-  if (workspaceConfigs.length > 0 && (opencodeBaseUrl || opencodeDirectory || opencodeUsername || opencodePassword)) {
-    const allowDirectoryOverride = workspaceConfigs.length === 1 && opencodeDirectory;
+  if (workspaceConfigs.length > 0 && (auroBaseUrl || auroDirectory || auroUsername || auroPassword)) {
+    const allowDirectoryOverride = workspaceConfigs.length === 1 && auroDirectory;
     workspaceConfigs = workspaceConfigs.map((workspace, index) => {
       const nextDirectory =
-        workspace.directory ?? (allowDirectoryOverride && index === 0 ? opencodeDirectory : undefined);
+        workspace.directory ?? (allowDirectoryOverride && index === 0 ? auroDirectory : undefined);
       return {
         ...workspace,
-        baseUrl: workspace.baseUrl ?? opencodeBaseUrl,
+        baseUrl: workspace.baseUrl ?? auroBaseUrl,
         directory: nextDirectory,
-        opencodeUsername: workspace.opencodeUsername ?? opencodeUsername,
-        opencodePassword: workspace.opencodePassword ?? opencodePassword,
+        auroUsername: workspace.auroUsername ?? auroUsername,
+        auroPassword: workspace.auroPassword ?? auroPassword,
       };
     });
   }
@@ -319,10 +319,10 @@ export async function resolveServerConfig(cli: CliArgs): Promise<ServerConfig> {
     token,
     hostToken,
     configPath,
-    opencodeBaseUrl,
-    opencodeDirectory,
-    opencodeUsername,
-    opencodePassword,
+    auroBaseUrl,
+    auroDirectory,
+    auroUsername,
+    auroPassword,
     approval,
     corsOrigins,
     workspaces,

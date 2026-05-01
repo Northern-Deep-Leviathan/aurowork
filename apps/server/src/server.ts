@@ -6,7 +6,7 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import type { ApprovalRequest, Capabilities, ServerConfig, WorkspaceInfo, Actor, ReloadReason, ReloadTrigger, TokenScope } from "./types.js";
 import { ApprovalService } from "./approvals.js";
 import { addPlugin, listPlugins, normalizePluginSpec, removePlugin } from "./plugins.js";
-import { sanitizePortableOpencodeConfig } from "./portable-opencode.js";
+import { sanitizePortableAuroConfig } from "./portable-auro.js";
 import { addMcp, listMcp, removeMcp } from "./mcp.js";
 import { deleteSkill, listSkills, upsertSkill } from "./skills.js";
 import { deleteCommand, listCommands, repairCommands, upsertCommand } from "./commands.js";
@@ -18,12 +18,12 @@ import { parseFrontmatter } from "./frontmatter.js";
 import { opencodeConfigPath, auroworkConfigPath, projectCommandsDir, projectSkillsDir } from "./workspace-files.js";
 import { ensureDir, exists, hashToken, shortId } from "./utils.js";
 import { workspaceIdForPath } from "./workspaces.js";
-import { ensureWorkspaceFiles, readRawOpencodeConfig } from "./workspace-init.js";
+import { ensureWorkspaceFiles, readRawAuroConfig } from "./workspace-init.js";
 import { sanitizeCommandName, validateMcpName } from "./validators.js";
 import { TokenService } from "./tokens.js";
 import { TOY_UI_CSS, TOY_UI_FAVICON_SVG, TOY_UI_HTML, TOY_UI_JS, cssResponse, htmlResponse, jsResponse, svgResponse } from "./toy-ui.js";
 import { FileSessionStore } from "./file-sessions.js";
-import { inheritWorkspaceOpencodeConnection, resolveWorkspaceOpencodeConnection } from "./opencode-connection.js";
+import { inheritWorkspaceAuroConnection, resolveWorkspaceAuroConnection } from "./auro-connection.js";
 import pkg from "../package.json" with { type: "json" };
 
 const SERVER_VERSION = pkg.version;
@@ -169,14 +169,14 @@ function parseWorkspaceMount(pathname: string): { workspaceId: string; restPath:
   return { workspaceId: decodeURIComponent(workspaceId), restPath };
 }
 
-function normalizeOpencodeProxyPath(proxyPath: string): string {
+function normalizeAuroProxyPath(proxyPath: string): string {
   const raw = (proxyPath ?? "").trim() || "/";
   const withoutPrefix = raw.startsWith("/opencode") ? raw.slice("/opencode".length) : raw;
   const normalized = (withoutPrefix || "/").replace(/\/+$/, "");
   return normalized || "/";
 }
 
-function assertOpencodeProxyAllowed(actor: Actor, method: string, proxyPath: string) {
+function assertAuroProxyAllowed(actor: Actor, method: string, proxyPath: string) {
   const m = method.toUpperCase();
   const scope = actor.scope ?? "viewer";
 
@@ -187,7 +187,7 @@ function assertOpencodeProxyAllowed(actor: Actor, method: string, proxyPath: str
   // Prevent collaborators/viewers from self-approving OpenCode permission requests via the proxy.
   // OpenCode uses /permission/:requestId/reply (and historically also a session-scoped variant).
   if (scope !== "owner" && m !== "GET" && m !== "HEAD") {
-    const normalized = normalizeOpencodeProxyPath(proxyPath);
+    const normalized = normalizeAuroProxyPath(proxyPath);
     if (/\/permission\/[^/]+\/reply$/.test(normalized)) {
       throw new ApiError(403, "forbidden", "Only owner tokens can reply to permission requests");
     }
@@ -289,11 +289,11 @@ export function startServer(config: ServerConfig) {
         authMode = "client";
         try {
           const actor = await requireClient(request, config, tokens);
-          assertOpencodeProxyAllowed(actor, request.method, mount.restPath);
+          assertAuroProxyAllowed(actor, request.method, mount.restPath);
           const workspace = await resolveWorkspace(config, mount.workspaceId);
           proxyService = "opencode";
           proxyBaseUrl = workspace.baseUrl?.trim() || undefined;
-          const response = await proxyOpencodeRequest({ config, request, url, workspace, proxyPath: mount.restPath });
+          const response = await proxyAuroRequest({ config, request, url, workspace, proxyPath: mount.restPath });
           return finalize(response);
         } catch (error) {
           const apiError = error instanceof ApiError
@@ -354,9 +354,9 @@ export function startServer(config: ServerConfig) {
         proxyBaseUrl = config.workspaces[0]?.baseUrl?.trim() || undefined;
         try {
           const actor = await requireClient(request, config, tokens);
-          assertOpencodeProxyAllowed(actor, request.method, url.pathname);
+          assertAuroProxyAllowed(actor, request.method, url.pathname);
           proxyService = "opencode";
-          const response = await proxyOpencodeRequest({ config, request, url, workspace: config.workspaces[0] });
+          const response = await proxyAuroRequest({ config, request, url, workspace: config.workspaces[0] });
           return finalize(response);
         } catch (error) {
           const apiError = error instanceof ApiError
@@ -467,7 +467,7 @@ function pathToRegex(path: string, keys: string[]): RegExp {
   return new RegExp(`^${pattern}$`);
 }
 
-function buildOpencodeProxyUrl(baseUrl: string, path: string, search: string) {
+function buildAuroProxyUrl(baseUrl: string, path: string, search: string) {
   const target = new URL(baseUrl);
   const trimmedPath = path.replace(/^\/opencode/, "");
   target.pathname = trimmedPath.startsWith("/") ? trimmedPath : `/${trimmedPath}`;
@@ -475,8 +475,8 @@ function buildOpencodeProxyUrl(baseUrl: string, path: string, search: string) {
   return target.toString();
 }
 
-async function fetchOpencodeJson(config: ServerConfig, workspace: WorkspaceInfo, path: string, init: { method: string; body?: unknown }) {
-  const connection = resolveWorkspaceOpencodeConnection(config, workspace);
+async function fetchAuroJson(config: ServerConfig, workspace: WorkspaceInfo, path: string, init: { method: string; body?: unknown }) {
+  const connection = resolveWorkspaceAuroConnection(config, workspace);
   const baseUrl = connection.baseUrl?.trim() ?? "";
   if (!baseUrl) {
     throw new ApiError(400, "opencode_unconfigured", "OpenCode base URL is missing for this workspace");
@@ -489,7 +489,7 @@ async function fetchOpencodeJson(config: ServerConfig, workspace: WorkspaceInfo,
   const headers = new Headers();
   headers.set("Content-Type", "application/json");
 
-  const directory = resolveOpencodeDirectory(workspace);
+  const directory = resolveAuroDirectory(workspace);
   if (directory) {
     headers.set("x-opencode-directory", directory);
   }
@@ -531,7 +531,7 @@ function buildOpenCodeRouterProxyUrl(baseUrl: string, path: string, search: stri
   return target.toString();
 }
 
-async function proxyOpencodeRequest(input: {
+async function proxyAuroRequest(input: {
   config: ServerConfig;
   request: Request;
   url: URL;
@@ -539,13 +539,13 @@ async function proxyOpencodeRequest(input: {
   proxyPath?: string;
 }) {
   const workspace = input.workspace;
-  const baseUrl = workspace ? resolveWorkspaceOpencodeConnection(input.config, workspace).baseUrl?.trim() ?? "" : "";
+  const baseUrl = workspace ? resolveWorkspaceAuroConnection(input.config, workspace).baseUrl?.trim() ?? "" : "";
   if (!baseUrl) {
     throw new ApiError(400, "opencode_unconfigured", "OpenCode base URL is missing for this workspace");
   }
 
   const proxyPath = input.proxyPath ?? input.url.pathname;
-  const targetUrl = buildOpencodeProxyUrl(baseUrl, proxyPath, input.url.search);
+  const targetUrl = buildAuroProxyUrl(baseUrl, proxyPath, input.url.search);
   const headers = new Headers(input.request.headers);
   headers.delete("authorization");
   headers.delete("x-aurowork-host-token");
@@ -553,12 +553,12 @@ async function proxyOpencodeRequest(input: {
   headers.delete("host");
   headers.delete("origin");
 
-  const directory = workspace ? resolveOpencodeDirectory(workspace) : null;
+  const directory = workspace ? resolveAuroDirectory(workspace) : null;
   if (directory && !headers.has("x-opencode-directory")) {
     headers.set("x-opencode-directory", directory);
   }
 
-  const auth = workspace ? resolveWorkspaceOpencodeConnection(input.config, workspace).authHeader ?? null : null;
+  const auth = workspace ? resolveWorkspaceAuroConnection(input.config, workspace).authHeader ?? null : null;
   if (auth) {
     headers.set("Authorization", auth);
   }
@@ -624,12 +624,12 @@ function jsonResponse(data: unknown, status = 200) {
   });
 }
 
-function opencodeRouterDebugEnabled(): boolean {
+function auroRouterDebugEnabled(): boolean {
   return ["1", "true", "yes"].includes((process.env.AUROWORK_DEBUG_OPENCODE_ROUTER ?? "").toLowerCase());
 }
 
 function logOpenCodeRouterDebug(message: string, details?: Record<string, unknown>) {
-  if (!opencodeRouterDebugEnabled()) return;
+  if (!auroRouterDebugEnabled()) return;
   const payload = details ? ` ${JSON.stringify(details)}` : "";
   console.log(`[opencodeRouter] ${message}${payload}`);
 }
@@ -1200,15 +1200,15 @@ function buildConfigTrigger(path: string): ReloadTrigger {
 }
 
 function serializeWorkspace(workspace: ServerConfig["workspaces"][number]) {
-  const { opencodeUsername, opencodePassword, ...rest } = workspace;
-  const opencodeDirectory = resolveOpencodeDirectory(workspace);
+  const { auroUsername, auroPassword, ...rest } = workspace;
+  const auroDirectory = resolveAuroDirectory(workspace);
   const opencode =
-    workspace.baseUrl || opencodeDirectory || opencodeUsername || opencodePassword
+    workspace.baseUrl || auroDirectory || auroUsername || auroPassword
       ? {
           baseUrl: workspace.baseUrl,
-          directory: opencodeDirectory ?? undefined,
-          username: opencodeUsername,
-          password: opencodePassword,
+          directory: auroDirectory ?? undefined,
+          username: auroUsername,
+          password: auroPassword,
         }
       : undefined;
   return {
@@ -1449,7 +1449,7 @@ function createRoutes(
       path: workspacePath,
       preset,
       workspaceType: "local",
-      ...inheritWorkspaceOpencodeConnection(config),
+      ...inheritWorkspaceAuroConnection(config),
     };
 
     config.workspaces = [workspace, ...config.workspaces.filter((entry) => entry.id !== workspace.id)];
@@ -1532,16 +1532,16 @@ function createRoutes(
 
   addRoute(routes, "GET", "/workspace/:id/config", "client", async (ctx) => {
     const workspace = await resolveWorkspace(config, ctx.params.id);
-    const opencode = await readOpencodeConfig(workspace.path);
+    const opencode = await readAuroConfig(workspace.path);
     const aurowork = await readAuroworkConfig(workspace.path);
     return jsonResponse({ opencode, aurowork, updatedAt: null });
   });
 
   addRoute(routes, "GET", "/workspace/:id/opencode-config", "client", async (ctx) => {
     const workspace = await resolveWorkspace(config, ctx.params.id);
-    const scope = normalizeOpencodeScope(ctx.url.searchParams.get("scope"));
-    const configPath = resolveOpencodeConfigFilePath(scope, workspace.path);
-    const result = await readRawOpencodeConfig(configPath);
+    const scope = normalizeAuroScope(ctx.url.searchParams.get("scope"));
+    const configPath = resolveAuroConfigFilePath(scope, workspace.path);
+    const result = await readRawAuroConfig(configPath);
     return jsonResponse({ path: configPath, exists: result.exists, content: result.content });
   });
 
@@ -1550,13 +1550,13 @@ function createRoutes(
     requireClientScope(ctx, "collaborator");
     const workspace = await resolveWorkspace(config, ctx.params.id);
     const body = await readJsonBody(ctx.request);
-    const scope = normalizeOpencodeScope(typeof body.scope === "string" ? body.scope : null);
+    const scope = normalizeAuroScope(typeof body.scope === "string" ? body.scope : null);
     const content = typeof body.content === "string" ? body.content : null;
     if (content === null) {
       throw new ApiError(400, "invalid_payload", "content must be a string");
     }
 
-    const configPath = resolveOpencodeConfigFilePath(scope, workspace.path);
+    const configPath = resolveAuroConfigFilePath(scope, workspace.path);
     await requireApproval(ctx, {
       workspaceId: workspace.id,
       action: scope === "global" ? "config.global.write" : "config.write",
@@ -1590,7 +1590,7 @@ function createRoutes(
     }
 
     // OpenCode session deletion via the upstream API.
-        await fetchOpencodeJson(config, workspace, `/session/${encodeURIComponent(sessionId)}`, {
+        await fetchAuroJson(config, workspace, `/session/${encodeURIComponent(sessionId)}`, {
       method: "DELETE",
     });
 
@@ -1627,8 +1627,8 @@ function createRoutes(
 
       const permissionUpdate = ensurePlainObject(permission);
       if (Object.prototype.hasOwnProperty.call(permissionUpdate, "external_directory")) {
-        const existingOpencode = await readOpencodeConfig(workspace.path);
-        const existingPermission = ensurePlainObject(existingOpencode.permission);
+        const existingAuro = await readAuroConfig(workspace.path);
+        const existingPermission = ensurePlainObject(existingAuro.permission);
         const nextExternalDirectory = permissionUpdate.external_directory;
         const existingPermissionKeys = Object.keys(existingPermission);
         const removePermissionParent =
@@ -2482,7 +2482,7 @@ function createRoutes(
     const workspace = await resolveWorkspace(config, ctx.params.id);
     requireClientScope(ctx, "collaborator");
 
-      await reloadOpencodeEngine(config, workspace);
+      await reloadAuroEngine(config, workspace);
 
     return jsonResponse({ ok: true, reloadedAt: Date.now() });
   });
@@ -3236,13 +3236,13 @@ function createRoutes(
 
     // Best-effort disconnect so any active connection is torn down.
     try {
-      await fetchOpencodeJson(config, workspace, `/mcp/${encodeURIComponent(name)}/disconnect`, { method: "POST" });
+      await fetchAuroJson(config, workspace, `/mcp/${encodeURIComponent(name)}/disconnect`, { method: "POST" });
     } catch {
       // ignore
     }
 
     try {
-      await fetchOpencodeJson(config, workspace, `/mcp/${encodeURIComponent(name)}/auth`, { method: "DELETE" });
+      await fetchAuroJson(config, workspace, `/mcp/${encodeURIComponent(name)}/auth`, { method: "DELETE" });
     } catch (error) {
       // Treat missing credentials as a successful logout (idempotent).
       if (
@@ -3423,7 +3423,7 @@ function createRoutes(
     }
 
     const now = Date.now();
-    const created = await fetchOpencodeJson(config, workspace, "/session", {
+    const created = await fetchAuroJson(config, workspace, "/session", {
       method: "POST",
       body: { title: `Automation: ${automation.name}` },
     });
@@ -3432,7 +3432,7 @@ function createRoutes(
       throw new ApiError(502, "opencode_failed", "OpenCode session did not return an id");
     }
 
-    await fetchOpencodeJson(config, workspace, `/session/${encodeURIComponent(sessionId)}/prompt_async`, {
+    await fetchAuroJson(config, workspace, `/session/${encodeURIComponent(sessionId)}/prompt_async`, {
       method: "POST",
       body: {
         parts: [{ type: "text", text: automation.prompt }],
@@ -3683,8 +3683,8 @@ function serializeWorkspaceConfigEntry(workspace: WorkspaceInfo): Record<string,
     ...(workspace.sandboxBackend ? { sandboxBackend: workspace.sandboxBackend } : {}),
     ...(workspace.sandboxRunId ? { sandboxRunId: workspace.sandboxRunId } : {}),
     ...(workspace.sandboxContainerName ? { sandboxContainerName: workspace.sandboxContainerName } : {}),
-    ...(workspace.opencodeUsername ? { opencodeUsername: workspace.opencodeUsername } : {}),
-    ...(workspace.opencodePassword ? { opencodePassword: workspace.opencodePassword } : {}),
+    ...(workspace.auroUsername ? { auroUsername: workspace.auroUsername } : {}),
+    ...(workspace.auroPassword ? { auroPassword: workspace.auroPassword } : {}),
   };
 }
 
@@ -3715,11 +3715,11 @@ async function persistServerWorkspaceState(config: ServerConfig): Promise<boolea
   }
 }
 
-function normalizeOpencodeScope(value: string | null | undefined): "project" | "global" {
+function normalizeAuroScope(value: string | null | undefined): "project" | "global" {
   return value?.trim().toLowerCase() === "global" ? "global" : "project";
 }
 
-function resolveOpencodeConfigFilePath(scope: "project" | "global", workspaceRoot: string): string {
+function resolveAuroConfigFilePath(scope: "project" | "global", workspaceRoot: string): string {
   if (scope === "global") {
     const base = join(homedir(), ".config", "opencode");
     const jsoncPath = join(base, "opencode.jsonc");
@@ -4573,7 +4573,7 @@ async function updateOpenCodeRouterSlackTokens(
   return response;
 }
 
-async function readOpencodeConfig(workspaceRoot: string): Promise<Record<string, unknown>> {
+async function readAuroConfig(workspaceRoot: string): Promise<Record<string, unknown>> {
   const { data } = await readJsoncFile(opencodeConfigPath(workspaceRoot), {} as Record<string, unknown>);
   return data;
 }
@@ -4589,7 +4589,7 @@ async function readAuroworkConfig(workspaceRoot: string): Promise<Record<string,
   }
 }
 
-function resolveOpencodeDirectory(workspace: WorkspaceInfo): string | null {
+function resolveAuroDirectory(workspace: WorkspaceInfo): string | null {
   const explicit = workspace.directory?.trim() ?? "";
   if (explicit) return explicit;
   if (workspace.workspaceType === "local") return workspace.path;
@@ -4610,7 +4610,7 @@ function buildOpencodeReloadUrl(baseUrl: string, directory?: string | null): str
   }
 }
 
-function parseOpencodeErrorBody(input: string): unknown {
+function parseAuroErrorBody(input: string): unknown {
   const trimmed = input.trim();
   if (!trimmed) return null;
   try {
@@ -4620,14 +4620,14 @@ function parseOpencodeErrorBody(input: string): unknown {
   }
 }
 
-async function reloadOpencodeEngine(config: ServerConfig, workspace: WorkspaceInfo): Promise<void> {
-  const connection = resolveWorkspaceOpencodeConnection(config, workspace);
+async function reloadAuroEngine(config: ServerConfig, workspace: WorkspaceInfo): Promise<void> {
+  const connection = resolveWorkspaceAuroConnection(config, workspace);
   const baseUrl = connection.baseUrl?.trim() ?? "";
   if (!baseUrl) {
     throw new ApiError(400, "opencode_unconfigured", "OpenCode base URL is missing for this workspace");
   }
 
-  const directory = resolveOpencodeDirectory(workspace);
+  const directory = resolveAuroDirectory(workspace);
   const targetUrl = buildOpencodeReloadUrl(baseUrl, directory);
   const headers: Record<string, string> = {};
   const auth = connection.authHeader ?? null;
@@ -4635,7 +4635,7 @@ async function reloadOpencodeEngine(config: ServerConfig, workspace: WorkspaceIn
 
   const response = await fetch(targetUrl, { method: "POST", headers });
   if (response.ok) return;
-  const body = parseOpencodeErrorBody(await response.text());
+  const body = parseAuroErrorBody(await response.text());
   throw new ApiError(502, "opencode_reload_failed", "OpenCode reload failed", {
     status: response.status,
     body,
@@ -4664,7 +4664,7 @@ async function requireApproval(
 }
 
 async function exportWorkspace(workspace: WorkspaceInfo) {
-  const opencode = sanitizePortableOpencodeConfig(await readOpencodeConfig(workspace.path));
+  const opencode = sanitizePortableAuroConfig(await readAuroConfig(workspace.path));
   const aurowork = await readAuroworkConfig(workspace.path);
   const skills = await listSkills(workspace.path, false);
   const commands = await listCommands(workspace.path, "workspace");
@@ -4701,11 +4701,11 @@ async function importWorkspace(workspace: WorkspaceInfo, payload: Record<string,
   const commands = (payload.commands as { name: string; content?: string; description?: string; template?: string; agent?: string; model?: string | null; subtask?: boolean }[] | undefined) ?? [];
 
   if (opencode) {
-    const sanitizedOpencode = sanitizePortableOpencodeConfig(opencode);
+    const sanitizedAuro = sanitizePortableAuroConfig(opencode);
     if (modes.opencode === "replace") {
-      await writeJsoncFile(opencodeConfigPath(workspace.path), sanitizedOpencode);
+      await writeJsoncFile(opencodeConfigPath(workspace.path), sanitizedAuro);
     } else {
-      await updateJsoncTopLevel(opencodeConfigPath(workspace.path), sanitizedOpencode);
+      await updateJsoncTopLevel(opencodeConfigPath(workspace.path), sanitizedAuro);
     }
   }
 
