@@ -1537,7 +1537,7 @@ function createRoutes(
     return jsonResponse({ opencode, aurowork, updatedAt: null });
   });
 
-  addRoute(routes, "GET", "/workspace/:id/opencode-config", "client", async (ctx) => {
+  addRoute(routes, "GET", "/workspace/:id/auro-config", "client", async (ctx) => {
     const workspace = await resolveWorkspace(config, ctx.params.id);
     const scope = normalizeAuroScope(ctx.url.searchParams.get("scope"));
     const configPath = resolveAuroConfigFilePath(scope, workspace.path);
@@ -1545,7 +1545,7 @@ function createRoutes(
     return jsonResponse({ path: configPath, exists: result.exists, content: result.content });
   });
 
-  addRoute(routes, "POST", "/workspace/:id/opencode-config", "client", async (ctx) => {
+  addRoute(routes, "POST", "/workspace/:id/auro-config", "client", async (ctx) => {
     ensureWritable(config);
     requireClientScope(ctx, "collaborator");
     const workspace = await resolveWorkspace(config, ctx.params.id);

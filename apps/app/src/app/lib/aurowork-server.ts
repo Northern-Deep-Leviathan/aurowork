@@ -1061,13 +1061,13 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
       }),
     readAuroConfigFile: (workspaceId: string, scope: "project" | "global" = "project") => {
       const query = `?scope=${scope}`;
-      return requestJson<AuroConfigFile>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/opencode-config${query}`, {
+      return requestJson<AuroConfigFile>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/auro-config${query}`, {
         token,
         hostToken,
       });
     },
     writeAuroConfigFile: (workspaceId: string, scope: "project" | "global", content: string) =>
-      requestJson<ExecResult>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/opencode-config`, {
+      requestJson<ExecResult>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/auro-config`, {
         token,
         hostToken,
         method: "POST",
