@@ -220,10 +220,10 @@ export async function resolveServerConfig(cli: CliArgs): Promise<ServerConfig> {
         ? envWorkspaces.map((path) => ({ path }))
         : fileConfig.workspaces ?? [];
 
-  const envOpencodeBaseUrl = process.env.AUROWORK_OPENCODE_BASE_URL;
-  const envOpencodeDirectory = process.env.AUROWORK_OPENCODE_DIRECTORY;
-  const envOpencodeUsername = process.env.AUROWORK_OPENCODE_USERNAME;
-  const envOpencodePassword = process.env.AUROWORK_OPENCODE_PASSWORD;
+  const envOpencodeBaseUrl = process.env.AUROWORK_AURO_BASE_URL;
+  const envOpencodeDirectory = process.env.AUROWORK_AURO_DIRECTORY;
+  const envOpencodeUsername = process.env.AUROWORK_AURO_USERNAME;
+  const envOpencodePassword = process.env.AUROWORK_AURO_PASSWORD;
   const opencodeBaseUrl = cli.opencodeBaseUrl ?? envOpencodeBaseUrl ?? fileConfig.opencodeBaseUrl;
   const opencodeDirectory = cli.opencodeDirectory ?? envOpencodeDirectory ?? fileConfig.opencodeDirectory;
   const opencodeUsername = cli.opencodeUsername ?? envOpencodeUsername ?? fileConfig.opencodeUsername;

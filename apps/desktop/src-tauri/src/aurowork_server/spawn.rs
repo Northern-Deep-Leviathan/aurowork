@@ -152,13 +152,13 @@ pub fn spawn_aurowork_server(
 
     if let Some(username) = opencode_username {
         if !username.trim().is_empty() {
-            command = command.env("AUROWORK_OPENCODE_USERNAME", username);
+            command = command.env("AUROWORK_AURO_USERNAME", username);
         }
     }
 
     if let Some(password) = opencode_password {
         if !password.trim().is_empty() {
-            command = command.env("AUROWORK_OPENCODE_PASSWORD", password);
+            command = command.env("AUROWORK_AURO_PASSWORD", password);
         }
     }
 
