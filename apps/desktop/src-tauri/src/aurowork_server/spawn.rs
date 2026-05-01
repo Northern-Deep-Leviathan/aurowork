@@ -103,14 +103,14 @@ pub fn build_aurowork_args(
 
     if let Some(base_url) = opencode_base_url {
         if !base_url.trim().is_empty() {
-            args.push("--opencode-base-url".to_string());
+            args.push("--auro-base-url".to_string());
             args.push(base_url.to_string());
         }
     }
 
     if let Some(directory) = opencode_directory {
         if !directory.trim().is_empty() {
-            args.push("--opencode-directory".to_string());
+            args.push("--auro-directory".to_string());
             args.push(directory.to_string());
         }
     }

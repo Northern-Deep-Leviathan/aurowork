@@ -134,22 +134,22 @@ export function parseCliArgs(argv: string[]): CliArgs {
       index += 1;
       continue;
     }
-    if (value === "--opencode-base-url") {
+    if (value === "--auro-base-url") {
       args.opencodeBaseUrl = argv[index + 1];
       index += 1;
       continue;
     }
-    if (value === "--opencode-directory") {
+    if (value === "--auro-directory") {
       args.opencodeDirectory = argv[index + 1];
       index += 1;
       continue;
     }
-    if (value === "--opencode-username") {
+    if (value === "--auro-username") {
       args.opencodeUsername = argv[index + 1];
       index += 1;
       continue;
     }
-    if (value === "--opencode-password") {
+    if (value === "--auro-password") {
       args.opencodePassword = argv[index + 1];
       index += 1;
       continue;
@@ -185,10 +185,10 @@ export function printHelp(): void {
     "  --host-token <token>     Host approval token",
     "  --approval <mode>        manual | auto",
     "  --approval-timeout <ms>  Approval timeout",
-    "  --opencode-base-url <url> OpenCode base URL to share",
-    "  --opencode-directory <path> OpenCode workspace directory to share",
-    "  --opencode-username <user> OpenCode server username",
-    "  --opencode-password <pass> OpenCode server password",
+    "  --auro-base-url <url> Auro base URL to share",
+    "  --auro-directory <path> Auro workspace directory to share",
+    "  --auro-username <user> Auro server username",
+    "  --auro-password <pass> Auro server password",
     "  --workspace <path>       Workspace root (repeatable)",
     "  --cors <origins>          Comma-separated origins or *",
     "  --read-only              Disable writes",
