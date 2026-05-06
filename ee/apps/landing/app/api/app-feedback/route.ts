@@ -8,7 +8,6 @@ type FeedbackContext = {
   auroworkServerVersion?: string;
   opencodeVersion?: string;
   orchestratorVersion?: string;
-  opencodeRouterVersion?: string;
   osName?: string;
   osVersion?: string;
   platform?: string;
@@ -39,7 +38,6 @@ function sanitizeContext(input: FeedbackContext | undefined) {
     auroworkServerVersion: sanitizeValue(input?.auroworkServerVersion),
     opencodeVersion: sanitizeValue(input?.opencodeVersion),
     orchestratorVersion: sanitizeValue(input?.orchestratorVersion),
-    opencodeRouterVersion: sanitizeValue(input?.opencodeRouterVersion),
     osName: sanitizeValue(input?.osName),
     osVersion: sanitizeValue(input?.osVersion),
     platform: sanitizeValue(input?.platform),
@@ -56,7 +54,6 @@ function formatDiagnosticsSummary(context: ReturnType<typeof sanitizeContext>) {
     ["AuroWork server", context.auroworkServerVersion],
     ["OpenCode", context.opencodeVersion],
     ["Orchestrator", context.orchestratorVersion],
-    ["Router", context.opencodeRouterVersion],
     ["OS", osLabel],
     ["Platform", context.platform],
   ].filter(([, value]) => value);
@@ -181,7 +178,6 @@ export async function POST(request: Request) {
         auroworkServerVersion: context.auroworkServerVersion || "unknown",
         opencodeVersion: context.opencodeVersion || "unknown",
         orchestratorVersion: context.orchestratorVersion || "unknown",
-        opencodeRouterVersion: context.opencodeRouterVersion || "unknown",
         osName: context.osName || "unknown",
         osVersion: context.osVersion || "",
         platform: context.platform || "unknown",

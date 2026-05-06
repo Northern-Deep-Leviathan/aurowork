@@ -56,7 +56,7 @@ Required repo config:
 
 ## npm publishing
 
-If you want `Release App` to publish `aurowork-orchestrator`, `aurowork-server`, and `opencode-router` to npm, configure:
+If you want `Release App` to publish `aurowork-orchestrator` and `aurowork-server` to npm, configure:
 
 - GitHub Actions secret: `NPM_TOKEN` (npm automation token)
 

@@ -110,7 +110,7 @@ copyFileSync(constantsSrc, join(meta, "constants.json"))
 writeJson(join(meta, "package.json"), {
   name: "aurowork-orchestrator",
   version,
-  description: "AuroWork host orchestrator for opencode + AuroWork server + opencode-router",
+  description: "AuroWork host orchestrator for opencode + AuroWork server",
   license: "MIT",
   bin: {
     aurowork: "./bin/aurowork",
