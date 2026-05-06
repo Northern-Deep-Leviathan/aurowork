@@ -51,7 +51,7 @@ import {
   unrevertSession,
   shellInSession,
   listCommands as listCommandsTyped,
-} from "./lib/opencode-session";
+} from "./lib/auro-session";
 import { clearPerfLogs, finishPerf, perfNow, recordPerfLog } from "./lib/perf-log";
 import { debugFileLog, enableDebugFileLog, disableDebugFileLog } from "./lib/debug-file-log";
 import { deepLinkBridgeEvent, drainPendingDeepLinks, type DeepLinkBridgeDetail } from "./lib/deep-link-bridge";
