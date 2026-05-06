@@ -1292,7 +1292,7 @@ export default {
   "settings.cap_mcp": "MCP",
   "settings.cap_commands": "Commands",
   "settings.cap_config": "Config",
-  "settings.cap_proxy": "Proxy (OpenCodeRouter)",
+  "settings.cap_proxy": "Proxy",
   "settings.cap_browser_tools": "Browser tools",
   "settings.cap_file_tools": "File tools",
   "settings.cap_sandbox": "Sandbox",

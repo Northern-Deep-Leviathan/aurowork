@@ -43,7 +43,7 @@ Read `docs/architecture/overview.md` for runtime flow, server-vs-shell ownership
 ## Why AuroWork Exists
 
 **Cowork is closed-source and locked to Claude Max.** We need an open alternative.
-**Mobile-first matters.** People want to run tasks from their phones, including via messaging surfaces like WhatsApp and Telegram through OpenCode Router.
+**Mobile-first matters.** People want to run tasks from their phones.
 **Slick UI is non-negotiable.** The experience must feel premium, not utilitarian.
 
 ## Agent Guidelines for development

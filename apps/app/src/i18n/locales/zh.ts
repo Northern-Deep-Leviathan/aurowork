@@ -1214,7 +1214,7 @@ export default {
   "settings.cap_mcp": "MCP",
   "settings.cap_commands": "命令",
   "settings.cap_config": "配置",
-  "settings.cap_proxy": "代理 (OpenCodeRouter)",
+  "settings.cap_proxy": "代理",
   "settings.cap_browser_tools": "浏览器工具",
   "settings.cap_file_tools": "文件工具",
   "settings.cap_sandbox": "沙盒",
