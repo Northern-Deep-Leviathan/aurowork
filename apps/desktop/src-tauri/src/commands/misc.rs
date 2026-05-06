@@ -322,9 +322,7 @@ fn resolve_auro_program(
     program.ok_or_else(|| {
         let notes_text = notes.join("\n");
         let install_command = pinned_auro_install_command();
-        format!(
-            "Auro CLI not found.\n\nInstall with:\n- {install_command}\n\nNotes:\n{notes_text}"
-        )
+        format!("Auro CLI not found.\n\nInstall with:\n- {install_command}\n\nNotes:\n{notes_text}")
     })
 }
 

@@ -71,6 +71,7 @@ pub fn build_engine_args(bind_host: &str, port: u16) -> Vec<String> {
     ]
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_engine(
     app: &AppHandle,
     program: &Path,

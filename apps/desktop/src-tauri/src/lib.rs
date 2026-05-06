@@ -17,9 +17,7 @@ pub use types::*;
 
 use aurowork_server::manager::AuroworkServerManager;
 use commands::aurowork_server::{aurowork_server_info, aurowork_server_restart};
-use commands::command_files::{
-    auro_command_delete, auro_command_list, auro_command_write,
-};
+use commands::command_files::{auro_command_delete, auro_command_list, auro_command_write};
 use commands::config::{read_auro_config, write_auro_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
 use commands::engine::{
@@ -27,8 +25,8 @@ use commands::engine::{
 };
 use commands::fs::{fs_close_file, fs_read_dir, fs_read_file, fs_write_file};
 use commands::misc::{
-    app_build_info, nuke_aurowork_and_auro_config_and_exit, auro_db_migrate,
-    auro_mcp_auth, reset_aurowork_state, reset_auro_cache,
+    app_build_info, auro_db_migrate, auro_mcp_auth, nuke_aurowork_and_auro_config_and_exit,
+    reset_auro_cache, reset_aurowork_state,
 };
 use commands::opkg::{import_skill, opkg_install};
 use commands::orchestrator::{

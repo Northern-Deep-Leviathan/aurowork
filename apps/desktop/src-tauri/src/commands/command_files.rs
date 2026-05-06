@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::types::{ExecResult, AuroCommand};
+use crate::types::{AuroCommand, ExecResult};
 use crate::workspace::commands::{sanitize_command_name, serialize_command_frontmatter};
 
 fn resolve_commands_dir(scope: &str, project_dir: &str) -> Result<PathBuf, String> {

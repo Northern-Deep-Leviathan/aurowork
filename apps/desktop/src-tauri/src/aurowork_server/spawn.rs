@@ -118,6 +118,7 @@ pub fn build_aurowork_args(
     args
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_aurowork_server(
     app: &AppHandle,
     host: &str,

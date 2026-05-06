@@ -251,13 +251,7 @@ pub fn engine_doctor(
         match resolved.as_ref() {
             Some(path) => {
                 let (ok, status, stdout, stderr) = auro_serve_help(path.as_os_str());
-                (
-                    auro_version(path.as_os_str()),
-                    ok,
-                    status,
-                    stdout,
-                    stderr,
-                )
+                (auro_version(path.as_os_str()), ok, status, stdout, stderr)
             }
             None => (None, false, None, None, None),
         };
@@ -312,6 +306,7 @@ pub fn engine_install() -> Result<ExecResult, String> {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn engine_start(
     app: AppHandle,
     manager: State<EngineManager>,
