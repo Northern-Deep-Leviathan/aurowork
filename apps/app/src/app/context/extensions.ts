@@ -433,7 +433,7 @@ export function createExtensionsStore(options: {
     }
 
     // Host/Tauri mode fallback: read directly from `.opencode/skills` or `.claude/skills`
-    // so the UI still works even if the OpenCode engine is stopped or unreachable.
+    // so the UI still works even if the Auro engine is stopped or unreachable.
     if (isLocalWorkspace && isTauriRuntime()) {
       if (root !== skillsRoot) {
         skillsLoaded = false;

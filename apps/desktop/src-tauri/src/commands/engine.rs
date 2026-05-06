@@ -142,7 +142,7 @@ pub fn engine_info(
             .or_else(|| state.project_dir.clone());
 
         // The orchestrator can keep running across app relaunches. In that case, the in-memory
-        // EngineManager state (including opencode basic auth) is lost. Persist a small
+        // EngineManager state (including Auro basic auth) is lost. Persist a small
         // auth snapshot next to aurowork-orchestrator-state.json so the UI can reconnect.
         let auth_snapshot = orchestrator::read_orchestrator_auth(&data_dir);
         let auro_username = state.auro_username.clone().or_else(|| {
