@@ -155,7 +155,9 @@ export type DashboardTab =
   | "plugins"
   | "mcp"
   | "config"
-  | "settings";
+  | "settings"
+  | "scheduled"
+  | "identities";
 
 export type SettingsTab =
   | "general"
@@ -167,7 +169,9 @@ export type SettingsTab =
   | "appearance"
   | "updates"
   | "recovery"
-  | "debug";
+  | "debug"
+  | "automations"
+  | "messaging";
 
 export type WorkspacePreset = "starter" | "automation" | "minimal";
 
