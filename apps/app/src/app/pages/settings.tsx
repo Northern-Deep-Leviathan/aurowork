@@ -53,6 +53,7 @@ import type {
   McpServerEntry,
   McpStatusMap,
   OpencodeConnectStatus,
+  OpencodeRouterInfo,
   PluginScope,
   ProviderListItem,
   SettingsTab,
@@ -117,7 +118,7 @@ export type SettingsViewProps = {
   opencodeConnectStatus: OpencodeConnectStatus | null;
   engineInfo: EngineInfo | null;
   orchestratorStatus: OrchestratorStatus | null;
-  opencodeRouterInfo: null;
+  opencodeRouterInfo: OpencodeRouterInfo | null;
   developerMode: boolean;
   toggleDeveloperMode: () => void;
   stopHost: () => void;

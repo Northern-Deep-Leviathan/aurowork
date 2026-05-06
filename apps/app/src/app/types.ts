@@ -200,6 +200,22 @@ export type WorkspaceAuroworkConfig = {
   } | null;
 };
 
+/**
+ * Stub shape for the (currently pruned) OpenCode router runtime info.
+ * Kept so UI code that reads these fields type-checks; today the value
+ * is always `null` at runtime. Re-author when the router lands.
+ */
+export type OpencodeRouterInfo = {
+  running?: boolean;
+  version?: string | null;
+  healthPort?: number | null;
+  pid?: number | null;
+  opencodeUrl?: string | null;
+  workspacePath?: string | null;
+  lastStdout?: string | null;
+  lastStderr?: string | null;
+};
+
 export type SkillCard = {
   name: string;
   path: string;

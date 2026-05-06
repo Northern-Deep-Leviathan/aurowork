@@ -27,6 +27,7 @@ import type {
   WorkspaceDisplay,
   WorkspaceAuroworkConfig,
   WorkspaceSessionGroup,
+  OpencodeRouterInfo,
 } from "../types";
 
 import {
@@ -167,7 +168,7 @@ export type SessionViewProps = {
   engineInfo: EngineInfo | null;
   engineDoctorVersion: string | null;
   orchestratorStatus: OrchestratorStatus | null;
-  opencodeRouterInfo: null;
+  opencodeRouterInfo: OpencodeRouterInfo | null;
   appVersion: string | null;
   stopHost: () => void;
   headerStatus: string;

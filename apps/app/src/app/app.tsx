@@ -148,6 +148,7 @@ import type {
   OpencodeConnectStatus,
   WorkspacePreset,
   WorkspaceAuroworkConfig,
+  OpencodeRouterInfo,
 } from "./types";
 import {
   clearStartupPreference,
@@ -1041,7 +1042,7 @@ export default function App() {
   const [auroworkServerHostInfo, setAuroworkServerHostInfo] = createSignal<AuroworkServerInfo | null>(null);
   const [auroworkServerDiagnostics, setAuroworkServerDiagnostics] = createSignal<AuroworkServerDiagnostics | null>(null);
   const [auroworkReconnectBusy, setAuroworkReconnectBusy] = createSignal(false);
-  const [opencodeRouterInfoState, setOpenCodeRouterInfoState] = createSignal<null>(null);
+  const [opencodeRouterInfoState, setOpenCodeRouterInfoState] = createSignal<OpencodeRouterInfo | null>(null);
   const [orchestratorStatusState, setOrchestratorStatusState] = createSignal<OrchestratorStatus | null>(null);
   const [auroworkAuditEntries, setAuroworkAuditEntries] = createSignal<Array<{ id: string; workspaceId: string; action: string; target: string; summary: string; timestamp: number }>>([]);
   const [auroworkAuditStatus, setAuroworkAuditStatus] = createSignal<"idle" | "loading" | "error">("idle");
