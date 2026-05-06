@@ -66,30 +66,19 @@ const updatePackageJson = async (nextVersion) => {
     "package.json",
   );
   const serverPath = path.join(REPO_ROOT, "apps", "server", "package.json");
-  const opencodeRouterPath = path.join(
-    REPO_ROOT,
-    "apps",
-    "opencode-router",
-    "package.json",
-  );
   const uiData = await readJson(uiPath);
   const tauriData = await readJson(tauriPath);
   const orchestratorData = await readJson(orchestratorPath);
   const serverData = await readJson(serverPath);
-  const opencodeRouterData = await readJson(opencodeRouterPath);
   uiData.version = nextVersion;
   tauriData.version = nextVersion;
-  // Desktop pins opencodeRouterVersion for sidecar bundling; keep it aligned.
-  tauriData.opencodeRouterVersion = nextVersion;
   orchestratorData.version = nextVersion;
 
-  // Ensure aurowork-orchestrator uses the same aurowork-server/opencode-router versions.
+  // Ensure aurowork-orchestrator uses the same aurowork-server version.
   orchestratorData.dependencies = orchestratorData.dependencies ?? {};
   orchestratorData.dependencies["aurowork-server"] = nextVersion;
-  orchestratorData.dependencies["opencode-router"] = nextVersion;
 
   serverData.version = nextVersion;
-  opencodeRouterData.version = nextVersion;
   if (!isDryRun) {
     await writeFile(uiPath, JSON.stringify(uiData, null, 2) + "\n");
     await writeFile(tauriPath, JSON.stringify(tauriData, null, 2) + "\n");
@@ -98,10 +87,6 @@ const updatePackageJson = async (nextVersion) => {
       JSON.stringify(orchestratorData, null, 2) + "\n",
     );
     await writeFile(serverPath, JSON.stringify(serverData, null, 2) + "\n");
-    await writeFile(
-      opencodeRouterPath,
-      JSON.stringify(opencodeRouterData, null, 2) + "\n",
-    );
   }
 };
 
@@ -172,7 +157,6 @@ const main = async () => {
           "apps/desktop/package.json",
           "apps/orchestrator/package.json",
           "apps/server/package.json",
-          "apps/opencode-router/package.json",
           "apps/desktop/src-tauri/Cargo.toml",
           "apps/desktop/src-tauri/tauri.conf.json",
         ],

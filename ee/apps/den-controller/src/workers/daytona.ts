@@ -134,7 +134,6 @@ function buildAuroWorkStartCommand(input: ProvisionInput) {
     ` --allow-external`,
     ` --opencode-source external`,
     ` --opencode-bin $(command -v opencode)`,
-    ` --no-opencode-router`,
     ` --verbose`,
   ].join("")
 

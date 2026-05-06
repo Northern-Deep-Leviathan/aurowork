@@ -30,7 +30,6 @@ export default function FeedbackPage({ searchParams }: PageProps) {
     auroworkServerVersion: readSearchParam(searchParams, "auroworkServerVersion"),
     opencodeVersion: readSearchParam(searchParams, "opencodeVersion"),
     orchestratorVersion: readSearchParam(searchParams, "orchestratorVersion"),
-    opencodeRouterVersion: readSearchParam(searchParams, "opencodeRouterVersion"),
     osName: readSearchParam(searchParams, "osName"),
     osVersion: readSearchParam(searchParams, "osVersion"),
     platform: readSearchParam(searchParams, "platform"),
