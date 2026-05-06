@@ -14,7 +14,6 @@
 5. [apps/desktop -- Tauri 2 Desktop Shell](#5-appsdesktop----tauri-2-desktop-shell)
 6. [apps/server -- AuroWork Server](#6-appsserver----aurowork-server)
 7. [apps/orchestrator -- CLI Orchestrator](#7-appsorchestrator----cli-orchestrator)
-8. [Enterprise Edition (ee/)](#8-enterprise-edition-ee)
 9. [Packages (packages/)](#9-packages-packages)
 10. [CI/CD and Release Pipeline](#10-cicd-and-release-pipeline)
 11. [Design Assumptions and Principles](#11-design-assumptions-and-principles)
@@ -81,30 +80,14 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 | Agent engine | **OpenCode v1.2.27** via `@opencode-ai/sdk` |
 | Config | `jsonc-parser`, `yaml`, `minimatch` |
 
-### Enterprise / Cloud (`ee/`)
-
-| Concern | Technology |
-|---------|-----------|
-| Web framework | **Next.js 14** (App Router) |
-| UI | React 18 + TailwindCSS + framer-motion |
-| Auth | **better-auth** (GitHub/Google OAuth, email OTP) |
-| Database | **MySQL** / **PlanetScale** via **Drizzle ORM** |
-| API server | **Express** (den-controller) |
-| Validation | **Zod** |
-| Worker provisioner | **Daytona SDK** + Render API |
-| Billing | **Polar** |
-| Analytics | PostHog |
-| Email | Loops.so |
-
 ### CI/CD and Tooling
 
 | Tool | Use |
 |------|-----|
 | **pnpm** | Monorepo workspace package manager |
-| **GitHub Actions** | CI tests, desktop builds, releases, AUR validation, Den deployment |
-| **Docker / docker-compose** | Dev environment, Den services |
+| **GitHub Actions** | CI tests, desktop builds, releases, AUR validation |
+| **Docker / docker-compose** | Dev environment |
 | **Infisical** | Secrets management |
-| **Vercel** | Frontend deployment (den-web, landing) |
 | **AUR (PKGBUILD)** | Arch Linux distribution |
 
 ---
@@ -121,16 +104,6 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 ├── packages/
 │   ├── app/                  # Shared app utilities, PR notes
 │   └── docs/                 # Mintlify .mdx documentation
-├── ee/                       # Enterprise Edition
-│   ├── apps/
-│   │   ├── den-controller/   # Cloud control plane API (Express + better-auth)
-│   │   ├── den-web/          # Den web UI (Next.js 14)
-│   │   ├── den-worker-proxy/ # Worker proxy (Hono + Bun)
-│   │   ├── den-worker-runtime/ # Worker runtime packaging (Docker/Daytona)
-│   │   └── landing/          # Marketing landing page (Next.js 14)
-│   └── packages/
-│       ├── den-db/           # Drizzle ORM schema + MySQL client
-│       └── utils/            # Shared utilities (TypeID)
 ├── packaging/
 │   ├── docker/               # Dockerfiles + docker-compose
 │   └── aur/                  # Arch Linux AUR PKGBUILD
@@ -150,8 +123,6 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 packages:
   - apps/*
   - packages/*
-  - ee/apps/*
-  - ee/packages/*
 ```
 
 ---
@@ -874,220 +845,6 @@ In TUI mode, entries feed into `tui.pushLog()` instead of stdout.
 
 ---
 
-## 8. Enterprise Edition (ee/)
-
-The cloud infrastructure layer for hosted AuroWork workers. Contains the "Den" platform.
-
-### 8.1 Den Controller (`ee/apps/den-controller/`)
-
-**Package:** `@aurowork-ee/den-controller`
-
-Cloud control plane API built with Express + better-auth + Drizzle ORM + MySQL.
-
-#### 8.1.1 Authentication (`src/auth.ts`)
-
-- **Library:** better-auth with Drizzle adapter (MySQL/PlanetScale)
-- **Social providers:** GitHub OAuth, Google OAuth
-- **Email:** Email + password with verification, email OTP (6-digit code, 600s expiry, 5 attempts)
-- **Organization plugin:** Teams enabled, creator role = "owner", dynamic access control
-- **Rate limiting (database-backed):** `/sign-in/email` 5/300s, `/sign-up/email` 3/3600s, default 20/60s
-- **Post-verification hooks:** `ensureUserOrgAccess()` creates personal org; `syncDenSignupContact()` sends to Loops
-- **TypeID generation:** All IDs use typed prefixes (`user_`, `session_`, `organization_`, `worker_`, etc.)
-
-#### 8.1.2 API Routes
-
-| Route | Description |
-|-------|-------------|
-| `ALL /api/auth/*` | better-auth handler |
-| `GET /health` | Health check |
-| `GET /v1/me` | Current user session |
-| `GET /v1/me/orgs` | User organizations |
-| `USE /v1/admin` | Admin router |
-| `USE /v1/auth` | Desktop auth router |
-| `USE /v1/orgs` | Organizations router |
-| `USE /v1/workers` | Workers router |
-
-#### 8.1.3 Workers API (`src/http/workers.ts`)
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /` | List workers for active org |
-| `POST /` | Create worker (local or cloud); cloud -> async 202 with billing gate |
-| `GET /:id` | Get worker by ID |
-| `PATCH /:id` | Update worker name |
-| `DELETE /:id` | Deprovision + delete (cascading) |
-| `POST /:id/tokens` | Get tokens + resolved connect URL (`/w/ws_*`) |
-| `POST /:id/activity-heartbeat` | Worker heartbeat (activity token) |
-| `GET /:id/runtime` | Proxy to worker runtime versions |
-| `POST /:id/runtime/upgrade` | Proxy runtime upgrade |
-| `GET /billing` | Billing status (checkout URL, portal URL, invoices) |
-| `POST /billing/subscription` | Set cancel-at-period-end |
-
-**Billing gate:** 1 free cloud worker. Additional requires active Polar subscription. Dev mode bypasses.
-
-**Cloud provisioning:** Async -- worker inserted as `provisioning`, continues in background. On failure -> `failed`.
-
-#### 8.1.4 Organizations API (`src/http/orgs.ts`)
-
-| Endpoint | Description |
-|----------|-------------|
-| `POST /` | Create organization |
-| `GET /invitations/accept` | Accept invitation |
-| `GET /:orgSlug/context` | Full org context (members, invitations, roles) |
-| `POST /:orgSlug/invitations` | Send invitation (7-day expiry) |
-| `POST /:orgSlug/invitations/:id/cancel` | Cancel invitation |
-| `POST /:orgSlug/members/:id/role` | Update member role |
-| `DELETE /:orgSlug/members/:id` | Remove member |
-| `POST /:orgSlug/roles` | Create custom role with permission map |
-| `PATCH/DELETE /:orgSlug/roles/:id` | Update/delete role |
-| `POST/GET /:orgSlug/templates` | Template sharing CRUD |
-
-#### 8.1.5 Desktop Auth (`src/http/desktop-auth.ts`)
-
-Desktop handoff flow bridges web auth -> desktop deep link:
-1. `POST /v1/auth/desktop-handoff`: Creates one-time grant (24 bytes base64url, 5-min expiry). Returns `aurowork://den-auth?grant=...&denBaseUrl=...` deep link.
-2. `POST /v1/auth/desktop-handoff/exchange`: Exchanges grant for session token + user info. One-time use.
-
-#### 8.1.6 Provisioner (`src/workers/provisioner.ts`)
-
-**3 modes** (via `PROVISIONER_MODE`):
-- **`daytona`** (default): Daytona cloud sandboxes
-- **`render`**: Render.com web services
-- **`stub`**: Template URL substitution (testing)
-
-**Daytona provisioning:**
-1. Create two persistent volumes (workspace + data)
-2. Create sandbox from snapshot (2 vCPU / 4GB RAM / 8GB disk)
-3. Execute `aurowork serve` start script with retry loop
-4. Get signed preview URL (24h expiry, auto-refresh with 5-min lead)
-5. Poll `/health` until healthy
-6. Return worker proxy URL
-
-**Render provisioning:** Creates Render web service, builds with `npm install -g aurowork-orchestrator`, starts `aurowork serve`, polls until deploy is `live`.
-
-#### 8.1.7 Billing (`src/billing/polar.ts`)
-
-Polar.sh integration:
-- Customer lookup by `external_id` (userId) or email
-- Checks `granted_benefits` for configured benefit ID
-- 14-day free trial on checkout
-- Exposes: `requireCloudWorkerAccess()`, `getCloudWorkerBillingStatus()`, `setCloudWorkerSubscriptionCancellation()`
-
-### 8.2 Den-DB (`ee/packages/den-db/`)
-
-MySQL via Drizzle ORM. All IDs use TypeID typed prefixes.
-
-#### Authentication Tables
-
-| Table | Purpose | Key Columns |
-|-------|---------|-------------|
-| `user` | Primary user record | id (TypeID), name, email (unique), email_verified |
-| `session` | Auth sessions | id, user_id, active_organization_id, token (unique), expires_at |
-| `account` | OAuth provider accounts | id, user_id, provider_id, access_token, refresh_token |
-| `verification` | Email OTP codes | id, identifier, value, expires_at |
-| `rate_limit` | Database-backed rate limiting | id, key (unique), count, last_request |
-
-#### Organization Tables
-
-| Table | Purpose | Key Columns |
-|-------|---------|-------------|
-| `organization` | Organizations | id, name, slug (unique), logo |
-| `member` | Org membership | id, organization_id, user_id, role; unique(org_id, user_id) |
-| `invitation` | Invitations | id, organization_id, email, role, status, expires_at (7 days) |
-| `team` | Teams within orgs | id, name, organization_id; unique(org_id, name) |
-| `team_member` | Team membership | id, team_id, user_id; unique(team_id, user_id) |
-| `organization_role` | Custom roles | id, organization_id, role, permission (JSON) |
-
-#### Worker Tables
-
-| Table | Purpose | Key Columns |
-|-------|---------|-------------|
-| `worker` | Worker records | id, org_id, name, destination (local/cloud), status (provisioning/healthy/failed/stopped), last_heartbeat_at |
-| `worker_instance` | Provisioned instances | id, worker_id, provider, url, status |
-| `daytona_sandbox` | Daytona sandbox state | id, worker_id (unique), sandbox_id, volume IDs, signed_preview_url |
-| `worker_token` | Access tokens | id, worker_id, scope (client/host/activity), token (unique) |
-| `worker_bundle` | Bundle/snapshot refs | id, worker_id, storage_url, status |
-| `audit_event` | Worker action audit | id, org_id, worker_id, actor_user_id, action, payload |
-| `desktop_handoff_grant` | One-time desktop grants | id, user_id, session_token, expires_at, consumed_at |
-| `temp_template_sharing` | Template sharing | id, organization_id, creator info, template_json |
-| `admin_allowlist` | Admin email allowlist | id, email (unique) |
-
-### 8.3 Den Web (`ee/apps/den-web/`)
-
-**Framework:** Next.js 14 App Router, TypeScript, TailwindCSS.
-
-**Pages:**
-
-| Route | Screen | Description |
-|-------|--------|-------------|
-| `/` | `DashboardRedirectScreen` | Auth-based redirect logic |
-| `/dashboard` | `DashboardScreen` | Main worker dashboard |
-| `/checkout` | `CheckoutScreen` | Billing/plan selection |
-| `/o/[orgSlug]/dashboard` | `OrgDashboardShell` | Org-scoped dashboard |
-| `/o/.../manage-members` | `ManageMembersScreen` | Member management |
-| `/admin` | Admin panel | Internal admin view |
-
-**AuthScreen:** Social (GitHub/Google), email + password, OTP verification, desktop handoff (detects `?grant=` param -> deep link).
-
-**DashboardScreen:**
-- **Sidebar:** Worker list with status badges, billing summary
-- **Main panel:** Overview, Connection details (URL + tokens with copy), Worker actions (refresh/status/redeploy/delete), Worker runtime (versions + upgrade), Recent activity, Billing snapshot
-
-**CheckoutScreen:** Two-column cards: Den Cloud ($50/mo, 14-day trial) vs Desktop App (free). Polar checkout integration.
-
-**State:** `DenFlowProvider` (React context) manages: auth state, workers, billing, runtime, events, all async operations.
-
-**API proxying:** `/api/auth/*` and `/api/den/*` routes proxy to den-controller.
-
-### 8.4 Den Worker Proxy (`ee/apps/den-worker-proxy/`)
-
-**Framework:** Hono + Bun runtime. Reverse proxy that keeps Daytona API keys server-side.
-
-- **Route:** `/{workerId}/{...path}` -> proxied to signed Daytona preview URL
-- **Auth:** Validates `X-AuroWork-Host-Token` or `Authorization: Bearer` against `worker_token` table
-- **Rate limiting:** Anonymous: 60 reads/min (no writes). Authenticated: 240 reads/min, 60 writes/min.
-- **Signed URL management:** Caches URLs, deduplicates concurrent refresh requests, auto-refreshes 5 min before expiry
-- **CORS:** Strips hop-by-hop headers, sets wildcard `Access-Control-Allow-Origin: *`
-
-### 8.5 Den Worker Runtime (`ee/apps/den-worker-runtime/`)
-
-Runtime packaging for Daytona cloud sandboxes.
-
-**Docker image** (`Dockerfile.daytona-snapshot`):
-- Build stage: `node:22-bookworm-slim`, installs bun, builds `aurowork-orchestrator` binary
-- Runtime stage: Copies `aurowork` + `opencode` binaries, runs `sleep infinity`
-
-**Daytona start script:**
-```bash
-mkdir -p {workspace,data,volumes}
-ln -sfn {volumeMountPaths} volumes/
-aurowork serve --workspace <path> --remote-access \
-  --aurowork-port 8787 --opencode-port 4096 \
-  --cors '*' --approval manual --allow-external \
-  --opencode-source external --opencode-bin $(command -v opencode)
-```
-
-**Activity heartbeat:** Workers ping `POST /v1/workers/{id}/activity-heartbeat` with `isActiveRecently`, `lastActivityAt`, `openSessionCount` using activity-scoped token.
-
-### 8.6 Landing Page (`ee/apps/landing/`)
-
-**Framework:** Next.js 14, TailwindCSS, Framer Motion.
-
-**Pages:** Home (`/`), Den (`/den`), Enterprise (`/enterprise`), Download (`/download`), Feedback (`/feedback`).
-
-**Home page components:**
-- Hero: "The open source Claude Cowork for your team" + Download/Contact CTAs
-- App demo panel with animated flow selector
-- 3-column cards (Desktop, Cloud, Enterprise)
-- Provider section (Subscription, BYOK, Local tabs)
-- Team showcase with animated 3-step use case switcher
-
-**API routes:** `POST /api/app-feedback` (Slack webhook), `POST /api/enterprise-contact` (Slack webhook).
-
-**Custom fonts:** FKRasterRomanCompact family (woff2).
-
----
-
 ## 9. Packages (packages/)
 
 ### 9.1 packages/docs/
@@ -1120,10 +877,7 @@ Minimal shared utilities:
 
 ### 10.1 Continuous Integration (`ci.yml`)
 
-Triggers on push/PR to `dev`. Three parallel jobs:
-1. **Build Web** (`@aurowork-ee/den-web`) -- Next.js build
-2. **Build Den** (`@aurowork-ee/den-controller`) -- TypeScript compile
-3. **Build Orchestrator** -- typecheck + `build:bin` + validate binary
+Triggers on push/PR to `dev`. Build Orchestrator job: typecheck + `build:bin` + validate binary.
 
 Runner: `blacksmith-4vcpu-ubuntu-2404`.
 
@@ -1141,18 +895,14 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
    -sidecars              create aurowork-orchestrator-v{version} release
 6. publish-npm          -- Publish to npm: aurowork-server,
                            aurowork-orchestrator
-7. publish-daytona      -- Build Docker image, push to Daytona snapshot,
-   -snapshot               deploy to Render
-8. aur-publish          -- Update PKGBUILD, publish to AUR
-9. publish-release      -- Remove draft flag from GitHub Release
+7. aur-publish          -- Update PKGBUILD, publish to AUR
+8. publish-release      -- Remove draft flag from GitHub Release
 ```
 
 ### 10.3 Other Workflows
 
 | Workflow | Purpose |
 |----------|---------|
-| `deploy-den.yml` | Deploy Den control plane to Render |
-| `release-daytona-snapshot.yml` | Build + push Daytona snapshot image |
 | `aur-validate.yml` | AUR package validation |
 | `download-stats.yml` | Download stats collection |
 | `opencode-agents.yml` | OpenCode agent automation |
@@ -1248,61 +998,7 @@ How to pick the right extension abstraction:
                +--> OpenCode (proxied)
 ```
 
-### 12.2 Mode B -- Cloud Runtime Stack
-
-```
-/ee/apps/den-web (Next.js, auth + dashboard)
-    |
-    v
-/ee/apps/den-controller (Express, auth + worker CRUD)
-    |
-    +--> Daytona/Render provisioning
-    |        |
-    |        v
-    |      /ee/apps/den-worker-runtime
-    |        -> aurowork serve + OpenCode (in sandbox)
-    |
-    +--> /ee/apps/den-worker-proxy
-           (signed preview URL proxy)
-
-AuroWork app (any client)
-    -> Connect remote (URL + token)
-    -> worker AuroWork server surface
-```
-
-### 12.3 Cloud Worker Lifecycle
-
-```
-User opens den-web
-  -> AuthScreen: email+OTP or GitHub/Google OAuth
-     -> POST /api/auth/* -> den-controller better-auth
-        -> ensureUserOrgAccess() -> personal org if new
-
-User clicks "Create Worker"
-  -> POST /v1/workers { name, destination: "cloud" }
-     -> Billing gate check (Polar benefit)
-     -> INSERT worker (status: provisioning)
-     -> INSERT 3 tokens (host, client, activity)
-     -> 202 response
-     -> [background] provisionWorkerOnDaytona()
-        -> Create volumes -> Create sandbox -> aurowork serve
-        -> Poll /health -> UPDATE status -> "healthy"
-
-User opens dashboard
-  -> GET /v1/workers -> list workers
-  -> POST /v1/workers/{id}/tokens -> tokens + workspace URL
-
-User clicks "Open in Desktop"
-  -> aurowork://open?url={url}&token={token} deep link
-     -> Desktop app connects to worker AuroWork server
-        -> Worker proxy validates -> refreshes signed URL
-        -> Proxies to Daytona sandbox
-
-Worker runtime heartbeats
-  -> POST /v1/workers/{id}/activity-heartbeat (activity token)
-```
-
-### 12.4 SSE Event Pipeline
+### 12.2 SSE Event Pipeline
 
 ```
 OpenCode Engine
@@ -1409,5 +1105,4 @@ Command prompt content here
 | `project-plan.md` | Current development roadmap |
 | `apps/orchestrator/README.md` | Orchestrator CLI docs |
 | `apps/server/README.md` | AuroWork Server docs |
-| `ee/apps/den-controller/README.md` | Den controller API docs |
 | `packaging/docker/README.md` | Docker dev setup |
