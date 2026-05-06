@@ -85,11 +85,6 @@ But what you can do is:
   - connect via `Add worker` -> `Connect remote`
 * Should not require a separate mental model for users moving between local and hosted modes.
 
-### OpenCode Router
-
-* Runs standalone via `opencode-router` CLI.
-* Must be able to use AuroWork server for config and approvals.
-
 ## Non-goals
 
 * Replacing OpenCode primitives with custom abstractions.

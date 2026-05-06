@@ -627,16 +627,6 @@ Uses **`Bun.serve()`** directly -- no Express/Hono/Fastify. The router is a hand
 | POST | `/workspace/:id/agentlab/automations/:id/run` | Trigger automation |
 | GET | `/workspace/:id/agentlab/automations/logs[/:id]` | List/read logs |
 
-#### OpenCode Router / Chat Integrations (client auth)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/workspace/:id/opencode-router/health` | Router health |
-| GET/POST | `/workspace/:id/opencode-router/telegram*` | Telegram config + identity CRUD |
-| GET/POST/DELETE | `/workspace/:id/opencode-router/identities/slack*` | Slack identity CRUD |
-| GET/POST | `/workspace/:id/opencode-router/bindings` | Channel->directory bindings |
-| POST | `/workspace/:id/opencode-router/send` | Send message via Telegram/Slack |
-
 #### Export / Import (client auth)
 
 | Method | Path | Description |
@@ -656,7 +646,6 @@ Uses **`Bun.serve()`** directly -- no Express/Hono/Fastify. The router is a hand
 | Path Pattern | Target |
 |---|---|
 | `/opencode/*` or `/w/:id/opencode/*` | OpenCode HTTP server |
-| `/opencode-router/*` or `/w/:id/opencode-router/*` | OpenCode Router |
 
 ### 6.4 Filesystem-Backed Storage Model
 
@@ -728,7 +717,7 @@ Preset system (`starter`, `automation`, `remote`) controls which items are inclu
 
 **Package:** `aurowork-orchestrator` v0.11.193
 
-CLI host daemon that manages OpenCode + AuroWork server + OpenCode Router together. Features a TUI (terminal dashboard). Published to npm as the `aurowork` command.
+CLI host daemon that manages OpenCode + AuroWork server together. Features a TUI (terminal dashboard). Published to npm as the `aurowork` command.
 
 ### 7.1 Directory Structure
 
@@ -1151,7 +1140,7 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 5. release-orchestrator -- Build orchestrator for all platforms,
    -sidecars              create aurowork-orchestrator-v{version} release
 6. publish-npm          -- Publish to npm: aurowork-server,
-                           opencode-router, aurowork-orchestrator
+                           aurowork-orchestrator
 7. publish-daytona      -- Build Docker image, push to Daytona snapshot,
    -snapshot               deploy to Render
 8. aur-publish          -- Update PKGBUILD, publish to AUR
@@ -1255,11 +1244,8 @@ How to pick the right extension abstraction:
     |        OpenCode (AI engine, loopback)
     |
     +--> /apps/server (AuroWork API + proxy)
-    |          |
-    |          +--> OpenCode (proxied)
-    |          +--> /apps/opencode-router (optional, Telegram/Slack)
-    |
-    +--> /apps/opencode-router (optional local child)
+               |
+               +--> OpenCode (proxied)
 ```
 
 ### 12.2 Mode B -- Cloud Runtime Stack
