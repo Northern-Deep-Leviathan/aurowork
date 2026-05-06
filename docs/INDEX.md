@@ -13,9 +13,6 @@
 | `README_ZH.md` | 简体中文 |
 | `README_ZH_hk.md` | 繁体中文 |
 | `LICENSE` | 许可证 |
-| `SECURITY.md` | 安全漏洞上报流程（GitHub 默认位置） |
-| `SUPPORT.md` | 用户支持渠道（GitHub 默认位置） |
-| `CODE_OF_CONDUCT.md` | 社区行为准则（GitHub 默认位置） |
 
 ## Product — 产品与战略
 
