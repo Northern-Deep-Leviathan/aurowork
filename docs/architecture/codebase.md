@@ -14,11 +14,10 @@
 5. [apps/desktop -- Tauri 2 Desktop Shell](#5-appsdesktop----tauri-2-desktop-shell)
 6. [apps/server -- AuroWork Server](#6-appsserver----aurowork-server)
 7. [apps/orchestrator -- CLI Orchestrator](#7-appsorchestrator----cli-orchestrator)
-9. [Packages (packages/)](#9-packages-packages)
-10. [CI/CD and Release Pipeline](#10-cicd-and-release-pipeline)
-11. [Design Assumptions and Principles](#11-design-assumptions-and-principles)
-12. [Data Flow Diagrams](#12-data-flow-diagrams)
-13. [Configuration Reference](#13-configuration-reference)
+8. [CI/CD and Release Pipeline](#8-cicd-and-release-pipeline)
+9. [Design Assumptions and Principles](#9-design-assumptions-and-principles)
+10. [Data Flow Diagrams](#10-data-flow-diagrams)
+11. [Configuration Reference](#11-configuration-reference)
 
 ---
 
@@ -845,43 +844,15 @@ In TUI mode, entries feed into `tui.pushLog()` instead of stdout.
 
 ---
 
-## 9. Packages (packages/)
+## 8. CI/CD and Release Pipeline
 
-### 9.1 packages/docs/
-
-**Platform:** Mintlify (`docs.json` schema). Theme: `mint`. Primary color: `#0F766E` (teal).
-
-**Documentation pages:**
-
-| Page | Description |
-|------|-------------|
-| `get-started` | CLI install (`npm install -g aurowork-orchestrator`), `aurowork start`, connect remote |
-| `sharing-ow-setup` | Sharing AuroWork setup |
-| `how-to-connect-a-custom-provider` | Custom LLM providers |
-| `how-to-connect-mcps` | MCP server connection |
-| `accessing-ow-from-slack` | Slack integration |
-| `importing-a-skill` | Skill import workflow |
-| `computer-use` | Computer use / browser automation |
-| `how-to-connect-chat-gpt` | ChatGPT provider |
-| `enable-advanced-search-with-exa` | Exa search integration |
-
-### 9.2 apps/app/
-
-Minimal shared utilities:
-- `src/app/lib/deep-link-bridge.ts` -- bridge for desktop deep link handling
-- `pr/` -- PR notes and screenshots (e.g., server token persistence)
-
----
-
-## 10. CI/CD and Release Pipeline
-
-### 10.1 Continuous Integration (`ci.yml`)
+### 8.1 Continuous Integration (`ci.yml`)
 
 Triggers on push/PR to `dev`. Build Orchestrator job: typecheck + `build:bin` + validate binary.
 
 Runner: `blacksmith-4vcpu-ubuntu-2404`.
 
-### 10.2 Release Pipeline (`release-macos-aarch64.yml`)
+### 8.2 Release Pipeline (`release-macos-aarch64.yml`)
 
 Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 
@@ -899,7 +870,7 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 8. publish-release      -- Remove draft flag from GitHub Release
 ```
 
-### 10.3 Other Workflows
+### 8.3 Other Workflows
 
 | Workflow | Purpose |
 |----------|---------|
@@ -907,7 +878,7 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 | `download-stats.yml` | Download stats collection |
 | `opencode-agents.yml` | OpenCode agent automation |
 
-### 10.4 Release Scripts (`scripts/release/`)
+### 8.4 Release Scripts (`scripts/release/`)
 
 | Script | Purpose |
 |--------|---------|
@@ -919,9 +890,9 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 
 ---
 
-## 11. Design Assumptions and Principles
+## 9. Design Assumptions and Principles
 
-### 11.1 Architecture Principles
+### 9.1 Architecture Principles
 
 - **Predictable > Clever:** Explicit configuration over heuristics. Auto-detection must be explainable, overrideable, and safe.
 - **Filesystem mutation policy:** All writes routed through AuroWork server (not Tauri directly) for parity between desktop and cloud.
@@ -932,7 +903,7 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 - **Prompt is the workflow:** Product logic lives in prompts, rules, and skills.
 - **Local-first:** No secrets in git. OS keychain for credentials. Graceful degradation.
 
-### 11.2 Infrastructure Principles
+### 9.2 Infrastructure Principles
 
 1. **CLI-first, always** -- every component runnable via single CLI command
 2. **Unix-like interfaces** -- JSON over stdout, flags, env vars
@@ -943,7 +914,7 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 7. **Observability by default** -- health endpoints + structured logs
 8. **Security + scoping** -- filesystem access scoped to workspace roots
 
-### 11.3 Design Language
+### 9.3 Design Language
 
 - **No glassmorphism** (`backdrop-blur`, frosted glass) on core application surfaces
 - **No extraneous chrome** -- no decorative counters/pills/badges unless functional
@@ -956,7 +927,7 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 - **Primary button:** `bg-[#011627]` dark fill, white text, `rounded-full`.
 - **Landing page exception:** Only place where frosted blur (`landing-shell`) is appropriate.
 
-### 11.4 OpenCode Primitives Hierarchy
+### 9.4 OpenCode Primitives Hierarchy
 
 How to pick the right extension abstraction:
 
@@ -969,7 +940,7 @@ How to pick the right extension abstraction:
 | **Agents** | Tasks executed by different models with extra context |
 | **Commands** | `/` commands that trigger tools |
 
-### 11.5 Workspace Terminology
+### 9.5 Workspace Terminology
 
 - **Selected workspace:** UI concept -- the workspace user is currently viewing
 - **Runtime active workspace:** Backend concept -- the workspace the server/orchestrator currently reports as active
@@ -978,9 +949,9 @@ How to pick the right extension abstraction:
 
 ---
 
-## 12. Data Flow Diagrams
+## 10. Data Flow Diagrams
 
-### 12.1 Mode A -- Desktop Runtime Stack
+### 10.1 Mode A -- Desktop Runtime Stack
 
 ```
 /apps/app UI (SolidJS)
@@ -998,7 +969,7 @@ How to pick the right extension abstraction:
                +--> OpenCode (proxied)
 ```
 
-### 12.2 SSE Event Pipeline
+### 10.2 SSE Event Pipeline
 
 ```
 OpenCode Engine
@@ -1014,9 +985,9 @@ OpenCode Engine
 
 ---
 
-## 13. Configuration Reference
+## 11. Configuration Reference
 
-### 13.1 Key Configuration Files
+### 11.1 Key Configuration Files
 
 | File | Location | Purpose |
 |------|----------|---------|
@@ -1028,7 +999,7 @@ OpenCode Engine
 | `constants.json` | Repo root | OpenCode version pin (`v1.2.27`) |
 | `tauri.conf.json` | `apps/desktop/src-tauri/` | Tauri build + runtime configuration |
 
-### 13.2 Environment Variables
+### 11.2 Environment Variables
 
 | Variable | Component | Description |
 |----------|-----------|-------------|
@@ -1045,7 +1016,7 @@ OpenCode Engine
 | `DEN_WORKER_ID` | Worker Runtime | Worker identification |
 | `DEN_ACTIVITY_HEARTBEAT_URL` | Worker Runtime | Heartbeat endpoint |
 
-### 13.3 Port Ranges
+### 11.3 Port Ranges
 
 | Component | Port Range | Notes |
 |-----------|-----------|-------|
@@ -1055,7 +1026,7 @@ OpenCode Engine
 | Control server | Random | Internal, per-run |
 | Den Controller | `8788` (default) | Cloud control plane |
 
-### 13.4 OpenCode Skills Storage
+### 11.4 OpenCode Skills Storage
 
 Skills are stored as `SKILL.md` files with YAML frontmatter:
 
@@ -1074,7 +1045,7 @@ trigger: When to use this skill
 - Global: `~/.config/opencode/skills/`, `~/.claude/skills/`, `~/.agents/skills/`
 - Multi-root: Walks up git roots to find all `.opencode/skills/` directories
 
-### 13.5 OpenCode Commands Storage
+### 11.5 OpenCode Commands Storage
 
 Commands stored as `.md` files in `<workspace>/.opencode/commands/<name>.md` with YAML frontmatter:
 
