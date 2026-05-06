@@ -600,7 +600,13 @@ async function readPinnedOpencodeVersion(): Promise<string | undefined> {
   const candidates = [
     join(dirname(process.execPath), "..", "constants.json"),
     join(dirname(fileURLToPath(import.meta.url)), "..", "constants.json"),
-    join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "constants.json"),
+    join(
+      dirname(fileURLToPath(import.meta.url)),
+      "..",
+      "..",
+      "..",
+      "constants.json",
+    ),
   ];
 
   for (const candidate of candidates) {
@@ -783,7 +789,9 @@ function isLoopbackHost(host: string): boolean {
 }
 
 function randomCredential(length: number): string {
-  return randomBytes(Math.ceil(length / 2)).toString("hex").slice(0, length);
+  return randomBytes(Math.ceil(length / 2))
+    .toString("hex")
+    .slice(0, length);
 }
 
 function generateManagedOpencodeCredentials(): {
@@ -805,13 +813,13 @@ function resolveManagedOpencodeCredentials(args: ParsedArgs): {
   const requestedUsername =
     typeof explicitUsernameFlag === "string"
       ? explicitUsernameFlag
-      : process.env.AUROWORK_OPENCODE_USERNAME ??
-        process.env.OPENCODE_SERVER_USERNAME;
+      : (process.env.AUROWORK_OPENCODE_USERNAME ??
+        process.env.OPENCODE_SERVER_USERNAME);
   const requestedPassword =
     typeof explicitPasswordFlag === "string"
       ? explicitPasswordFlag
-      : process.env.AUROWORK_OPENCODE_PASSWORD ??
-        process.env.OPENCODE_SERVER_PASSWORD;
+      : (process.env.AUROWORK_OPENCODE_PASSWORD ??
+        process.env.OPENCODE_SERVER_PASSWORD);
   const allowInjectedCredentials =
     (process.env[INTERNAL_OPENCODE_CREDENTIALS_ENV] ?? "").trim() === "1";
   const hasExplicitCredentialFlags =
@@ -940,7 +948,9 @@ function resolveWorkerActivityHeartbeatConfig(): WorkerActivityHeartbeatConfig {
   const enabled = (process.env.DEN_ACTIVITY_HEARTBEAT_ENABLED ?? "")
     .trim()
     .toLowerCase();
-  const provider = (process.env.DEN_RUNTIME_PROVIDER ?? "").trim().toLowerCase();
+  const provider = (process.env.DEN_RUNTIME_PROVIDER ?? "")
+    .trim()
+    .toLowerCase();
   const workerId = (process.env.DEN_WORKER_ID ?? "").trim();
   const url = (process.env.DEN_ACTIVITY_HEARTBEAT_URL ?? "").trim();
   const token = (process.env.DEN_ACTIVITY_HEARTBEAT_TOKEN ?? "").trim();
@@ -948,7 +958,13 @@ function resolveWorkerActivityHeartbeatConfig(): WorkerActivityHeartbeatConfig {
   const featureEnabled =
     enabled === "1" || enabled === "true" || enabled === "yes";
 
-  if (!featureEnabled || provider !== "daytona" || !workerId || !url || !token) {
+  if (
+    !featureEnabled ||
+    provider !== "daytona" ||
+    !workerId ||
+    !url ||
+    !token
+  ) {
     return {
       enabled: false,
       workerId: "",
@@ -985,7 +1001,9 @@ async function postWorkerActivityHeartbeat(input: {
 }) {
   if (!input.config.enabled) return;
 
-  const sessions = unwrap(await input.opencodeClient.session.list({ limit: 200 }));
+  const sessions = unwrap(
+    await input.opencodeClient.session.list({ limit: 200 }),
+  );
   let latestActivityAt = 0;
   for (const session of sessions) {
     const ts = parseSessionActivityAt(session);
@@ -996,7 +1014,8 @@ async function postWorkerActivityHeartbeat(input: {
 
   const now = Date.now();
   const isActiveRecently =
-    latestActivityAt > 0 && now - latestActivityAt <= input.config.activeWindowMs;
+    latestActivityAt > 0 &&
+    now - latestActivityAt <= input.config.activeWindowMs;
 
   const payload = {
     sentAt: new Date(now).toISOString(),
@@ -1134,7 +1153,10 @@ function isDirectory(path: string): boolean {
 
 function splitPathEntries(value?: string): string[] {
   if (!value) return [];
-  return value.split(delimiter).map((entry) => entry.trim()).filter(Boolean);
+  return value
+    .split(delimiter)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 function pushPath(entries: string[], path?: string | null) {
@@ -1242,7 +1264,9 @@ function buildSpawnEnv(env?: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     ...resolveExtraPathEntries(),
     ...splitPathEntries(currentPath),
   ];
-  const deduped = entries.filter((entry, index) => entries.indexOf(entry) === index);
+  const deduped = entries.filter(
+    (entry, index) => entries.indexOf(entry) === index,
+  );
   if (!deduped.length) return { ...base };
   return { ...base, [pathKey]: deduped.join(delimiter) };
 }
@@ -1541,8 +1565,7 @@ async function resolveOpencodeDownload(
   if (!expectedVersion) return null;
   if (!sidecar.target) return null;
 
-  const assetOverride =
-    process.env.AUROWORK_OPENCODE_ASSET ?? process.env.OPENCODE_ASSET;
+  const assetOverride = process.env.AUROWORK_OPENCODE_ASSET;
   const asset = assetOverride?.trim() || resolveOpencodeAsset(sidecar.target);
   if (!asset) return null;
 
@@ -2649,7 +2672,6 @@ async function startAuroworkServer(options: {
   return child;
 }
 
-
 async function verifyOpencodeVersion(
   binary: ResolvedBinary,
 ): Promise<string | undefined> {
@@ -2863,7 +2885,6 @@ async function runChecks(input: {
     }
   }
 }
-
 
 async function fetchJson(url: string, init?: RequestInit): Promise<any> {
   const response = await fetch(url, init);
@@ -4605,14 +4626,14 @@ async function runStart(args: ParsedArgs) {
       process.env.AUROWORK_OPENCODE_BIND_HOST,
   );
   const opencodePort = await resolvePort(
-      readNumber(
-        args.flags,
-        "opencode-port",
-        undefined,
-        "AUROWORK_OPENCODE_PORT",
-      ),
-      "127.0.0.1",
-    );
+    readNumber(
+      args.flags,
+      "opencode-port",
+      undefined,
+      "AUROWORK_OPENCODE_PORT",
+    ),
+    "127.0.0.1",
+  );
   const opencodeHotReload = readOpencodeHotReload(
     args.flags,
     {
@@ -4672,11 +4693,7 @@ async function runStart(args: ParsedArgs) {
     false,
     "AUROWORK_ALLOW_EXTERNAL",
   );
-  const sidecar = resolveSidecarConfigForTarget(
-    args.flags,
-    cliVersion,
-    null,
-  );
+  const sidecar = resolveSidecarConfigForTarget(args.flags, cliVersion, null);
 
   const sidecarSource = sidecarSourceInput;
   const opencodeSource = opencodeSourceInput;
@@ -4721,11 +4738,11 @@ async function runStart(args: ParsedArgs) {
   const opencodeConnectUrl = opencodeBaseUrl;
 
   const attachCommand = buildAttachCommand({
-          url: opencodeConnectUrl,
-          workspace: resolvedWorkspace,
-          username: opencodeUsername,
-          password: opencodeCredentials.password,
-        });
+    url: opencodeConnectUrl,
+    workspace: resolvedWorkspace,
+    username: opencodeUsername,
+    password: opencodeCredentials.password,
+  });
 
   const children: ChildHandle[] = [];
   let shuttingDown = false;
@@ -4825,7 +4842,7 @@ async function runStart(args: ParsedArgs) {
         headers:
           opencodeUsername && opencodePassword
             ? {
-          Authorization: `Basic ${encodeBasicAuth(opencodeCredentials.username, opencodeCredentials.password)}`,
+                Authorization: `Basic ${encodeBasicAuth(opencodeCredentials.username, opencodeCredentials.password)}`,
               }
             : undefined,
       }),
@@ -5074,6 +5091,26 @@ async function runStart(args: ParsedArgs) {
           return { command: attachCommand, ...result };
         },
         onCopySelection: async (text) => copyToClipboard(text),
+        onRouterHealth: async () => ({
+          ok: false,
+          opencode: { url: opencodeConnectUrl, healthy: false },
+          channels: { telegram: false, slack: false },
+          config: { groupsEnabled: false },
+        }),
+        onRouterTelegramIdentities: async () => ({ items: [] }),
+        onRouterSlackIdentities: async () => ({ items: [] }),
+        onRouterSetGroupsEnabled: async () => ({
+          ok: false,
+          error: "Router not configured",
+        }),
+        onRouterSetTelegramToken: async () => ({
+          ok: false,
+          error: "Router not configured",
+        }),
+        onRouterSetSlackTokens: async () => ({
+          ok: false,
+          error: "Router not configured",
+        }),
       });
       tui.setUptimeStart(startedAt);
     } catch (error) {
@@ -5151,8 +5188,7 @@ async function runStart(args: ParsedArgs) {
           new Set(
             requested.filter(
               (item): item is RuntimeServiceName =>
-                item === "aurowork-server" ||
-                item === "opencode",
+                item === "aurowork-server" || item === "opencode",
             ),
           ),
         );
@@ -5193,122 +5229,122 @@ async function runStart(args: ParsedArgs) {
     });
 
     const startedOpencodeChild = await startOpencode({
-        bin: opencodeBinary.bin,
-        workspace: resolvedWorkspace,
-        stateLayout: opencodeStateLayout,
-        hotReload: opencodeHotReload,
-        bindHost: opencodeBindHost,
-        port: opencodePort,
-        username: opencodeUsername,
-        password: opencodePassword,
-        corsOrigins: corsOrigins.length ? corsOrigins : ["*"],
-        logger,
-        runId,
-        logFormat,
-      });
-      opencodeChild = startedOpencodeChild;
-      children.push({ name: "opencode", child: startedOpencodeChild });
-      tui?.updateService("opencode", {
-        status: "running",
-        pid: startedOpencodeChild.pid ?? undefined,
-        port: opencodePort,
-      });
-      logger.info(
-        "Process spawned",
-        { pid: startedOpencodeChild.pid ?? 0 },
-        "opencode",
-      );
-      startedOpencodeChild.on("exit", (code, signal) =>
-        handleExit("opencode", code, signal),
-      );
-      startedOpencodeChild.on("error", (error) =>
-        handleSpawnError("opencode", error),
-      );
+      bin: opencodeBinary.bin,
+      workspace: resolvedWorkspace,
+      stateLayout: opencodeStateLayout,
+      hotReload: opencodeHotReload,
+      bindHost: opencodeBindHost,
+      port: opencodePort,
+      username: opencodeUsername,
+      password: opencodePassword,
+      corsOrigins: corsOrigins.length ? corsOrigins : ["*"],
+      logger,
+      runId,
+      logFormat,
+    });
+    opencodeChild = startedOpencodeChild;
+    children.push({ name: "opencode", child: startedOpencodeChild });
+    tui?.updateService("opencode", {
+      status: "running",
+      pid: startedOpencodeChild.pid ?? undefined,
+      port: opencodePort,
+    });
+    logger.info(
+      "Process spawned",
+      { pid: startedOpencodeChild.pid ?? 0 },
+      "opencode",
+    );
+    startedOpencodeChild.on("exit", (code, signal) =>
+      handleExit("opencode", code, signal),
+    );
+    startedOpencodeChild.on("error", (error) =>
+      handleSpawnError("opencode", error),
+    );
 
-      const authHeaders: Record<string, string> = {};
-      if (opencodeUsername && opencodePassword) {
-        authHeaders.Authorization = `Basic ${encodeBasicAuth(opencodeUsername, opencodePassword)}`;
-      }
-      opencodeClient = createOpencodeClient({
-        baseUrl: opencodeBaseUrl,
-        directory: resolvedWorkspace,
-        headers: Object.keys(authHeaders).length ? authHeaders : undefined,
-      });
+    const authHeaders: Record<string, string> = {};
+    if (opencodeUsername && opencodePassword) {
+      authHeaders.Authorization = `Basic ${encodeBasicAuth(opencodeUsername, opencodePassword)}`;
+    }
+    opencodeClient = createOpencodeClient({
+      baseUrl: opencodeBaseUrl,
+      directory: resolvedWorkspace,
+      headers: Object.keys(authHeaders).length ? authHeaders : undefined,
+    });
 
-      logger.info("Waiting for health", { url: opencodeBaseUrl }, "opencode");
-      await waitForOpencodeHealthy(opencodeClient);
-      logger.info("Healthy", { url: opencodeBaseUrl }, "opencode");
-      tui?.updateService("opencode", { status: "healthy" });
+    logger.info("Waiting for health", { url: opencodeBaseUrl }, "opencode");
+    await waitForOpencodeHealthy(opencodeClient);
+    logger.info("Healthy", { url: opencodeBaseUrl }, "opencode");
+    tui?.updateService("opencode", { status: "healthy" });
 
-      const startedAuroworkChild = await startAuroworkServer({
-        bin: auroworkServerBinary.bin,
-        host: auroworkHost,
-        port: auroworkPort,
-        workspace: resolvedWorkspace,
-        token: auroworkToken,
-        hostToken: auroworkHostToken,
-        approvalMode: approvalMode === "auto" ? "auto" : "manual",
-        approvalTimeoutMs,
-        readOnly,
-        corsOrigins: corsOrigins.length ? corsOrigins : ["*"],
-        opencodeBaseUrl: opencodeConnectUrl,
-        opencodeDirectory: resolvedWorkspace,
-        opencodeUsername,
-        opencodePassword,
-        logger,
-        runId,
-        logFormat,
-        controlBaseUrl,
-        controlToken,
-      });
-      auroworkChild = startedAuroworkChild;
-      children.push({ name: "aurowork-server", child: startedAuroworkChild });
-      tui?.updateService("aurowork-server", {
-        status: "running",
-        pid: startedAuroworkChild.pid ?? undefined,
-        port: auroworkPort,
-      });
-      logger.info(
-        "Process spawned",
-        { pid: startedAuroworkChild.pid ?? 0 },
-        "aurowork-server",
-      );
-      startedAuroworkChild.on("exit", (code, signal) =>
-        handleExit("aurowork-server", code, signal),
-      );
-      startedAuroworkChild.on("error", (error) =>
-        handleSpawnError("aurowork-server", error),
-      );
+    const startedAuroworkChild = await startAuroworkServer({
+      bin: auroworkServerBinary.bin,
+      host: auroworkHost,
+      port: auroworkPort,
+      workspace: resolvedWorkspace,
+      token: auroworkToken,
+      hostToken: auroworkHostToken,
+      approvalMode: approvalMode === "auto" ? "auto" : "manual",
+      approvalTimeoutMs,
+      readOnly,
+      corsOrigins: corsOrigins.length ? corsOrigins : ["*"],
+      opencodeBaseUrl: opencodeConnectUrl,
+      opencodeDirectory: resolvedWorkspace,
+      opencodeUsername,
+      opencodePassword,
+      logger,
+      runId,
+      logFormat,
+      controlBaseUrl,
+      controlToken,
+    });
+    auroworkChild = startedAuroworkChild;
+    children.push({ name: "aurowork-server", child: startedAuroworkChild });
+    tui?.updateService("aurowork-server", {
+      status: "running",
+      pid: startedAuroworkChild.pid ?? undefined,
+      port: auroworkPort,
+    });
+    logger.info(
+      "Process spawned",
+      { pid: startedAuroworkChild.pid ?? 0 },
+      "aurowork-server",
+    );
+    startedAuroworkChild.on("exit", (code, signal) =>
+      handleExit("aurowork-server", code, signal),
+    );
+    startedAuroworkChild.on("error", (error) =>
+      handleSpawnError("aurowork-server", error),
+    );
 
-      logger.info(
-        "Waiting for health",
-        { url: auroworkBaseUrl },
-        "aurowork-server",
-      );
-      await waitForHealthy(auroworkBaseUrl);
-      logger.info("Healthy", { url: auroworkBaseUrl }, "aurowork-server");
-      tui?.updateService("aurowork-server", { status: "healthy" });
+    logger.info(
+      "Waiting for health",
+      { url: auroworkBaseUrl },
+      "aurowork-server",
+    );
+    await waitForHealthy(auroworkBaseUrl);
+    logger.info("Healthy", { url: auroworkBaseUrl }, "aurowork-server");
+    tui?.updateService("aurowork-server", { status: "healthy" });
 
-      auroworkActualVersion = await verifyAuroworkServer({
-        baseUrl: auroworkBaseUrl,
-        token: auroworkToken,
-        hostToken: auroworkHostToken,
-        expectedVersion: auroworkServerBinary.expectedVersion,
-        expectedWorkspace: resolvedWorkspace,
-        expectedOpencodeBaseUrl: opencodeConnectUrl,
-        expectedOpencodeDirectory: resolvedWorkspace,
-        expectedOpencodeUsername: opencodeUsername,
-        expectedOpencodePassword: opencodePassword,
-      });
-      auroworkOwnerToken = await issueAuroworkOwnerToken(
-        auroworkBaseUrl,
-        auroworkHostToken,
-        "AuroWork owner token",
-      );
-      tui?.setConnectInfo({ ownerToken: auroworkOwnerToken });
-      logVerbose(
-        `aurowork-server version: ${auroworkActualVersion ?? "unknown"}`,
-      );
+    auroworkActualVersion = await verifyAuroworkServer({
+      baseUrl: auroworkBaseUrl,
+      token: auroworkToken,
+      hostToken: auroworkHostToken,
+      expectedVersion: auroworkServerBinary.expectedVersion,
+      expectedWorkspace: resolvedWorkspace,
+      expectedOpencodeBaseUrl: opencodeConnectUrl,
+      expectedOpencodeDirectory: resolvedWorkspace,
+      expectedOpencodeUsername: opencodeUsername,
+      expectedOpencodePassword: opencodePassword,
+    });
+    auroworkOwnerToken = await issueAuroworkOwnerToken(
+      auroworkBaseUrl,
+      auroworkHostToken,
+      "AuroWork owner token",
+    );
+    tui?.setConnectInfo({ ownerToken: auroworkOwnerToken });
+    logVerbose(
+      `aurowork-server version: ${auroworkActualVersion ?? "unknown"}`,
+    );
 
     if (workerActivityHeartbeat.enabled && !checkOnly) {
       logger.info(
@@ -5455,12 +5491,12 @@ async function runStart(args: ParsedArgs) {
     if (checkOnly) {
       try {
         await runChecks({
-            opencodeClient,
-            auroworkUrl: auroworkBaseUrl,
-            auroworkToken,
-            hostToken: auroworkHostToken,
-            checkEvents,
-          });
+          opencodeClient,
+          auroworkUrl: auroworkBaseUrl,
+          auroworkToken,
+          hostToken: auroworkHostToken,
+          checkEvents,
+        });
         logger.info("Checks ok", { checkEvents }, "aurowork-orchestrator");
         if (!outputJson && logFormat === "pretty") {
           console.log("Checks: ok");

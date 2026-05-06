@@ -35,25 +35,29 @@ const sidecarDir = sidecarOverride ? resolve(sidecarOverride) : join(__dirname, 
 const packageJsonPath = resolve(__dirname, "..", "package.json");
 const constantsPath = resolve(__dirname, "..", "..", "..", "constants.json");
 
-const opencodeGithubRepo = (() => {
+const auroGithubRepo = (() => {
   const raw =
-    process.env.OPENCODE_GITHUB_REPO?.trim() ||
-    process.env.AUROWORK_OPENCODE_GITHUB_REPO?.trim() ||
-    "anomalyco/opencode";
+    process.env.AURO_GITHUB_REPO?.trim() ||
+    process.env.AUROWORK_AURO_GITHUB_REPO?.trim() ||
+    "Northern-Deep-Leviathan/auro";
   const normalized = raw
     .replace(/^https:\/\/github\.com\//i, "")
     .replace(/\.git$/i, "")
     .trim();
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(normalized)) {
-    return "anomalyco/opencode";
+    return "Northern-Deep-Leviathan/auro";
   }
   return normalized;
 })();
-const opencodeVersion = (() => {
+const auroVersion = (() => {
   try {
     const raw = readFileSync(constantsPath, "utf8");
     const parsed = JSON.parse(raw);
-    return typeof parsed.opencodeVersion === "string" ? parsed.opencodeVersion.trim() || null : null;
+    const value =
+      typeof parsed.auroVersion === "string"
+        ? parsed.auroVersion
+        : null;
+    return value ? value.trim() || null : null;
   } catch {
     return null;
   }
@@ -66,7 +70,8 @@ const normalizeVersion = (value) => {
   return raw.startsWith("v") ? raw.slice(1) : raw;
 };
 
-const opencodeAssetOverride = process.env.OPENCODE_ASSET?.trim() || null;
+const auroAssetOverride =
+  process.env.AURO_ASSET?.trim() || null;
 const chromeDevtoolsMcpVersion =
   process.env.CHROME_DEVTOOLS_MCP_VERSION?.trim() ||
   process.env.AUROWORK_CHROME_DEVTOOLS_MCP_VERSION?.trim() ||
@@ -110,15 +115,15 @@ const bunTarget = (() => {
   }
 })();
 
-const opencodeBaseName = process.platform === "win32" ? "opencode.exe" : "opencode";
-const opencodePath = join(sidecarDir, opencodeBaseName);
-const opencodeTargetName = resolvedTargetTriple
-  ? `opencode-${resolvedTargetTriple}${process.platform === "win32" ? ".exe" : ""}`
+const auroBaseName = process.platform === "win32" ? "auro.exe" : "auro";
+const auroPath = join(sidecarDir, auroBaseName);
+const auroTargetName = resolvedTargetTriple
+  ? `auro-${resolvedTargetTriple}${process.platform === "win32" ? ".exe" : ""}`
   : null;
-const opencodeTargetPath = opencodeTargetName ? join(sidecarDir, opencodeTargetName) : null;
+const auroTargetPath = auroTargetName ? join(sidecarDir, auroTargetName) : null;
 
-const opencodeCandidatePath = opencodeTargetPath ?? opencodePath;
-let existingOpencodeVersion = null;
+const auroCandidatePath = auroTargetPath ?? auroPath;
+let existingAuroVersion = null;
 
 // aurowork-server paths
 const auroworkServerBaseName = "aurowork-server";
@@ -220,11 +225,11 @@ const readDirectory = (dir) => {
   });
 };
 
-const findOpencodeBinary = (dir) => {
+const findAuroBinary = (dir) => {
   const candidates = readDirectory(dir);
   return (
-    candidates.find((file) => file.endsWith(`/${opencodeBaseName}`) || file.endsWith(`\\${opencodeBaseName}`)) ??
-    candidates.find((file) => file.endsWith("/opencode") || file.endsWith("\\opencode")) ??
+    candidates.find((file) => file.endsWith(`/${auroBaseName}`) || file.endsWith(`\\${auroBaseName}`)) ??
+    candidates.find((file) => file.endsWith("/auro") || file.endsWith("\\auro")) ??
     null
   );
 };
@@ -322,53 +327,53 @@ if (existsSync(auroworkServerBuildPath)) {
   }
 }
 
-if (!existingOpencodeVersion && opencodeCandidatePath) {
-  existingOpencodeVersion =
-    existsSync(opencodeCandidatePath) && !isStubBinary(opencodeCandidatePath)
-      ? readBinaryVersion(opencodeCandidatePath)
+if (!existingAuroVersion && auroCandidatePath) {
+  existingAuroVersion =
+    existsSync(auroCandidatePath) && !isStubBinary(auroCandidatePath)
+      ? readBinaryVersion(auroCandidatePath)
       : null;
 }
 
-const normalizedOpencodeVersion = normalizeVersion(opencodeVersion);
+const normalizedAuroVersion = normalizeVersion(auroVersion);
 
-if (!normalizedOpencodeVersion) {
+if (!normalizedAuroVersion) {
   console.error(
-    `OpenCode version could not be resolved from ${constantsPath}.`
+    `Auro version could not be resolved from ${constantsPath}.`
   );
   process.exit(1);
 }
 
-const opencodeAssetByTarget = {
-  "aarch64-apple-darwin": "opencode-darwin-arm64.zip",
-  "x86_64-apple-darwin": "opencode-darwin-x64-baseline.zip",
-  "x86_64-unknown-linux-gnu": "opencode-linux-x64-baseline.tar.gz",
-  "aarch64-unknown-linux-gnu": "opencode-linux-arm64.tar.gz",
-  "x86_64-pc-windows-msvc": "opencode-windows-x64-baseline.zip",
-  "aarch64-pc-windows-msvc": "opencode-windows-arm64.zip",
+const auroAssetByTarget = {
+  "aarch64-apple-darwin": "auro-darwin-arm64.zip",
+  "x86_64-apple-darwin": "auro-darwin-x64-baseline.zip",
+  "x86_64-unknown-linux-gnu": "auro-linux-x64-baseline.tar.gz",
+  "aarch64-unknown-linux-gnu": "auro-linux-arm64.tar.gz",
+  "x86_64-pc-windows-msvc": "auro-windows-x64-baseline.zip",
+  "aarch64-pc-windows-msvc": "auro-windows-arm64.zip",
 };
 
-const opencodeAsset =
-  opencodeAssetOverride ?? (resolvedTargetTriple ? opencodeAssetByTarget[resolvedTargetTriple] : null);
+const auroAsset =
+  auroAssetOverride ?? (resolvedTargetTriple ? auroAssetByTarget[resolvedTargetTriple] : null);
 
-const opencodeUrl = opencodeAsset
-  ? `https://github.com/${opencodeGithubRepo}/releases/download/v${normalizedOpencodeVersion}/${opencodeAsset}`
+const auroUrl = auroAsset
+  ? `https://github.com/${auroGithubRepo}/releases/download/v${normalizedAuroVersion}/${auroAsset}`
   : null;
 
-const shouldDownloadOpencode =
-  !opencodeCandidatePath ||
-  !existsSync(opencodeCandidatePath) ||
-  isStubBinary(opencodeCandidatePath) ||
-  !existingOpencodeVersion ||
-  existingOpencodeVersion !== normalizedOpencodeVersion;
+const shouldDownloadAuro =
+  !auroCandidatePath ||
+  !existsSync(auroCandidatePath) ||
+  isStubBinary(auroCandidatePath) ||
+  !existingAuroVersion ||
+  existingAuroVersion !== normalizedAuroVersion;
 
-if (!shouldDownloadOpencode) {
-  console.log(`OpenCode sidecar already present (${existingOpencodeVersion}).`);
+if (!shouldDownloadAuro) {
+  console.log(`Auro sidecar already present (${existingAuroVersion}).`);
 }
 
-if (shouldDownloadOpencode) {
-  if (!opencodeAsset || !opencodeUrl) {
+if (shouldDownloadAuro) {
+  if (!auroAsset || !auroUrl) {
     console.error(
-      `No OpenCode asset configured for target ${resolvedTargetTriple ?? "unknown"}. Set OPENCODE_ASSET to override.`
+      `No Auro asset configured for target ${resolvedTargetTriple ?? "unknown"}. Set AURO_ASSET to override.`
     );
     process.exit(1);
   }
@@ -376,8 +381,8 @@ if (shouldDownloadOpencode) {
   mkdirSync(sidecarDir, { recursive: true });
 
   const stamp = Date.now();
-  const archivePath = join(tmpdir(), `opencode-${stamp}-${opencodeAsset}`);
-  const extractDir = join(tmpdir(), `opencode-${stamp}`);
+  const archivePath = join(tmpdir(), `auro-${stamp}-${auroAsset}`);
+  const extractDir = join(tmpdir(), `auro-${stamp}`);
 
   mkdirSync(extractDir, { recursive: true });
 
@@ -385,7 +390,7 @@ if (shouldDownloadOpencode) {
     const psQuote = (value) => `'${value.replace(/'/g, "''")}'`;
     const psScript = [
       "$ErrorActionPreference = 'Stop'",
-      `Invoke-WebRequest -Uri ${psQuote(opencodeUrl)} -OutFile ${psQuote(archivePath)}`,
+      `Invoke-WebRequest -Uri ${psQuote(auroUrl)} -OutFile ${psQuote(archivePath)}`,
       `Expand-Archive -Path ${psQuote(archivePath)} -DestinationPath ${psQuote(extractDir)} -Force`,
     ].join("; ");
 
@@ -397,7 +402,7 @@ if (shouldDownloadOpencode) {
       process.exit(result.status ?? 1);
     }
   } else {
-    const downloadResult = spawnSync("curl", ["-fsSL", "-o", archivePath, opencodeUrl], {
+    const downloadResult = spawnSync("curl", ["-fsSL", "-o", archivePath, auroUrl], {
       stdio: "inherit",
     });
     if (downloadResult.status !== 0) {
@@ -406,14 +411,14 @@ if (shouldDownloadOpencode) {
 
     mkdirSync(extractDir, { recursive: true });
 
-    if (opencodeAsset.endsWith(".zip")) {
+    if (auroAsset.endsWith(".zip")) {
       const unzipResult = spawnSync("unzip", ["-q", archivePath, "-d", extractDir], {
         stdio: "inherit",
       });
       if (unzipResult.status !== 0) {
         process.exit(unzipResult.status ?? 1);
       }
-    } else if (opencodeAsset.endsWith(".tar.gz")) {
+    } else if (auroAsset.endsWith(".tar.gz")) {
       const tarResult = spawnSync("tar", ["-xzf", archivePath, "-C", extractDir], {
         stdio: "inherit",
       });
@@ -421,19 +426,19 @@ if (shouldDownloadOpencode) {
         process.exit(tarResult.status ?? 1);
       }
     } else {
-      console.error(`Unknown OpenCode archive type: ${opencodeAsset}`);
+      console.error(`Unknown Auro archive type: ${auroAsset}`);
       process.exit(1);
     }
   }
 
-  const extractedBinary = findOpencodeBinary(extractDir);
+  const extractedBinary = findAuroBinary(extractDir);
   if (!extractedBinary) {
-    console.error("OpenCode binary not found after extraction.");
+    console.error("Auro binary not found after extraction.");
     process.exit(1);
   }
 
-  const opencodeTargets = [opencodeTargetPath, opencodePath].filter(Boolean);
-  for (const target of opencodeTargets) {
+  const auroTargets = [auroTargetPath, auroPath].filter(Boolean);
+  for (const target of auroTargets) {
     try {
       if (existsSync(target)) {
         unlinkSync(target);
@@ -449,7 +454,7 @@ if (shouldDownloadOpencode) {
     }
   }
 
-  console.log(`OpenCode sidecar updated to ${normalizedOpencodeVersion}.`);
+  console.log(`Auro sidecar updated to ${normalizedAuroVersion}.`);
 }
 
 // Build orchestrator sidecar
@@ -617,9 +622,9 @@ const orchestratorVersion = (() => {
 })();
 
 const versions = {
-  opencode: {
-    version: normalizedOpencodeVersion,
-    sha256: opencodeCandidatePath && existsSync(opencodeCandidatePath) ? sha256File(opencodeCandidatePath) : null,
+  auro: {
+    version: normalizedAuroVersion,
+    sha256: auroCandidatePath && existsSync(auroCandidatePath) ? sha256File(auroCandidatePath) : null,
   },
   "aurowork-server": {
     version: auroworkServerVersion,
