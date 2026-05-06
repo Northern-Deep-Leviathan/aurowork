@@ -4,11 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  '@solidjs/router@0.15.4':
-    hash: 1db11a7c28fe4da76187d42efaffc6b9a70ad370462fffb794ff90e67744d770
-    path: patches/@solidjs__router@0.15.4.patch
-
 importers:
 
   .:
@@ -73,7 +68,7 @@ importers:
         version: 4.3.3(solid-js@1.9.9)
       '@solidjs/router':
         specifier: ^0.15.4
-        version: 0.15.4(patch_hash=1db11a7c28fe4da76187d42efaffc6b9a70ad370462fffb794ff90e67744d770)(solid-js@1.9.9)
+        version: 0.15.4(solid-js@1.9.9)
       '@tanstack/solid-virtual':
         specifier: ^3.13.19
         version: 3.13.19(solid-js@1.9.9)
@@ -3232,7 +3227,7 @@ snapshots:
     dependencies:
       solid-js: 1.9.9
 
-  '@solidjs/router@0.15.4(patch_hash=1db11a7c28fe4da76187d42efaffc6b9a70ad370462fffb794ff90e67744d770)(solid-js@1.9.9)':
+  '@solidjs/router@0.15.4(solid-js@1.9.9)':
     dependencies:
       solid-js: 1.9.9
 
