@@ -193,7 +193,37 @@ export type WorkspaceAuroworkConfig = {
     preset?: string | null;
   } | null;
   authorizedRoots: string[];
-  blueprint?: Record<string, unknown> | null;
+  blueprint?: {
+    emptyState?: {
+      title?: string | null;
+      body?: string | null;
+      starters?: Array<{
+        id?: string | null;
+        title?: string | null;
+        description?: string | null;
+        prompt?: string | null;
+        action?: string | null;
+        kind?: string | null;
+        label?: string | null;
+      }> | null;
+    } | null;
+    sessions?: Array<{
+      id?: string | null;
+      title?: string | null;
+      messages?: Array<{ role?: "assistant" | "user" | null; text?: string | null }> | null;
+      openOnFirstLoad?: boolean | null;
+    }> | null;
+    starters?: Array<{
+      id?: string | null;
+      title?: string | null;
+      description?: string | null;
+      prompt?: string | null;
+      action?: string | null;
+      kind?: string | null;
+      label?: string | null;
+    }> | null;
+    [extra: string]: unknown;
+  } | null;
   reload?: {
     auto?: boolean;
     resume?: boolean;

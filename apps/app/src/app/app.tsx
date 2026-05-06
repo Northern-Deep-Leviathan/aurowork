@@ -81,7 +81,12 @@ import {
 import { SYNTHETIC_SESSION_ERROR_MESSAGE_PREFIX } from "./types";
 
 // Inline stubs for removed workspace-blueprints module
-function blueprintSessions(_config: unknown): Array<{ id?: string | null; title?: string | null; messages?: unknown[] | null; openOnFirstLoad?: boolean | null }> {
+function blueprintSessions(_config: unknown): Array<{
+  id?: string | null;
+  title?: string | null;
+  messages?: Array<{ role?: "assistant" | "user" | null; text?: string | null }> | null;
+  openOnFirstLoad?: boolean | null;
+}> {
   return [];
 }
 function blueprintMaterializedSessions(_config: unknown): Array<{ templateId?: string | null; sessionId?: string | null }> {

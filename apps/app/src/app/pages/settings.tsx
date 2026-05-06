@@ -62,6 +62,7 @@ import type {
   SuggestedPlugin,
 } from "../types";
 import type {
+  AuroworkAuditEntry,
   AuroworkServerClient,
   AuroworkServerCapabilities,
   AuroworkServerDiagnostics,
@@ -112,7 +113,7 @@ export type SettingsViewProps = {
   runtimeWorkspaceId: string | null;
   selectedWorkspaceRoot: string;
   activeWorkspaceType: "local" | "remote";
-  auroworkAuditEntries: unknown[];
+  auroworkAuditEntries: AuroworkAuditEntry[];
   auroworkAuditStatus: "idle" | "loading" | "error";
   auroworkAuditError: string | null;
   opencodeConnectStatus: OpencodeConnectStatus | null;

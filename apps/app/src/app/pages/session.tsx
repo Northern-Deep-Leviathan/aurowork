@@ -113,7 +113,15 @@ function defaultBlueprintCopyForPreset(_preset: string): { title: string; body: 
   const tr = (key: string) => t(key, currentLocale());
   return { title: tr("session.empty_state_title"), body: tr("session.empty_state_body") };
 }
-function defaultBlueprintStartersForPreset(_preset: string): Array<{ label: string; prompt: string }> {
+function defaultBlueprintStartersForPreset(_preset: string): Array<{
+  id?: string | null;
+  title?: string | null;
+  description?: string | null;
+  prompt?: string | null;
+  action?: string | null;
+  kind?: string | null;
+  label?: string | null;
+}> {
   return [];
 }
 
@@ -3947,7 +3955,7 @@ export default function SessionView(props: SessionViewProps) {
           kind: "action",
           title,
           description,
-          action,
+          action: action as "connect-openai",
         });
         continue;
       }
