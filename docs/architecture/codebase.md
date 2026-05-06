@@ -86,7 +86,6 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 | **pnpm** | Monorepo workspace package manager |
 | **GitHub Actions** | CI tests, desktop builds, releases, AUR validation |
 | **Docker / docker-compose** | Dev environment |
-| **Infisical** | Secrets management |
 | **AUR (PKGBUILD)** | Arch Linux distribution |
 
 ---
