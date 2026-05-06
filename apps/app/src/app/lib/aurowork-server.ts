@@ -1121,19 +1121,22 @@ export function createAuroworkServerClient(options: {
     listAudit: async (
       _workspaceId: string,
       _limit: number,
-    ): Promise<{ entries: AuroworkAuditEntry[] }> => {
+    ): Promise<{ items: AuroworkAuditEntry[] }> => {
       throw new Error("AuroWork server listAudit is not implemented");
     },
     listScheduledJobs: async (
       _workspaceId: string,
     ): Promise<{
-      jobs: Array<{ id: string; cron: string; nextRunAt: number | null }>;
+      items: Array<{ id: string; cron: string; nextRunAt: number | null }>;
     }> => {
       throw new Error("AuroWork server listScheduledJobs is not implemented");
     },
     materializeBlueprintSessions: async (
       _workspaceId: string,
-    ): Promise<{ created: number }> => {
+    ): Promise<{
+      created: Array<{ sessionId: string; templateId?: string | null }>;
+      openSessionId?: string | null;
+    }> => {
       throw new Error(
         "AuroWork server materializeBlueprintSessions is not implemented",
       );
