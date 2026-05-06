@@ -32,6 +32,10 @@ packaging/docker/workspace/
 # OS
 .DS_Store
 
+# Dev logs
+*.log
+apps/*/*.log
+
 # OpenCode mirror
 vendor/opencode/
 
