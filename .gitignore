@@ -1,10 +1,8 @@
 node_modules/
-packages/*/node_modules/
 apps/*/node_modules/
 .next/
 out/
 dist/
-packages/*/dist/
 apps/*/dist/
 tmp/
 /apps/desktop/src-tauri/gen/
@@ -13,8 +11,6 @@ tmp/
 _worktrees/
 
 # Tauri/Rust
-packages/desktop/src-tauri/target/
-packages/desktop/src-tauri/sidecars/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/sidecars/
 
