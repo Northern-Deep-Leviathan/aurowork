@@ -16,7 +16,7 @@ export type AuroworkServerCapabilities = {
   commands: { read: boolean; write: boolean };
   config: { read: boolean; write: boolean };
   sandbox?: { enabled: boolean; backend: "none" | "docker" | "container" };
-  proxy?: { opencode: boolean; opencodeRouter: boolean };
+  proxy?: { opencode: boolean };
   toolProviders?: {
     browser?: {
       enabled: boolean;
@@ -51,7 +51,7 @@ export type AuroworkServerDiagnostics = {
   tokenSource: { client: string; host: string };
 };
 
-export type AuroworkRuntimeServiceName = "aurowork-server" | "opencode" | "opencode-router";
+export type AuroworkRuntimeServiceName = "aurowork-server" | "opencode";
 
 export type AuroworkRuntimeServiceSnapshot = {
   name: AuroworkRuntimeServiceName;

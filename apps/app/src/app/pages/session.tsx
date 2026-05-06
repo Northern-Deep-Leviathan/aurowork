@@ -167,7 +167,6 @@ export type SessionViewProps = {
   engineInfo: EngineInfo | null;
   engineDoctorVersion: string | null;
   orchestratorStatus: OrchestratorStatus | null;
-  opencodeRouterInfo: null;
   appVersion: string | null;
   stopHost: () => void;
   headerStatus: string;
@@ -491,7 +490,6 @@ export default function SessionView(props: SessionViewProps) {
         props.engineDoctorVersion ??
         null,
       orchestratorVersion: props.orchestratorStatus?.cliVersion ?? null,
-      opencodeRouterVersion: props.opencodeRouterInfo?.version ?? null,
     });
     if (!resolved) return;
     platform.openLink(resolved);

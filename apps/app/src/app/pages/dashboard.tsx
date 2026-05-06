@@ -440,7 +440,6 @@ export default function DashboardView(props: DashboardViewProps) {
         props.engineDoctorVersion ??
         null,
       orchestratorVersion: props.orchestratorStatus?.cliVersion ?? null,
-      opencodeRouterVersion: null,
     });
     if (!resolved) return;
     platform.openLink(resolved);

@@ -1041,7 +1041,6 @@ export default function App() {
   const [auroworkServerHostInfo, setAuroworkServerHostInfo] = createSignal<AuroworkServerInfo | null>(null);
   const [auroworkServerDiagnostics, setAuroworkServerDiagnostics] = createSignal<AuroworkServerDiagnostics | null>(null);
   const [auroworkReconnectBusy, setAuroworkReconnectBusy] = createSignal(false);
-  const [opencodeRouterInfoState, setOpenCodeRouterInfoState] = createSignal<null>(null);
   const [orchestratorStatusState, setOrchestratorStatusState] = createSignal<OrchestratorStatus | null>(null);
   const [auroworkAuditEntries, setAuroworkAuditEntries] = createSignal<Array<{ id: string; workspaceId: string; action: string; target: string; summary: string; timestamp: number }>>([]);
   const [auroworkAuditStatus, setAuroworkAuditStatus] = createSignal<"idle" | "loading" | "error">("idle");
@@ -1394,33 +1393,6 @@ export default function App() {
     run();
     const interval = window.setInterval(run, 10_000);
     onCleanup(() => {
-      window.clearInterval(interval);
-    });
-  });
-
-  createEffect(() => {
-    if (!isTauriRuntime()) return;
-    if (!developerMode()) {
-      setOpenCodeRouterInfoState(null);
-      return;
-    }
-    if (!documentVisible()) return;
-
-    let active = true;
-
-    const run = async () => {
-      try {
-        // opencodeRouter feature removed
-        if (active) setOpenCodeRouterInfoState(null);
-      } catch {
-        if (active) setOpenCodeRouterInfoState(null);
-      }
-    };
-
-    run();
-    const interval = window.setInterval(run, 10_000);
-    onCleanup(() => {
-      active = false;
       window.clearInterval(interval);
     });
   });
@@ -7950,7 +7922,6 @@ export default function App() {
       opencodeConnectStatus: opencodeConnectStatus(),
       engineInfo: workspaceStore.engine(),
       orchestratorStatus: orchestratorStatusState(),
-      opencodeRouterInfo: opencodeRouterInfoState(),
       engineDoctorVersion: workspaceStore.engineDoctorResult()?.version ?? null,
       updateAuroworkServerSettings,
       resetAuroworkServerSettings,
@@ -8239,7 +8210,6 @@ export default function App() {
     engineInfo: workspaceStore.engine(),
     engineDoctorVersion: workspaceStore.engineDoctorResult()?.version ?? null,
     orchestratorStatus: orchestratorStatusState(),
-    opencodeRouterInfo: opencodeRouterInfoState(),
     appVersion: appVersion(),
     stopHost,
     headerStatus: headerStatus(),
