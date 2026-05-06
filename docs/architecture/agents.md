@@ -128,7 +128,6 @@ Design principles for hot reload:
 * Use `docs/product/vision.md`, `docs/product/principles.md`, `docs/product/product.md`, `docs/architecture/overview.md`, and `docs/architecture/infrastructure.md` to understand the "why" and requirements so you can guide your decisions.
 * Treat `docs/architecture/overview.md` as the authoritative system design source for runtime flow, server ownership, filesystem mutation policy, and agent/runtime boundaries. If those behaviors change, update `docs/architecture/overview.md` in the same task.
 * Use `docs/design/design-language.md` as the default visual reference for AuroWork app and landing work.
-* For AuroWork session-surface details, also reference `packages/docs/orbita-layout-style.mdx`.
 
 ## Dev Debugging
 
@@ -138,26 +137,44 @@ Design principles for hot reload:
 
 ```
 aurowork/
-  AGENTS.md                    # This file
-  VISION.md                     # Product vision and positioning
-  PRINCIPLES.md                 # Decision framework and guardrails
-  PRODUCT.md                    # Requirements, UX, and user flows
-  ARCHITECTURE.md               # Runtime modes and OpenCode integration
-  .gitignore                    # Ignores vendor/opencode, node_modules, etc.
-  .opencode/
+  README.md / README_ZH.md / README_ZH_hk.md   # Entry docs
+  LICENSE
+  .opencode/                                    # Agents, skills, commands
+  .claude/                                      # Claude Code project memory + plans
+  .github/
   apps/
-    app/
+    app/                                        # SolidJS frontend (desktop + web)
       src/
       public/
-      pr/
-      prd/
       package.json
-    desktop/
-      src-tauri/
+    desktop/                                    # Tauri 2 desktop shell
+      src-tauri/                                # Rust crate
       package.json
-    server/
+    server/                                     # AuroWork Server (Bun + TS)
       src/
       package.json
+    orchestrator/                               # CLI orchestrator (aurowork-orchestrator)
+      src/
+      scripts/
+      package.json
+  ee/                                           # Enterprise components
+    apps/
+      den-web/                                  # Web control plane
+      den-controller/                           # Provisioning workers
+      landing/                                  # Marketing site
+  packages/                                     # Shared packages
+  docs/                                         # All product/architecture/ops docs
+    architecture/
+    product/
+    design/
+    ops/
+    INDEX.md                                    # Topic-based navigation
+  scripts/                                      # Repo-wide scripts
+    dev/
+    release/
+    snapshot/
+  vendor/                                       # External mirrors (gitignored)
+    opencode/                                   # OpenCode source mirror (read-only)
 ```
 
 ## OpenCode SDK Usage

@@ -73,7 +73,7 @@ But what you can do is:
 
 * Runs standalone via `aurowork-server` CLI.
 * Provides filesystem-backed config surfaces (skills, plugins, MCP, commands).
-* Sidecar lifecycle is described in `packages/app/pr/aurowork-server.md`.
+* Sidecar lifecycle is described in `docs/architecture/backend.md`.
 * Can also be consumed as a hosted AuroWork Cloud control surface for remote worker lifecycle.
 
 ### AuroWork Cloud Control Plane
@@ -100,4 +100,4 @@ But what you can do is:
 * `docs/product/vision.md`
 * `docs/product/principles.md`
 * `docs/architecture/overview.md`
-* `packages/app/pr/aurowork-server.md`
+* `docs/architecture/backend.md`

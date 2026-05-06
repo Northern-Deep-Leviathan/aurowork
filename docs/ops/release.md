@@ -22,19 +22,18 @@ AuroWork releases should be deterministic, easy to reproduce, and fully verifiab
 
 ## aurowork-orchestrator (npm + sidecars)
 
-1. Bump versions (includes `packages/orchestrator/package.json`):
+1. Bump versions (includes `apps/orchestrator/package.json`):
    - `pnpm bump:patch` or `pnpm bump:minor` or `pnpm bump:major`
 2. Build sidecar assets and manifest:
    - `pnpm --filter aurowork-orchestrator build:sidecars`
 3. Create the GitHub release for sidecars:
-   - `gh release create aurowork-orchestrator-vX.Y.Z packages/orchestrator/dist/sidecars/* --repo Northern-Deep-Leviathan/aurowork`
+   - `gh release create aurowork-orchestrator-vX.Y.Z apps/orchestrator/dist/sidecars/* --repo Northern-Deep-Leviathan/aurowork`
 4. Publish the package:
    - `pnpm --filter aurowork-orchestrator publish --access public`
 
-## aurowork-server + opencode-router (if version changed)
+## aurowork-server (if version changed)
 
 - `pnpm --filter aurowork-server publish --access public`
-- `pnpm --filter opencode-router publish --access public`
 
 ## Verification
 

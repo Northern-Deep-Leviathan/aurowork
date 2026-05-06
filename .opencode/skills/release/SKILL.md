@@ -5,12 +5,12 @@ name: release
 ---
 
 ## Prepare
-Confirm the repo is on `main` and clean. Keep changes aligned with OpenCode primitives like `.opencode`, `opencode.json`, skills, and plugins when relevant.
+Confirm the repo is on `dev` and clean. Keep changes aligned with OpenCode primitives like `.opencode`, `opencode.json`, skills, and plugins when relevant.
 
 ---
 
 ## Bump
-Update versions in `packages/app/package.json`, `packages/desktop/package.json`, `packages/orchestrator/package.json` (publishes as `aurowork-orchestrator`), `packages/desktop/src-tauri/tauri.conf.json`, and `packages/desktop/src-tauri/Cargo.toml`. Use one of these commands.
+Update versions in `apps/app/package.json`, `apps/desktop/package.json`, `apps/orchestrator/package.json` (publishes as `aurowork-orchestrator`), `apps/desktop/src-tauri/tauri.conf.json`, and `apps/desktop/src-tauri/Cargo.toml`. Use one of these commands.
 
 ```bash
 pnpm bump:patch
@@ -22,7 +22,7 @@ pnpm bump:set -- 0.1.21
 ---
 
 ## Merge
-Merge the version bump into `main`. Make sure no secrets or credentials are committed.
+Merge the version bump into `dev`. Make sure no secrets or credentials are committed.
 
 ---
 

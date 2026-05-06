@@ -1119,7 +1119,7 @@ aurowork serve --workspace <path> --remote-access \
 | `how-to-connect-chat-gpt` | ChatGPT provider |
 | `enable-advanced-search-with-exa` | Exa search integration |
 
-### 9.2 packages/app/
+### 9.2 apps/app/
 
 Minimal shared utilities:
 - `src/app/lib/deep-link-bridge.ts` -- bridge for desktop deep link handling

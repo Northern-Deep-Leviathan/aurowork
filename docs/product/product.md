@@ -109,7 +109,7 @@ Every run provides an exportable audit log:
 
 ## Design Reference
 
-use the design from ./design.ts that is your core reference for building the entire ui
+Refer to `docs/design/design-language.md` as the core visual reference for building the entire UI.
 
 ## Functional Requirements
 
