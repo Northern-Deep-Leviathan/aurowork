@@ -71,8 +71,8 @@ pub fn build_aurowork_args(
     workspace_paths: &[String],
     token: &str,
     host_token: &str,
-    opencode_base_url: Option<&str>,
-    opencode_directory: Option<&str>,
+    auro_base_url: Option<&str>,
+    auro_directory: Option<&str>,
 ) -> Vec<String> {
     let mut args = vec![
         "--host".to_string(),
@@ -101,14 +101,14 @@ pub fn build_aurowork_args(
         }
     }
 
-    if let Some(base_url) = opencode_base_url {
+    if let Some(base_url) = auro_base_url {
         if !base_url.trim().is_empty() {
             args.push("--auro-base-url".to_string());
             args.push(base_url.to_string());
         }
     }
 
-    if let Some(directory) = opencode_directory {
+    if let Some(directory) = auro_directory {
         if !directory.trim().is_empty() {
             args.push("--auro-directory".to_string());
             args.push(directory.to_string());
@@ -126,10 +126,10 @@ pub fn spawn_aurowork_server(
     workspace_paths: &[String],
     token: &str,
     host_token: &str,
-    opencode_base_url: Option<&str>,
-    opencode_directory: Option<&str>,
-    opencode_username: Option<&str>,
-    opencode_password: Option<&str>,
+    auro_base_url: Option<&str>,
+    auro_directory: Option<&str>,
+    auro_username: Option<&str>,
+    auro_password: Option<&str>,
 ) -> Result<(Receiver<CommandEvent>, CommandChild), String> {
     let command = match app.shell().sidecar("aurowork-server") {
         Ok(command) => command,
@@ -142,8 +142,8 @@ pub fn spawn_aurowork_server(
         workspace_paths,
         token,
         host_token,
-        opencode_base_url,
-        opencode_directory,
+        auro_base_url,
+        auro_directory,
     );
     let cwd = workspace_paths
         .first()
@@ -151,13 +151,13 @@ pub fn spawn_aurowork_server(
         .unwrap_or_else(|| Path::new("."));
     let mut command = command.args(args).current_dir(cwd);
 
-    if let Some(username) = opencode_username {
+    if let Some(username) = auro_username {
         if !username.trim().is_empty() {
             command = command.env("AUROWORK_AURO_USERNAME", username);
         }
     }
 
-    if let Some(password) = opencode_password {
+    if let Some(password) = auro_password {
         if !password.trim().is_empty() {
             command = command.env("AUROWORK_AURO_PASSWORD", password);
         }
