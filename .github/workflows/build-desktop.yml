@@ -117,7 +117,7 @@ jobs:
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
       RELEASE_NAME: ${{ needs.prepare.outputs.release_name }}
       HAS_TAG: ${{ needs.prepare.outputs.has_tag }}
-      OPENCODE_GITHUB_REPO: ${{ vars.OPENCODE_GITHUB_REPO || 'anomalyco/opencode' }}
+      AURO_GITHUB_REPO: ${{ vars.AURO_GITHUB_REPO || 'Northern-Deep-Leviathan/auro' }}
 
     strategy:
       fail-fast: false
@@ -126,7 +126,7 @@ jobs:
           - platform: windows-2022
             os_type: windows
             target: x86_64-pc-windows-msvc
-            opencode_asset: opencode-windows-x64-baseline.zip
+            auro_asset: auro-windows-x64-baseline.zip
             bundles: "msi"
 
     steps:
@@ -193,34 +193,34 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
-      # ── Download OpenCode sidecar ────────────────────────────
-      - name: Resolve OpenCode version
-        id: opencode-version
+      # ── Download Auro sidecar ────────────────────────────
+      - name: Resolve Auro version
+        id: auro-version
         shell: bash
         run: |
           node <<'NODE' >> "$GITHUB_OUTPUT"
           const fs = require('fs');
           const parsed = JSON.parse(fs.readFileSync('./constants.json', 'utf8'));
-          const version = String(parsed.opencodeVersion || '').replace(/^v/, '').trim();
+          const version = String(parsed.auroVersion || '').replace(/^v/, '').trim();
           if (!version) {
-            throw new Error('Pinned OpenCode version is missing from constants.json');
+            throw new Error('Pinned Auro version is missing from constants.json');
           }
           console.log('version=' + version);
           NODE
 
-      - name: Download OpenCode sidecar
+      - name: Download Auro sidecar
         shell: bash
         env:
-          PINNED_OPENCODE_VERSION: ${{ steps.opencode-version.outputs.version }}
+          PINNED_AURO_VERSION: ${{ steps.auro-version.outputs.version }}
         run: |
           set -euo pipefail
 
-          echo "Installed OpenCode version: $PINNED_OPENCODE_VERSION"
-          repo="${OPENCODE_GITHUB_REPO:-anomalyco/opencode}"
-          asset="${{ matrix.opencode_asset }}"
-          url="https://github.com/${repo}/releases/download/v${PINNED_OPENCODE_VERSION}/${asset}"
+          echo "Installed Auro version: $PINNED_AURO_VERSION"
+          repo="${AURO_GITHUB_REPO:-Northern-Deep-Leviathan/auro}"
+          asset="${{ matrix.auro_asset }}"
+          url="https://github.com/${repo}/releases/download/v${PINNED_AURO_VERSION}/${asset}"
 
-          tmp_dir="$RUNNER_TEMP/opencode"
+          tmp_dir="$RUNNER_TEMP/auro"
           extract_dir="$tmp_dir/extracted"
           rm -rf "$tmp_dir"
           mkdir -p "$extract_dir"
@@ -237,15 +237,15 @@ jobs:
             exit 1
           fi
 
-          if [ -f "$extract_dir/opencode.exe" ]; then
-            bin_path="$extract_dir/opencode.exe"
+          if [ -f "$extract_dir/auro.exe" ]; then
+            bin_path="$extract_dir/auro.exe"
           else
-            echo "OpenCode binary not found in archive" >&2
+            echo "Auro binary not found in archive" >&2
             ls -la "$extract_dir"
             exit 1
           fi
 
-          target_name="opencode-${{ matrix.target }}.exe"
+          target_name="auro-${{ matrix.target }}.exe"
           mkdir -p apps/desktop/src-tauri/sidecars
           cp "$bin_path" "apps/desktop/src-tauri/sidecars/${target_name}"
           chmod 755 "apps/desktop/src-tauri/sidecars/${target_name}"

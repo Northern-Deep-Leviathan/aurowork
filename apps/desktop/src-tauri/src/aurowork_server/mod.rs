@@ -311,9 +311,9 @@ pub fn start_aurowork_server(
     app: &AppHandle,
     manager: &AuroworkServerManager,
     workspace_paths: &[String],
-    opencode_base_url: Option<&str>,
-    opencode_username: Option<&str>,
-    opencode_password: Option<&str>,
+    auro_base_url: Option<&str>,
+    auro_username: Option<&str>,
+    auro_password: Option<&str>,
     remote_access_enabled: bool,
 ) -> Result<AuroworkServerInfo, String> {
     let mut state = manager
@@ -345,14 +345,14 @@ pub fn start_aurowork_server(
         workspace_paths,
         &client_token,
         &host_token,
-        opencode_base_url,
+        auro_base_url,
         if active_workspace.is_empty() {
             None
         } else {
             Some(active_workspace)
         },
-        opencode_username,
-        opencode_password,
+        auro_username,
+        auro_password,
     )?;
 
     state.child = Some(child);

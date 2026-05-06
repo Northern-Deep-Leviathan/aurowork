@@ -77,7 +77,7 @@ import type {
 import {
   appBuildInfo,
   engineRestart,
-  nukeAuroworkAndOpencodeConfigAndExit,
+  nukeAuroworkAndAuroConfigAndExit,
   auroworkServerRestart,
   pickFile,
 } from "../lib/tauri";
@@ -128,7 +128,7 @@ export type SettingsViewProps = {
   setEngineCustomBinPath: (value: string) => void;
   engineRuntime: "direct" | "aurowork-orchestrator";
   setEngineRuntime: (value: "direct" | "aurowork-orchestrator") => void;
-  opencodeEnableExa: boolean;
+  auroEnableExa: boolean;
   toggleOpencodeEnableExa: () => void;
   isWindows: boolean;
   defaultModelLabel: string;
@@ -799,7 +799,7 @@ export default function SettingsView(props: SettingsViewProps) {
     setOpencodeRestartError(null);
     try {
       await engineRestart({
-        opencodeEnableExa: props.opencodeEnableExa,
+        auroEnableExa: props.auroEnableExa,
         auroworkRemoteAccess:
           props.auroworkServerSettings.remoteAccessEnabled === true,
       });
@@ -1292,7 +1292,7 @@ export default function SettingsView(props: SettingsViewProps) {
         window.requestAnimationFrame(() => resolve());
       });
 
-      await nukeAuroworkAndOpencodeConfigAndExit();
+      await nukeAuroworkAndAuroConfigAndExit();
       setNukeConfigStatus(
         translate("settings.nuke_success"),
       );

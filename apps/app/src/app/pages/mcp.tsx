@@ -3,7 +3,7 @@ import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import type { McpServerEntry, McpStatusMap } from "../types";
 import type { McpDirectoryInfo } from "../constants";
 import { formatRelativeTime, isTauriRuntime, isWindowsPlatform } from "../utils";
-import { readOpencodeConfig, type OpencodeConfigFile } from "../lib/tauri";
+import { readAuroConfig, type AuroConfigFile } from "../lib/tauri";
 import {
   buildChromeDevtoolsCommand,
   getMcpIdentityKey,
@@ -42,7 +42,7 @@ export type McpViewProps = {
   busy: boolean;
   selectedWorkspaceRoot: string;
   isRemoteWorkspace: boolean;
-  readConfigFile?: (scope: "project" | "global") => Promise<OpencodeConfigFile | null>;
+  readConfigFile?: (scope: "project" | "global") => Promise<AuroConfigFile | null>;
   showHeader?: boolean;
   mcpServers: McpServerEntry[];
   mcpStatus: string | null;
@@ -148,8 +148,8 @@ export default function McpView(props: McpViewProps) {
   const [removeTarget, setRemoveTarget] = createSignal<string | null>(null);
 
   const [configScope, setConfigScope] = createSignal<"project" | "global">("project");
-  const [projectConfig, setProjectConfig] = createSignal<OpencodeConfigFile | null>(null);
-  const [globalConfig, setGlobalConfig] = createSignal<OpencodeConfigFile | null>(null);
+  const [projectConfig, setProjectConfig] = createSignal<AuroConfigFile | null>(null);
+  const [globalConfig, setGlobalConfig] = createSignal<AuroConfigFile | null>(null);
   const [configError, setConfigError] = createSignal<string | null>(null);
   const [revealBusy, setRevealBusy] = createSignal(false);
   const [showAdvanced, setShowAdvanced] = createSignal(false);
@@ -182,9 +182,9 @@ export default function McpView(props: McpViewProps) {
         setConfigError(null);
         const [project, global] = await Promise.all([
           root
-            ? (readConfig ? readConfig("project") : readOpencodeConfig("project", root))
+            ? (readConfig ? readConfig("project") : readAuroConfig("project", root))
             : Promise.resolve(null),
-          readConfig ? readConfig("global") : readOpencodeConfig("global", root),
+          readConfig ? readConfig("global") : readAuroConfig("global", root),
         ]);
         if (nextId !== configRequestId) return;
         setProjectConfig(project);
@@ -225,7 +225,7 @@ export default function McpView(props: McpViewProps) {
     try {
       const resolved = props.readConfigFile
         ? await props.readConfigFile(configScope())
-        : await readOpencodeConfig(configScope(), root);
+        : await readAuroConfig(configScope(), root);
       if (!resolved) {
         throw new Error(tr("mcp.config_load_failed"));
       }

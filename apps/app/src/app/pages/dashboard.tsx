@@ -254,7 +254,7 @@ export type DashboardViewProps = {
   toggleShowThinking: () => void;
   hideTitlebar: boolean;
   toggleHideTitlebar: () => void;
-  opencodeEnableExa: boolean;
+  auroEnableExa: boolean;
   toggleOpencodeEnableExa: () => void;
   modelVariantLabel: string;
   editModelVariant: () => void;
@@ -1450,7 +1450,7 @@ export default function DashboardView(props: DashboardViewProps) {
                   setEngineCustomBinPath={props.setEngineCustomBinPath}
                   engineRuntime={props.engineRuntime}
                   setEngineRuntime={props.setEngineRuntime}
-                  opencodeEnableExa={props.opencodeEnableExa}
+                  auroEnableExa={props.auroEnableExa}
                   toggleOpencodeEnableExa={props.toggleOpencodeEnableExa}
                   isWindows={props.isWindows}
                   defaultModelLabel={props.defaultModelLabel}

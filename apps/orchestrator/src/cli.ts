@@ -222,7 +222,7 @@ type SidecarDiagnostics = {
   manifestUrl: string;
   target: SidecarTarget | null;
   source: BinarySourcePreference;
-  opencodeSource: BinarySourcePreference;
+  auroSource: BinarySourcePreference;
   allowExternal: boolean;
 };
 
@@ -270,7 +270,7 @@ type RouterBinaryInfo = {
 };
 
 type RouterBinaryState = {
-  opencode?: RouterBinaryInfo;
+  auro?: RouterBinaryInfo;
 };
 
 type RouterSidecarState = {
@@ -279,14 +279,14 @@ type RouterSidecarState = {
   manifestUrl: string;
   target: SidecarTarget | null;
   source: BinarySourcePreference;
-  opencodeSource: BinarySourcePreference;
+  auroSource: BinarySourcePreference;
   allowExternal: boolean;
 };
 
 type RouterState = {
   version: number;
   daemon?: RouterDaemonState;
-  opencode?: RouterOpencodeState;
+  auro?: RouterOpencodeState;
   cliVersion?: string;
   sidecar?: RouterSidecarState;
   binaries?: RouterBinaryState;
@@ -2222,7 +2222,7 @@ async function loadRouterState(path: string): Promise<RouterState> {
     return {
       version: 1,
       daemon: undefined,
-      opencode: undefined,
+      auro: undefined,
       cliVersion: undefined,
       sidecar: undefined,
       binaries: undefined,
@@ -3580,11 +3580,11 @@ async function runRouterDaemon(args: ParsedArgs) {
     readNumber(
       args.flags,
       "opencode-port",
-      state.opencode?.port,
+      state.auro?.port,
       "AUROWORK_OPENCODE_PORT",
     ),
     "127.0.0.1",
-    state.opencode?.port,
+    state.auro?.port,
   );
   const opencodeHotReload = readOpencodeHotReload(
     args.flags,
@@ -3666,11 +3666,11 @@ async function runRouterDaemon(args: ParsedArgs) {
       manifestUrl: sidecar.manifestUrl,
       target: sidecar.target,
       source: sidecarSource,
-      opencodeSource,
+      auroSource: opencodeSource,
       allowExternal,
     };
     state.binaries = {
-      opencode: {
+      auro: {
         path: opencodeBinary.bin,
         source: opencodeBinary.source,
         expectedVersion: opencodeBinary.expectedVersion,
@@ -3680,7 +3680,7 @@ async function runRouterDaemon(args: ParsedArgs) {
   };
 
   const ensureOpencode = async () => {
-    const existing = state.opencode;
+    const existing = state.auro;
     if (existing && isProcessAlive(existing.pid)) {
       const client = createOpencodeClient({
         baseUrl: existing.baseUrl,
@@ -3689,8 +3689,8 @@ async function runRouterDaemon(args: ParsedArgs) {
       });
       try {
         await waitForOpencodeHealthy(client, 2000, 200);
-        if (!state.sidecar || !state.cliVersion || !state.binaries?.opencode) {
-          updateDiagnostics(state.binaries?.opencode?.actualVersion);
+        if (!state.sidecar || !state.cliVersion || !state.binaries?.auro) {
+          updateDiagnostics(state.binaries?.auro?.actualVersion);
           await saveRouterState(statePath, state);
         }
         return { baseUrl: existing.baseUrl, client };
@@ -3730,7 +3730,7 @@ async function runRouterDaemon(args: ParsedArgs) {
     logger.info("Waiting for health", { url: baseUrl }, "opencode");
     await waitForOpencodeHealthy(client);
     logger.info("Healthy", { url: baseUrl }, "opencode");
-    state.opencode = {
+    state.auro = {
       pid: child.pid ?? 0,
       port: opencodePort,
       baseUrl,
@@ -3793,7 +3793,7 @@ async function runRouterDaemon(args: ParsedArgs) {
         send(200, {
           ok: true,
           daemon: state.daemon ?? null,
-          opencode: state.opencode ?? null,
+          auro: state.auro ?? null,
           activeId: state.activeId,
           workspaceCount: state.workspaces.length,
           cliVersion: state.cliVersion ?? null,
@@ -4019,8 +4019,8 @@ async function runRouterDaemon(args: ParsedArgs) {
     }
 
     state.daemon = undefined;
-    if (state.opencode && !isProcessAlive(state.opencode.pid)) {
-      state.opencode = undefined;
+    if (state.auro && !isProcessAlive(state.auro.pid)) {
+      state.auro = undefined;
     }
     await saveRouterState(statePath, state);
     process.exit(0);
@@ -5049,8 +5049,8 @@ async function runStart(args: ParsedArgs) {
           ownerToken: auroworkOwnerToken,
           hostToken: auroworkHostToken,
           opencodeUrl: opencodeConnectUrl,
-          opencodePassword: opencodePassword ?? undefined,
-          opencodeUsername: opencodeUsername ?? undefined,
+          auroPassword: opencodePassword ?? undefined,
+          auroUsername: opencodeUsername ?? undefined,
           attachCommand,
         },
         services: [
@@ -5377,11 +5377,11 @@ async function runStart(args: ParsedArgs) {
           manifestUrl: sidecar.manifestUrl,
           target: sidecar.target,
           source: sidecarSource,
-          opencodeSource,
+          auroSource: opencodeSource,
           allowExternal,
         } as SidecarDiagnostics,
         binaries: {
-          opencode: {
+          auro: {
             path: opencodeBinary.bin,
             source: opencodeBinary.source,
             expectedVersion: opencodeBinary.expectedVersion,

@@ -1,16 +1,13 @@
-use crate::config::{read_opencode_config as read_inner, write_opencode_config as write_inner};
-use crate::types::{ExecResult, OpencodeConfigFile};
+use crate::config::{read_auro_config as read_inner, write_auro_config as write_inner};
+use crate::types::{AuroConfigFile, ExecResult};
 
 #[tauri::command]
-pub fn read_opencode_config(
-    scope: String,
-    project_dir: String,
-) -> Result<OpencodeConfigFile, String> {
+pub fn read_auro_config(scope: String, project_dir: String) -> Result<AuroConfigFile, String> {
     read_inner(scope.trim(), &project_dir)
 }
 
 #[tauri::command]
-pub fn write_opencode_config(
+pub fn write_auro_config(
     scope: String,
     project_dir: String,
     content: String,

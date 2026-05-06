@@ -63,16 +63,12 @@ impl WorkspaceAuroworkConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum EngineRuntime {
+    #[default]
     Direct,
     #[serde(rename = "aurowork-orchestrator")]
     Orchestrator,
-}
-
-impl Default for EngineRuntime {
-    fn default() -> Self {
-        EngineRuntime::Direct
-    }
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -84,8 +80,8 @@ pub struct EngineInfo {
     pub project_dir: Option<String>,
     pub hostname: Option<String>,
     pub port: Option<u16>,
-    pub opencode_username: Option<String>,
-    pub opencode_password: Option<String>,
+    pub auro_username: Option<String>,
+    pub auro_password: Option<String>,
     pub pid: Option<u32>,
     pub last_stdout: Option<String>,
     pub last_stderr: Option<String>,
@@ -121,7 +117,7 @@ pub struct OrchestratorDaemonState {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct OrchestratorOpencodeState {
+pub struct OrchestratorAuroState {
     pub pid: u32,
     pub port: u16,
     pub base_url: String,
@@ -140,7 +136,7 @@ pub struct OrchestratorBinaryInfo {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OrchestratorBinaryState {
-    pub opencode: Option<OrchestratorBinaryInfo>,
+    pub auro: Option<OrchestratorBinaryInfo>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -151,7 +147,7 @@ pub struct OrchestratorSidecarInfo {
     pub manifest_url: Option<String>,
     pub target: Option<String>,
     pub source: Option<String>,
-    pub opencode_source: Option<String>,
+    pub auro_source: Option<String>,
     pub allow_external: Option<bool>,
 }
 
@@ -174,7 +170,7 @@ pub struct OrchestratorStatus {
     pub running: bool,
     pub data_dir: String,
     pub daemon: Option<OrchestratorDaemonState>,
-    pub opencode: Option<OrchestratorOpencodeState>,
+    pub auro: Option<OrchestratorAuroState>,
     pub cli_version: Option<String>,
     pub sidecar: Option<OrchestratorSidecarInfo>,
     pub binaries: Option<OrchestratorBinaryState>,
@@ -209,7 +205,7 @@ pub struct ExecResult {
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct OpencodeConfigFile {
+pub struct AuroConfigFile {
     pub path: String,
     pub exists: bool,
     pub content: Option<String>,
@@ -268,28 +264,21 @@ pub struct ScheduledJob {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum WorkspaceType {
+    #[default]
     Local,
     Remote,
 }
 
-impl Default for WorkspaceType {
-    fn default() -> Self {
-        WorkspaceType::Local
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum RemoteType {
-    Opencode,
+    #[default]
+    #[serde(rename = "opencode")]
+    Auro,
     Aurowork,
-}
-
-impl Default for RemoteType {
-    fn default() -> Self {
-        RemoteType::Opencode
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -344,7 +333,7 @@ pub struct WorkspaceList {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct OpencodeCommand {
+pub struct AuroCommand {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
@@ -387,3 +376,20 @@ impl Default for WorkspaceState {
 }
 
 pub const WORKSPACE_STATE_VERSION: u8 = 5;
+
+#[cfg(test)]
+mod remote_type_serde_tests {
+    use super::RemoteType;
+
+    #[test]
+    fn auro_variant_serializes_as_opencode_string() {
+        let json = serde_json::to_string(&RemoteType::Auro).expect("serialize");
+        assert_eq!(json, "\"opencode\"");
+    }
+
+    #[test]
+    fn opencode_string_deserializes_to_auro_variant() {
+        let value: RemoteType = serde_json::from_str("\"opencode\"").expect("deserialize");
+        assert!(matches!(value, RemoteType::Auro));
+    }
+}

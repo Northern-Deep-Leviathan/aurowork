@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import { sanitizePortableOpencodeConfig } from "./portable-opencode.js";
+import { sanitizePortableAuroConfig } from "./portable-auro.js";
 
-describe("sanitizePortableOpencodeConfig", () => {
+describe("sanitizePortableAuroConfig", () => {
   test("keeps only portable top-level config keys", () => {
-    const sanitized = sanitizePortableOpencodeConfig({
+    const sanitized = sanitizePortableAuroConfig({
       model: "anthropic/claude-sonnet-4-5",
       provider: { openai: { options: { apiKey: "secret" } } },
       tools: { bash: false },
@@ -34,7 +34,7 @@ describe("sanitizePortableOpencodeConfig", () => {
 
   test("returns a defensive clone", () => {
     const input = { plugin: ["a"], tools: { bash: false } };
-    const sanitized = sanitizePortableOpencodeConfig(input);
+    const sanitized = sanitizePortableAuroConfig(input);
     (sanitized.plugin as string[]).push("b");
     (sanitized.tools as Record<string, unknown>).bash = true;
 

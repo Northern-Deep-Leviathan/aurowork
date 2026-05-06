@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::types::{ExecResult, OpencodeCommand};
+use crate::types::{AuroCommand, ExecResult};
 use crate::workspace::commands::{sanitize_command_name, serialize_command_frontmatter};
 
 fn resolve_commands_dir(scope: &str, project_dir: &str) -> Result<PathBuf, String> {
@@ -50,16 +50,16 @@ fn list_command_names(dir: &PathBuf) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub fn opencode_command_list(scope: String, project_dir: String) -> Result<Vec<String>, String> {
+pub fn auro_command_list(scope: String, project_dir: String) -> Result<Vec<String>, String> {
     let dir = resolve_commands_dir(scope.trim(), project_dir.trim())?;
     list_command_names(&dir)
 }
 
 #[tauri::command]
-pub fn opencode_command_write(
+pub fn auro_command_write(
     scope: String,
     project_dir: String,
-    command: OpencodeCommand,
+    command: AuroCommand,
 ) -> Result<ExecResult, String> {
     let scope = scope.trim();
     let safe_name = sanitize_command_name(&command.name)
@@ -72,7 +72,7 @@ pub fn opencode_command_write(
     }
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create {}: {e}", dir.display()))?;
 
-    let payload = OpencodeCommand {
+    let payload = AuroCommand {
         name: safe_name.clone(),
         ..command
     };
@@ -90,7 +90,7 @@ pub fn opencode_command_write(
 }
 
 #[tauri::command]
-pub fn opencode_command_delete(
+pub fn auro_command_delete(
     scope: String,
     project_dir: String,
     name: String,

@@ -8,7 +8,7 @@ import { isTauriRuntime } from "./utils";
 
 export default function AppEntry() {
   const defaultUrl = (() => {
-    // Desktop app connects to the local OpenCode engine.
+    // Desktop app connects to the local Auro engine (upstream OpenCode binary).
     if (isTauriRuntime()) return "http://127.0.0.1:4096";
 
     // When running the web UI against an AuroWork server (e.g. Docker dev stack),
