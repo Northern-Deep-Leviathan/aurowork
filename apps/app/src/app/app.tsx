@@ -81,7 +81,12 @@ import {
 import { SYNTHETIC_SESSION_ERROR_MESSAGE_PREFIX } from "./types";
 
 // Inline stubs for removed workspace-blueprints module
-function blueprintSessions(_config: unknown): Array<{ id?: string | null; title?: string | null; messages?: unknown[] | null; openOnFirstLoad?: boolean | null }> {
+function blueprintSessions(_config: unknown): Array<{
+  id?: string | null;
+  title?: string | null;
+  messages?: Array<{ role?: "assistant" | "user" | null; text?: string | null }> | null;
+  openOnFirstLoad?: boolean | null;
+}> {
   return [];
 }
 function blueprintMaterializedSessions(_config: unknown): Array<{ templateId?: string | null; sessionId?: string | null }> {
@@ -148,6 +153,7 @@ import type {
   OpencodeConnectStatus,
   WorkspacePreset,
   WorkspaceAuroworkConfig,
+  OpencodeRouterInfo,
 } from "./types";
 import {
   clearStartupPreference,
@@ -1041,7 +1047,7 @@ export default function App() {
   const [auroworkServerHostInfo, setAuroworkServerHostInfo] = createSignal<AuroworkServerInfo | null>(null);
   const [auroworkServerDiagnostics, setAuroworkServerDiagnostics] = createSignal<AuroworkServerDiagnostics | null>(null);
   const [auroworkReconnectBusy, setAuroworkReconnectBusy] = createSignal(false);
-  const [opencodeRouterInfoState, setOpenCodeRouterInfoState] = createSignal<null>(null);
+  const [opencodeRouterInfoState, setOpenCodeRouterInfoState] = createSignal<OpencodeRouterInfo | null>(null);
   const [orchestratorStatusState, setOrchestratorStatusState] = createSignal<OrchestratorStatus | null>(null);
   const [auroworkAuditEntries, setAuroworkAuditEntries] = createSignal<Array<{ id: string; workspaceId: string; action: string; target: string; summary: string; timestamp: number }>>([]);
   const [auroworkAuditStatus, setAuroworkAuditStatus] = createSignal<"idle" | "loading" | "error">("idle");
