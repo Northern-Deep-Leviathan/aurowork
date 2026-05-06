@@ -10,7 +10,6 @@ type FeedbackUrlOptions = {
   auroworkServerVersion?: string | null;
   opencodeVersion?: string | null;
   orchestratorVersion?: string | null;
-  opencodeRouterVersion?: string | null;
 };
 
 type ClientOsContext = {
@@ -94,7 +93,6 @@ export function buildFeedbackUrl(options: FeedbackUrlOptions): string {
     auroworkServerVersion: options.auroworkServerVersion?.trim() ?? "",
     opencodeVersion: options.opencodeVersion?.trim() ?? "",
     orchestratorVersion: options.orchestratorVersion?.trim() ?? "",
-    opencodeRouterVersion: options.opencodeRouterVersion?.trim() ?? "",
     osName: osContext.osName?.trim() ?? "",
     osVersion: osContext.osVersion?.trim() ?? "",
     platform: osContext.platform?.trim() ?? "",

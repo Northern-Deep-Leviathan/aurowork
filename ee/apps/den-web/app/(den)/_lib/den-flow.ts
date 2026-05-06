@@ -3,7 +3,7 @@ import { DEN_WORKER_POLL_INTERVAL_MS } from "./CONSTS";
 export type AuthMode = "sign-in" | "sign-up";
 export type SocialAuthProvider = "github" | "google";
 export type WorkerStatusBucket = "ready" | "starting" | "attention" | "other";
-export type RuntimeServiceName = "aurowork-server" | "opencode" | "opencode-router";
+export type RuntimeServiceName = "aurowork-server" | "opencode";
 export type EventLevel = "info" | "success" | "warning" | "error";
 export type AuthMethod = "email" | SocialAuthProvider;
 
@@ -516,8 +516,6 @@ export function getRuntimeServiceLabel(name: RuntimeServiceName): string {
       return "AuroWork server";
     case "opencode":
       return "OpenCode";
-    case "opencode-router":
-      return "OpenCode Router";
   }
 }
 

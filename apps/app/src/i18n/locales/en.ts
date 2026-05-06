@@ -1119,7 +1119,6 @@ export default {
   "settings.debug_orchestrator": "Orchestrator",
   "settings.debug_opencode": "OpenCode",
   "settings.debug_aurowork_server": "AuroWork server",
-  "settings.debug_opencode_router": "OpenCodeRouter",
   "settings.debug_sandbox_probe_title": "Sandbox probe",
   "settings.debug_sandbox_probe_description": "Runs a temporary Docker sandbox startup check and captures inspect/log output.",
   "settings.debug_sandbox_probe_running": "Running probe...",
@@ -1165,7 +1164,6 @@ export default {
   "settings.debug_restart_orchestrator": "Restart orchestrator",
   "settings.debug_restart_opencode": "Restart OpenCode",
   "settings.debug_restart_aurowork_server": "Restart AuroWork server",
-  "settings.debug_restart_opencode_router": "Restart OpenCodeRouter",
   "settings.debug_restarting": "Restarting...",
   "settings.debug_versions_title": "Versions",
   "settings.debug_versions_description": "Sidecar + desktop build info.",
@@ -1176,8 +1174,6 @@ export default {
   "settings.debug_opencode_sdk": "OpenCode SDK",
   "settings.debug_opencode_sdk_hint": "UI connection diagnostics.",
   "settings.debug_aurowork_server_hint": "Config and approvals sidecar.",
-  "settings.debug_opencode_router_sidecar": "OpenCodeRouter sidecar",
-  "settings.debug_opencode_router_hint": "Messaging bridge service.",
   "settings.debug_restart": "Restart",
   "settings.debug_stop": "Stop",
   "settings.debug_diagnostics_title": "AuroWork server diagnostics",
@@ -1241,7 +1237,6 @@ export default {
   "settings.logs_on_host": "Logs are available on the host.",
   "settings.binary_unavailable": "Binary unavailable",
   "settings.sidecar_config_unavailable": "Sidecar config unavailable",
-  "settings.router_desktop_note": "Local desktop router state. Remote worker router state is inferred through the connected AuroWork server.",
   "settings.workspace_fallback": "Workspace",
 
   // Settings — Service card detail labels
