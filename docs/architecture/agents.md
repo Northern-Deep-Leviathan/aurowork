@@ -157,11 +157,6 @@ aurowork/
       src/
       scripts/
       package.json
-  ee/                                           # Enterprise components
-    apps/
-      den-web/                                  # Web control plane
-      den-controller/                           # Provisioning workers
-      landing/                                  # Marketing site
   packages/                                     # Shared packages
   docs/                                         # All product/architecture/ops docs
     architecture/

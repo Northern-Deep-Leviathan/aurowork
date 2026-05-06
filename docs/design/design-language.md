@@ -58,7 +58,7 @@ The application runs on a tight monochrome grayscale with intentional accent col
 
 ### Interactive Rows & Lists (The Landing Pattern)
 
-Lists (like sessions or active configurations) should mimic the clean, flat rhythm seen in the landing demo panels (see `_repos/aurowork/ee/apps/landing/components/landing-app-demo-panel.tsx`).
+Lists (like sessions or active configurations) should mimic a clean, flat rhythm.
 
 *   **Container:** `flex items-center justify-between rounded-xl px-3 py-1.5 text-left text-[13px] transition-colors` (see `_repos/aurowork/apps/app/src/app/components/session/workspace-session-list.tsx` for implementation details).
 *   **Selected State:** Use a solid, clear gray tint like `bg-gray-3` or `bg-gray-3/80` with a stronger font weight (`font-medium`). Do *not* use a white card with drop shadow.
@@ -85,7 +85,7 @@ Lists (like sessions or active configurations) should mimic the clean, flat rhyt
 
 ## AuroWork Landing
 
-The landing page (`_repos/aurowork/ee/apps/landing`) may use *slightly* more atmospheric elements (like soft grain or the occasional translucent shell), but the core UI components embedded within it (like `LandingAppDemoPanel` or `LandingCloudWorkersCard`) strictly obey the flat, structural rules outlined above.
+The landing page may use *slightly* more atmospheric elements (like soft grain or the occasional translucent shell), but the core UI components embedded within it (like `LandingAppDemoPanel` or `LandingCloudWorkersCard`) strictly obey the flat, structural rules outlined above.
 
 *   The landing page is the *only* place where `landing-shell` (frosted blur) is appropriate. Do not backport these utility classes into the operational desktop application.
 *   When the desktop app needs to look "premium", it achieves this through tight alignment, consistent `gray-1`/`gray-2` layering, and sharp typography—not through blurs and shadows.
@@ -96,4 +96,3 @@ If you need to see exactly how these rules are applied in code, consult these sp
 
 *   **App Settings Panel (Ideal flat surface structure):** `_repos/aurowork/apps/app/src/app/pages/settings.tsx`
 *   **App Left Rail (Ideal tab and session list rhythm):** `_repos/aurowork/apps/app/src/app/components/session/workspace-session-list.tsx`
-*   **Landing Demo Shell (The origin of the clean list layout):** `_repos/aurowork/ee/apps/landing/components/landing-app-demo-panel.tsx`

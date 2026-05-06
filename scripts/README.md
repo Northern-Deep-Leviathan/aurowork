@@ -15,9 +15,7 @@ AuroWork 工程脚本。`*.mjs` / `*.ts` 为 Node/Bun，`*.sh` / `*.cmd` 为 she
 | 脚本 | 作用 | 触发 |
 |------|------|------|
 | `dev/dev-headless-web.ts` | 无头启动 web dev server（用于自动化/CI） | `pnpm dev:headless-web` |
-| `dev/dev-web-local.sh` | Docker 本地启动 den-controller + den-web | `pnpm dev:web-local` |
-| `dev/dev-windows.cmd` | Windows ARM64 桌面 dev（含 VS Build Tools 检查） | `pnpm dev:windows` 或手动 |
-| `dev/dev-windows-x64.cmd` | Windows x64 桌面 dev | 手动 |
+| `dev/dev-windows.cmd` | Windows 桌面 dev（自动检测 host arch + VS Build Tools） | `pnpm dev:windows` 或手动 |
 
 ## `release/` — 发布流水线
 

@@ -23,7 +23,6 @@ apps/app/          → SolidJS 前端 UI (桌面/Web)
 apps/desktop/      → Tauri 2 桌面 Shell (Rust)
 apps/server/       → AuroWork Server (API/控制层)
 apps/orchestrator/ → CLI 编排器
-ee/                → 企业版组件 (den-web, den-controller, den-worker-*)
 packages/          → 共享包
 ```
 
@@ -33,7 +32,6 @@ packages/          → 共享包
 pnpm install          # 安装依赖
 pnpm dev              # 启动桌面应用 (dev mode)
 pnpm dev:ui           # 仅启动 Web UI
-pnpm dev:web          # 启动 den-web
 pnpm typecheck        # TypeScript 类型检查
 pnpm build            # 生产构建
 pnpm test:e2e         # E2E 测试
