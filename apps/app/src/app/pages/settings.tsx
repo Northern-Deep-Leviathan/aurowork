@@ -53,6 +53,7 @@ import type {
   McpServerEntry,
   McpStatusMap,
   OpencodeConnectStatus,
+  OpencodeRouterInfo,
   PluginScope,
   ProviderListItem,
   SettingsTab,
@@ -61,6 +62,7 @@ import type {
   SuggestedPlugin,
 } from "../types";
 import type {
+  AuroworkAuditEntry,
   AuroworkServerClient,
   AuroworkServerCapabilities,
   AuroworkServerDiagnostics,
@@ -111,13 +113,13 @@ export type SettingsViewProps = {
   runtimeWorkspaceId: string | null;
   selectedWorkspaceRoot: string;
   activeWorkspaceType: "local" | "remote";
-  auroworkAuditEntries: unknown[];
+  auroworkAuditEntries: AuroworkAuditEntry[];
   auroworkAuditStatus: "idle" | "loading" | "error";
   auroworkAuditError: string | null;
   opencodeConnectStatus: OpencodeConnectStatus | null;
   engineInfo: EngineInfo | null;
   orchestratorStatus: OrchestratorStatus | null;
-  opencodeRouterInfo: null;
+  opencodeRouterInfo: OpencodeRouterInfo | null;
   developerMode: boolean;
   toggleDeveloperMode: () => void;
   stopHost: () => void;

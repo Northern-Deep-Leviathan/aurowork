@@ -104,12 +104,24 @@ export type MigrationRepairResult = {
 
 // SandboxDoctorResult was removed from tauri.ts (Docker sandbox feature pruned).
 // Define a local stub type so the sandbox-doctor signals keep their shape.
+type SandboxDoctorCommandDebug = {
+  status: number;
+  stderr?: string;
+};
+
 type SandboxDoctorResult = {
   installed: boolean;
   daemonRunning: boolean;
   permissionOk: boolean;
   ready: boolean;
   error?: string;
+  serverVersion?: string | null;
+  debug?: {
+    selectedBin?: string;
+    candidates?: string[];
+    versionCommand?: SandboxDoctorCommandDebug;
+    infoCommand?: SandboxDoctorCommandDebug;
+  };
 };
 
 export function createWorkspaceStore(options: {
