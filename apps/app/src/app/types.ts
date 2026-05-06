@@ -189,6 +189,7 @@ export type WorkspaceAuroworkConfig = {
     preset?: string | null;
   } | null;
   authorizedRoots: string[];
+  blueprint?: Record<string, unknown> | null;
   reload?: {
     auto?: boolean;
     resume?: boolean;
