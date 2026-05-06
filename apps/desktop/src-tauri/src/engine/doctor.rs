@@ -2,13 +2,12 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use crate::engine::paths::{
-    resolve_opencode_env_override, resolve_opencode_executable,
-    resolve_opencode_executable_without_override,
+    resolve_auro_env_override, resolve_auro_executable, resolve_auro_executable_without_override,
 };
 use crate::platform::command_for_program;
 use crate::utils::truncate_output;
 
-pub fn opencode_version(program: &OsStr) -> Option<String> {
+pub fn auro_version(program: &OsStr) -> Option<String> {
     let mut command = command_for_program(Path::new(program));
     for (key, value) in crate::bun_env::bun_env_overrides() {
         command.env(key, value);
@@ -27,7 +26,7 @@ pub fn opencode_version(program: &OsStr) -> Option<String> {
     None
 }
 
-pub fn opencode_serve_help(program: &OsStr) -> (bool, Option<i32>, Option<String>, Option<String>) {
+pub fn auro_serve_help(program: &OsStr) -> (bool, Option<i32>, Option<String>, Option<String>) {
     let mut command = command_for_program(Path::new(program));
     for (key, value) in crate::bun_env::bun_env_overrides() {
         command.env(key, value);
@@ -71,21 +70,21 @@ pub fn resolve_sidecar_candidate(
     let mut candidates = Vec::new();
 
     if let Some(current_bin_dir) = current_bin_dir {
-        candidates.push(current_bin_dir.join(crate::engine::paths::opencode_executable_name()));
+        candidates.push(current_bin_dir.join(crate::engine::paths::auro_executable_name()));
     }
 
     if let Some(resource_dir) = resource_dir {
         candidates.push(
             resource_dir
                 .join("sidecars")
-                .join(crate::engine::paths::opencode_executable_name()),
+                .join(crate::engine::paths::auro_executable_name()),
         );
-        candidates.push(resource_dir.join(crate::engine::paths::opencode_executable_name()));
+        candidates.push(resource_dir.join(crate::engine::paths::auro_executable_name()));
     }
 
     candidates.push(
         std::path::PathBuf::from("src-tauri/sidecars")
-            .join(crate::engine::paths::opencode_executable_name()),
+            .join(crate::engine::paths::auro_executable_name()),
     );
 
     for candidate in candidates {
@@ -106,10 +105,10 @@ pub fn resolve_engine_path(
     current_bin_dir: Option<&Path>,
 ) -> (Option<std::path::PathBuf>, bool, Vec<String>) {
     if !prefer_sidecar {
-        return resolve_opencode_executable();
+        return resolve_auro_executable();
     }
 
-    let (override_path, mut notes) = resolve_opencode_env_override();
+    let (override_path, mut notes) = resolve_auro_env_override();
     if let Some(path) = override_path {
         return (Some(path), false, notes);
     }
@@ -120,7 +119,7 @@ pub fn resolve_engine_path(
 
     let (resolved, in_path, more_notes) = match sidecar {
         Some(path) => (Some(path), false, Vec::new()),
-        None => resolve_opencode_executable_without_override(),
+        None => resolve_auro_executable_without_override(),
     };
 
     notes.extend(more_notes);
@@ -180,12 +179,12 @@ mod tests {
     #[cfg(not(windows))]
     fn resolves_sidecar_from_current_binary_dir() {
         let _lock = ENV_LOCK.lock().expect("lock env");
-        let _guard = EnvVarGuard::clear("OPENCODE_BIN_PATH");
+        let _guard = EnvVarGuard::clear("AURO_BIN_PATH");
 
         let dir = unique_temp_dir("sidecar-test");
         std::fs::create_dir_all(&dir).expect("create temp dir");
 
-        let sidecar_path = dir.join(crate::engine::paths::opencode_executable_name());
+        let sidecar_path = dir.join(crate::engine::paths::auro_executable_name());
         std::fs::write(&sidecar_path, b"").expect("create fake sidecar");
 
         let (resolved, notes) = resolve_sidecar_candidate(true, None, Some(dir.as_path()));
@@ -205,12 +204,12 @@ mod tests {
     #[cfg(not(windows))]
     fn resolve_engine_path_prefers_sidecar() {
         let _lock = ENV_LOCK.lock().expect("lock env");
-        let _guard = EnvVarGuard::clear("OPENCODE_BIN_PATH");
+        let _guard = EnvVarGuard::clear("AURO_BIN_PATH");
 
         let dir = unique_temp_dir("engine-path-test");
         std::fs::create_dir_all(&dir).expect("create temp dir");
 
-        let sidecar_path = dir.join(crate::engine::paths::opencode_executable_name());
+        let sidecar_path = dir.join(crate::engine::paths::auro_executable_name());
         std::fs::write(&sidecar_path, b"").expect("create fake sidecar");
 
         let (resolved, in_path, _notes) = resolve_engine_path(true, None, Some(dir.as_path()));
@@ -225,17 +224,17 @@ mod tests {
     fn resolve_engine_path_honors_env_override() {
         let _lock = ENV_LOCK.lock().expect("lock env");
 
-        let override_dir = unique_temp_dir("opencode-override");
+        let override_dir = unique_temp_dir("auro-override");
         std::fs::create_dir_all(&override_dir).expect("create override dir");
 
-        let override_path = override_dir.join("opencode-custom");
+        let override_path = override_dir.join("auro-custom");
         std::fs::write(&override_path, b"").expect("create override file");
 
-        let _guard = EnvVarGuard::set("OPENCODE_BIN_PATH", &override_path);
+        let _guard = EnvVarGuard::set("AURO_BIN_PATH", &override_path);
 
         let sidecar_dir = unique_temp_dir("sidecar-override-test");
         std::fs::create_dir_all(&sidecar_dir).expect("create sidecar dir");
-        let sidecar_path = sidecar_dir.join(crate::engine::paths::opencode_executable_name());
+        let sidecar_path = sidecar_dir.join(crate::engine::paths::auro_executable_name());
         std::fs::write(&sidecar_path, b"").expect("create fake sidecar");
 
         let (resolved, _in_path, notes) =
@@ -243,7 +242,7 @@ mod tests {
         assert_eq!(resolved.as_ref(), Some(&override_path));
         assert!(notes
             .iter()
-            .any(|note| note.contains("Using OPENCODE_BIN_PATH")));
+            .any(|note| note.contains("Using AURO_BIN_PATH")));
 
         let _ = std::fs::remove_dir_all(&override_dir);
         let _ = std::fs::remove_dir_all(&sidecar_dir);

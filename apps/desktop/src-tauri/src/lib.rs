@@ -17,18 +17,16 @@ pub use types::*;
 
 use aurowork_server::manager::AuroworkServerManager;
 use commands::aurowork_server::{aurowork_server_info, aurowork_server_restart};
-use commands::command_files::{
-    opencode_command_delete, opencode_command_list, opencode_command_write,
-};
-use commands::config::{read_opencode_config, write_opencode_config};
+use commands::command_files::{auro_command_delete, auro_command_list, auro_command_write};
+use commands::config::{read_auro_config, write_auro_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
 };
 use commands::fs::{fs_close_file, fs_read_dir, fs_read_file, fs_write_file};
 use commands::misc::{
-    app_build_info, nuke_aurowork_and_opencode_config_and_exit, opencode_db_migrate,
-    opencode_mcp_auth, reset_aurowork_state, reset_opencode_cache,
+    app_build_info, auro_db_migrate, auro_mcp_auth, nuke_aurowork_and_auro_config_and_exit,
+    reset_auro_cache, reset_aurowork_state,
 };
 use commands::opkg::{import_skill, opkg_install};
 use commands::orchestrator::{
@@ -182,9 +180,9 @@ pub fn run() {
             workspace_add_authorized_root,
             workspace_export_config,
             workspace_import_config,
-            opencode_command_list,
-            opencode_command_write,
-            opencode_command_delete,
+            auro_command_list,
+            auro_command_write,
+            auro_command_delete,
             workspace_aurowork_read,
             workspace_aurowork_write,
             opkg_install,
@@ -193,15 +191,15 @@ pub fn run() {
             read_local_skill,
             uninstall_skill,
             write_local_skill,
-            read_opencode_config,
-            write_opencode_config,
+            read_auro_config,
+            write_auro_config,
             updater_environment,
             app_build_info,
-            nuke_aurowork_and_opencode_config_and_exit,
+            nuke_aurowork_and_auro_config_and_exit,
             reset_aurowork_state,
-            reset_opencode_cache,
-            opencode_db_migrate,
-            opencode_mcp_auth,
+            reset_auro_cache,
+            auro_db_migrate,
+            auro_mcp_auth,
             set_window_decorations,
             debug_log_append,
             debug_log_clear,
@@ -215,9 +213,9 @@ pub fn run() {
 
     // Best-effort cleanup on app exit. Without this, background sidecars can keep
     // running after the UI quits (especially during dev), leading to multiple
-    // orchestrator/opencode/aurowork-server processes and stale ports.
+    // orchestrator/auro/aurowork-server processes and stale ports.
     app.run(|app_handle, event| match event {
-        RunEvent::ExitRequested { .. } | RunEvent::Exit => stop_managed_services(&app_handle),
+        RunEvent::ExitRequested { .. } | RunEvent::Exit => stop_managed_services(app_handle),
         #[cfg(target_os = "macos")]
         RunEvent::WindowEvent {
             label,

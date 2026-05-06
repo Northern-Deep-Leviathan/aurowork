@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
-import { inheritWorkspaceOpencodeConnection, resolveWorkspaceOpencodeConnection } from "./opencode-connection.js";
+import { inheritWorkspaceAuroConnection, resolveWorkspaceAuroConnection } from "./auro-connection.js";
 
-describe("resolveWorkspaceOpencodeConnection", () => {
+describe("resolveWorkspaceAuroConnection", () => {
   test("falls back to server-level OpenCode settings when a workspace entry is missing them", () => {
-    const connection = resolveWorkspaceOpencodeConnection(
+    const connection = resolveWorkspaceAuroConnection(
       {
-        opencodeBaseUrl: "http://127.0.0.1:54235",
-        opencodeUsername: "user",
-        opencodePassword: "pass",
+        auroBaseUrl: "http://127.0.0.1:54235",
+        auroUsername: "user",
+        auroPassword: "pass",
       },
       {
         id: "ws_test",
@@ -24,11 +24,11 @@ describe("resolveWorkspaceOpencodeConnection", () => {
   });
 
   test("prefers workspace-specific settings when present", () => {
-    const connection = resolveWorkspaceOpencodeConnection(
+    const connection = resolveWorkspaceAuroConnection(
       {
-        opencodeBaseUrl: "http://127.0.0.1:54235",
-        opencodeUsername: "user",
-        opencodePassword: "pass",
+        auroBaseUrl: "http://127.0.0.1:54235",
+        auroUsername: "user",
+        auroPassword: "pass",
       },
       {
         id: "ws_test",
@@ -37,8 +37,8 @@ describe("resolveWorkspaceOpencodeConnection", () => {
         preset: "starter",
         workspaceType: "local",
         baseUrl: "http://127.0.0.1:6000",
-        opencodeUsername: "local-user",
-        opencodePassword: "local-pass",
+        auroUsername: "local-user",
+        auroPassword: "local-pass",
       },
     );
 
@@ -47,18 +47,18 @@ describe("resolveWorkspaceOpencodeConnection", () => {
   });
 });
 
-describe("inheritWorkspaceOpencodeConnection", () => {
+describe("inheritWorkspaceAuroConnection", () => {
   test("copies server-level OpenCode connection into new local workspaces", () => {
     expect(
-      inheritWorkspaceOpencodeConnection({
-        opencodeBaseUrl: "http://127.0.0.1:54235",
-        opencodeUsername: "user",
-        opencodePassword: "pass",
+      inheritWorkspaceAuroConnection({
+        auroBaseUrl: "http://127.0.0.1:54235",
+        auroUsername: "user",
+        auroPassword: "pass",
       }),
     ).toEqual({
       baseUrl: "http://127.0.0.1:54235",
-      opencodeUsername: "user",
-      opencodePassword: "pass",
+      auroUsername: "user",
+      auroPassword: "pass",
     });
   });
 });

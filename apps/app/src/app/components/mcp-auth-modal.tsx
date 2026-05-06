@@ -4,8 +4,8 @@ import Button from "./button";
 import TextInput from "./text-input";
 import type { Client } from "../types";
 import type { McpDirectoryInfo } from "../constants";
-import { unwrap } from "../lib/opencode";
-import { opencodeMcpAuth } from "../lib/tauri";
+import { unwrap } from "../lib/auro";
+import { auroMcpAuth } from "../lib/tauri";
 import { validateMcpServerName } from "../mcp";
 import { t, type Language } from "../../i18n";
 import { isTauriRuntime, normalizeDirectoryPath } from "../utils";
@@ -335,7 +335,7 @@ export default function McpAuthModal(props: McpAuthModalProps) {
     setCliAuthResult(null);
 
     try {
-      const result = await opencodeMcpAuth(props.projectDir, entry.name);
+      const result = await auroMcpAuth(props.projectDir, entry.name);
       if (result.ok) {
         setError(null);
         setNeedsReload(true);

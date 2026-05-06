@@ -12,16 +12,16 @@ use crate::types::{ExecResult, WorkspaceAuroworkConfig};
 use crate::workspace::state::load_workspace_state;
 use tauri::{AppHandle, Manager, State};
 
-fn pinned_opencode_install_command() -> String {
+fn pinned_auro_install_command() -> String {
     let constants = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../constants.json"
     ));
     let parsed: serde_json::Value =
         serde_json::from_str(constants).expect("constants.json must be valid JSON");
-    let version = parsed["opencodeVersion"]
+    let version = parsed["auroVersion"]
         .as_str()
-        .expect("constants.json must include opencodeVersion")
+        .expect("constants.json must include auroVersion")
         .trim()
         .trim_start_matches('v');
     format!(
@@ -55,7 +55,7 @@ fn env_truthy(key: &str) -> bool {
     )
 }
 
-fn opencode_cache_candidates() -> Vec<PathBuf> {
+fn auro_cache_candidates() -> Vec<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
 
     if let Ok(value) = std::env::var("XDG_CACHE_HOME") {
@@ -97,7 +97,7 @@ fn opencode_cache_candidates() -> Vec<PathBuf> {
         .collect()
 }
 
-fn push_opencode_env_path(candidates: &mut Vec<PathBuf>, key: &str) {
+fn push_auro_env_path(candidates: &mut Vec<PathBuf>, key: &str) {
     let Ok(value) = std::env::var(key) else {
         return;
     };
@@ -108,13 +108,13 @@ fn push_opencode_env_path(candidates: &mut Vec<PathBuf>, key: &str) {
     candidates.push(PathBuf::from(trimmed).join("opencode"));
 }
 
-fn opencode_standard_state_paths() -> Vec<PathBuf> {
+fn auro_standard_state_paths() -> Vec<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
 
-    push_opencode_env_path(&mut candidates, "XDG_CONFIG_HOME");
-    push_opencode_env_path(&mut candidates, "XDG_DATA_HOME");
-    push_opencode_env_path(&mut candidates, "XDG_STATE_HOME");
-    candidates.extend(opencode_cache_candidates());
+    push_auro_env_path(&mut candidates, "XDG_CONFIG_HOME");
+    push_auro_env_path(&mut candidates, "XDG_DATA_HOME");
+    push_auro_env_path(&mut candidates, "XDG_STATE_HOME");
+    candidates.extend(auro_cache_candidates());
 
     for dir in candidate_xdg_config_dirs() {
         candidates.push(dir.join("opencode"));
@@ -295,12 +295,12 @@ fn validate_project_dir(app: &AppHandle, project_dir: &str) -> Result<PathBuf, S
     Ok(canonical)
 }
 
-fn resolve_opencode_program(
+fn resolve_auro_program(
     app: &AppHandle,
     prefer_sidecar: bool,
-    opencode_bin_path: Option<String>,
+    auro_bin_path: Option<String>,
 ) -> Result<PathBuf, String> {
-    if let Some(custom) = opencode_bin_path {
+    if let Some(custom) = auro_bin_path {
         let trimmed = custom.trim();
         if !trimmed.is_empty() {
             return Ok(PathBuf::from(trimmed));
@@ -321,16 +321,14 @@ fn resolve_opencode_program(
 
     program.ok_or_else(|| {
         let notes_text = notes.join("\n");
-        let install_command = pinned_opencode_install_command();
-        format!(
-            "OpenCode CLI not found.\n\nInstall with:\n- {install_command}\n\nNotes:\n{notes_text}"
-        )
+        let install_command = pinned_auro_install_command();
+        format!("Auro CLI not found.\n\nInstall with:\n- {install_command}\n\nNotes:\n{notes_text}")
     })
 }
 
 #[tauri::command]
-pub fn reset_opencode_cache() -> Result<CacheResetResult, String> {
-    let candidates = opencode_cache_candidates();
+pub fn reset_auro_cache() -> Result<CacheResetResult, String> {
+    let candidates = auro_cache_candidates();
     let mut removed = Vec::new();
     let mut missing = Vec::new();
     let mut errors = Vec::new();
@@ -415,7 +413,7 @@ pub fn app_build_info(app: AppHandle) -> AppBuildInfo {
 }
 
 #[tauri::command]
-pub fn nuke_aurowork_and_opencode_config_and_exit(
+pub fn nuke_aurowork_and_auro_config_and_exit(
     app: AppHandle,
     engine_manager: State<EngineManager>,
     orchestrator_manager: State<OrchestratorManager>,
@@ -431,7 +429,7 @@ pub fn nuke_aurowork_and_opencode_config_and_exit(
     } else {
         // In production, clear the normal app/orchestrator paths plus the standard
         // user OpenCode config/data/cache/state locations.
-        paths.extend(opencode_standard_state_paths());
+        paths.extend(auro_standard_state_paths());
     }
 
     let mut seen = HashSet::new();
@@ -447,15 +445,14 @@ pub fn nuke_aurowork_and_opencode_config_and_exit(
 }
 
 #[tauri::command]
-pub fn opencode_db_migrate(
+pub fn auro_db_migrate(
     app: AppHandle,
     project_dir: String,
     prefer_sidecar: Option<bool>,
-    opencode_bin_path: Option<String>,
+    auro_bin_path: Option<String>,
 ) -> Result<ExecResult, String> {
     let project_dir = validate_project_dir(&app, &project_dir)?;
-    let program =
-        resolve_opencode_program(&app, prefer_sidecar.unwrap_or(false), opencode_bin_path)?;
+    let program = resolve_auro_program(&app, prefer_sidecar.unwrap_or(false), auro_bin_path)?;
 
     let mut command = command_for_program(&program);
     for (key, value) in crate::bun_env::bun_env_overrides() {
@@ -481,7 +478,7 @@ pub fn opencode_db_migrate(
 /// Run `opencode mcp auth <server_name>` in the given project directory.
 /// This spawns the process detached so the OAuth flow can open a browser.
 #[tauri::command]
-pub fn opencode_mcp_auth(
+pub fn auro_mcp_auth(
     app: AppHandle,
     project_dir: String,
     server_name: String,
@@ -489,7 +486,7 @@ pub fn opencode_mcp_auth(
     let project_dir = validate_project_dir(&app, &project_dir)?;
     let server_name = validate_server_name(&server_name)?;
 
-    let program = resolve_opencode_program(&app, true, None)?;
+    let program = resolve_auro_program(&app, true, None)?;
 
     let mut command = command_for_program(&program);
     for (key, value) in crate::bun_env::bun_env_overrides() {

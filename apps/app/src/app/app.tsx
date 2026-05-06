@@ -41,7 +41,7 @@ import DashboardView from "./pages/dashboard";
 import SessionView from "./pages/session";
 import ProtoWorkspacesView from "./pages/proto-workspaces";
 import ProtoV1UxView from "./pages/proto-v1-ux";
-import { createClient, unwrap, waitForHealthy, type OpencodeAuth } from "./lib/opencode";
+import { createClient, unwrap, waitForHealthy, type AuroAuth } from "./lib/auro";
 import { createDenClient, normalizeDenBaseUrl, writeDenSettings, DEFAULT_DEN_BASE_URL } from "./lib/den";
 import {
   abortSession as abortSessionTyped,
@@ -51,7 +51,7 @@ import {
   unrevertSession,
   shellInSession,
   listCommands as listCommandsTyped,
-} from "./lib/opencode-session";
+} from "./lib/auro-session";
 import { clearPerfLogs, finishPerf, perfNow, recordPerfLog } from "./lib/perf-log";
 import { debugFileLog, enableDebugFileLog, disableDebugFileLog } from "./lib/debug-file-log";
 import { deepLinkBridgeEvent, drainPendingDeepLinks, type DeepLinkBridgeDetail } from "./lib/deep-link-bridge";
@@ -214,8 +214,8 @@ import { useGlobalSync } from "./context/global-sync";
 import { createWorkspaceStore } from "./context/workspace";
 import {
   updaterEnvironment,
-  readOpencodeConfig,
-  writeOpencodeConfig,
+  readAuroConfig,
+  writeAuroConfig,
   auroworkServerRestart,
   auroworkServerInfo,
   orchestratorStatus,
@@ -1025,7 +1025,7 @@ export default function App() {
   const [engineCustomBinPath, setEngineCustomBinPath] = createSignal("");
 
   const [engineRuntime, setEngineRuntime] = createSignal<EngineRuntime>("aurowork-orchestrator");
-  const [opencodeEnableExa, setOpencodeEnableExa] = createSignal(false);
+  const [auroEnableExa, setOpencodeEnableExa] = createSignal(false);
 
   const [baseUrl, setBaseUrl] = createSignal("http://127.0.0.1:4096");
   const [clientDirectory, setClientDirectory] = createSignal("");
@@ -3294,7 +3294,7 @@ export default function App() {
     refreshPlugins,
     engineSource,
     engineCustomBinPath,
-    opencodeEnableExa,
+    auroEnableExa,
     setEngineSource,
     setView,
     setTab,
@@ -3392,9 +3392,9 @@ export default function App() {
       const info = workspaceStore.engine();
       const baseUrl = info?.baseUrl?.trim() ?? "";
       const directory = toSessionTransportDirectory(workspace.path?.trim() ?? "");
-      const username = info?.opencodeUsername?.trim() ?? "";
-      const password = info?.opencodePassword?.trim() ?? "";
-      const auth: OpencodeAuth | undefined = username && password ? { username, password } : undefined;
+      const username = info?.auroUsername?.trim() ?? "";
+      const password = info?.auroPassword?.trim() ?? "";
+      const auth: AuroAuth | undefined = username && password ? { username, password } : undefined;
       return {
         baseUrl,
         directory,
@@ -3409,7 +3409,7 @@ export default function App() {
       // global AuroWork server settings, otherwise switching between remotes can cause other
       // workspace task lists to appear/disappear.
       const token = workspace.auroworkToken?.trim() ?? "";
-      const auth: OpencodeAuth | undefined = token ? { token, mode: "aurowork" } : undefined;
+      const auth: AuroAuth | undefined = token ? { token, mode: "aurowork" } : undefined;
       return {
         baseUrl,
         directory,
@@ -3419,7 +3419,7 @@ export default function App() {
     return {
       baseUrl,
       directory,
-      auth: undefined as OpencodeAuth | undefined,
+      auth: undefined as AuroAuth | undefined,
     };
   };
 
@@ -3565,8 +3565,8 @@ export default function App() {
   createEffect(() => {
     const engineInfo = workspaceStore.engine();
     const engineBaseUrl = engineInfo?.baseUrl?.trim() ?? "";
-    const engineUser = engineInfo?.opencodeUsername?.trim() ?? "";
-    const enginePass = engineInfo?.opencodePassword?.trim() ?? "";
+    const engineUser = engineInfo?.auroUsername?.trim() ?? "";
+    const enginePass = engineInfo?.auroPassword?.trim() ?? "";
 
     const engineKey = [engineBaseUrl, engineUser, enginePass].join("::");
     const workspaceKey = workspaceStore
@@ -6146,7 +6146,7 @@ export default function App() {
           },
         });
       } else {
-        const config = await readOpencodeConfig("project", projectDir);
+        const config = await readAuroConfig("project", projectDir);
         const raw = config.content ?? "";
         const nextConfig = raw.trim()
           ? (parse(raw) as Record<string, unknown>)
@@ -6164,7 +6164,7 @@ export default function App() {
         nextConfig.mcp = mcp;
         const formatted = JSON.stringify(nextConfig, null, 2);
 
-        const result = await writeOpencodeConfig("project", projectDir, `${formatted}\n`);
+        const result = await writeAuroConfig("project", projectDir, `${formatted}\n`);
         if (!result.ok) {
           throw new Error(result.stderr || result.stdout || "Failed to update opencode.json");
         }
@@ -6296,7 +6296,7 @@ export default function App() {
 
     try {
       setMcpStatus(null);
-      const config = await readOpencodeConfig("project", projectDir);
+      const config = await readAuroConfig("project", projectDir);
       if (!config.exists || !config.content) {
         setMcpServers([]);
         setMcpStatuses({});
@@ -6339,12 +6339,12 @@ export default function App() {
       resolvedAuroworkCapabilities()?.config?.read;
 
     if (canUseAuroworkServer && auroworkClient && auroworkWorkspaceId) {
-      return auroworkClient.readOpencodeConfigFile(auroworkWorkspaceId, scope);
+      return auroworkClient.readAuroConfigFile(auroworkWorkspaceId, scope);
     }
     if (!isTauriRuntime()) {
       return null;
     }
-    return readOpencodeConfig(scope, projectDir);
+    return readAuroConfig(scope, projectDir);
   };
 
   async function connectMcp(entry: (typeof MCP_QUICK_CONNECT)[number]) {
@@ -6497,7 +6497,7 @@ export default function App() {
           config: mcpEntryConfig,
         });
       } else {
-        const configFile = await readOpencodeConfig("project", resolvedProjectDir);
+        const configFile = await readAuroConfig("project", resolvedProjectDir);
 
         let existingConfig: Record<string, unknown> = {};
         if (configFile.exists && configFile.content?.trim()) {
@@ -6519,7 +6519,7 @@ export default function App() {
         existingConfig["mcp"] = mcpSection;
         mcpSection[slug] = mcpEntryConfig;
 
-        const writeResult = await writeOpencodeConfig(
+        const writeResult = await writeAuroConfig(
           "project",
           resolvedProjectDir,
           `${JSON.stringify(existingConfig, null, 2)}\n`
@@ -6984,7 +6984,7 @@ export default function App() {
         }
 
         const storedOpencodeEnableExa = window.localStorage.getItem(
-          "aurowork.opencodeEnableExa"
+          "aurowork.auroEnableExa"
         );
         if (storedOpencodeEnableExa === "0" || storedOpencodeEnableExa === "1") {
           setOpencodeEnableExa(storedOpencodeEnableExa === "1");
@@ -7372,7 +7372,7 @@ export default function App() {
           }
         } else if (isTauriRuntime()) {
           try {
-            const configFile = await readOpencodeConfig("project", workspaceRoot);
+            const configFile = await readAuroConfig("project", workspaceRoot);
             configFileContent = configFile.content;
             configDefault = parseDefaultModelFromConfig(configFile.content);
           } catch {
@@ -7450,12 +7450,12 @@ export default function App() {
           return;
         }
 
-        const configFile = await readOpencodeConfig("project", root);
+        const configFile = await readAuroConfig("project", root);
         const existingModel = parseDefaultModelFromConfig(configFile.content);
         if (existingModel && modelEquals(existingModel, nextModel)) return;
 
         const content = formatConfigWithDefaultModel(configFile.content, nextModel);
-        const result = await writeOpencodeConfig("project", root, content);
+        const result = await writeAuroConfig("project", root, content);
         if (!result.ok) {
           throw new Error(result.stderr || result.stdout || "Failed to update opencode.json");
         }
@@ -7548,8 +7548,8 @@ export default function App() {
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(
-        "aurowork.opencodeEnableExa",
-        opencodeEnableExa() ? "1" : "0"
+        "aurowork.auroEnableExa",
+        auroEnableExa() ? "1" : "0"
       );
     } catch {
       // ignore
@@ -8080,7 +8080,7 @@ export default function App() {
       setEngineCustomBinPath,
       engineRuntime: engineRuntime(),
       setEngineRuntime,
-      opencodeEnableExa: opencodeEnableExa(),
+      auroEnableExa: auroEnableExa(),
       toggleOpencodeEnableExa: () => setOpencodeEnableExa((v) => !v),
       isWindows: isWindowsPlatform(),
       toggleDeveloperMode: () => {

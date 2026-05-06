@@ -14,7 +14,7 @@ function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
-export function sanitizePortableOpencodeConfig(opencode: Record<string, unknown> | null | undefined): Record<string, unknown> {
+export function sanitizePortableAuroConfig(opencode: Record<string, unknown> | null | undefined): Record<string, unknown> {
   const source = opencode && typeof opencode === "object" && !Array.isArray(opencode) ? opencode : {};
   const next: Record<string, unknown> = {};
 

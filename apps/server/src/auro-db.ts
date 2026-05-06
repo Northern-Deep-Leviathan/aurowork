@@ -21,7 +21,7 @@ function truthy(value: string | undefined): boolean {
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
-function opencodeOrchestratorDataDirs(): string[] {
+function auroOrchestratorDataDirs(): string[] {
   const root = process.env.AUROWORK_DATA_DIR?.trim();
   if (!root) return [];
 
@@ -44,9 +44,9 @@ function opencodeOrchestratorDataDirs(): string[] {
   return dirs;
 }
 
-function opencodeDataDirs(): string[] {
+function auroDataDirs(): string[] {
   const dirs: string[] = [];
-  dirs.push(...opencodeOrchestratorDataDirs());
+  dirs.push(...auroOrchestratorDataDirs());
   const xdg = process.env.XDG_DATA_HOME?.trim();
   if (xdg) dirs.push(join(xdg, "opencode"));
   dirs.push(join(homedir(), ".local", "share", "opencode"));
@@ -65,20 +65,20 @@ function preferredDbNames(): string[] {
     : [`opencode-${channel.replace(/[^a-zA-Z0-9._-]/g, "-")}.db`, "opencode.db"];
 }
 
-function candidateOpencodeDbPaths(): string[] {
+function candidateAuroDbPaths(): string[] {
   const override = process.env.OPENCODE_DB?.trim();
   if (override) {
     if (isAbsolute(override)) return [override];
     const candidates: string[] = [];
-    for (const dir of opencodeDataDirs()) {
+    for (const dir of auroDataDirs()) {
       candidates.push(join(dir, override));
     }
-    candidates.push(join(opencodeDataDirs()[0] ?? join(homedir(), ".local", "share", "opencode"), override));
+    candidates.push(join(auroDataDirs()[0] ?? join(homedir(), ".local", "share", "opencode"), override));
     return Array.from(new Set(candidates));
   }
 
   const candidates: string[] = [];
-  for (const dir of opencodeDataDirs()) {
+  for (const dir of auroDataDirs()) {
     for (const name of preferredDbNames()) {
       candidates.push(join(dir, name));
     }
@@ -87,15 +87,15 @@ function candidateOpencodeDbPaths(): string[] {
   return Array.from(new Set(candidates));
 }
 
-export function resolveOpencodeDbPath(): string {
-  const candidates = candidateOpencodeDbPaths();
+export function resolveAuroDbPath(): string {
+  const candidates = candidateAuroDbPaths();
   const existing = candidates.find((candidate) => existsSync(candidate));
   if (existing) return existing;
   return candidates[0] ?? join(homedir(), ".local", "share", "opencode", preferredDbNames()[0] ?? "opencode.db");
 }
 
-function findOpencodeSessionDbPath(sessionId: string, inputPath?: string): string | null {
-  const candidates = (inputPath ? [inputPath] : candidateOpencodeDbPaths()).filter((candidate) => existsSync(candidate));
+function findAuroSessionDbPath(sessionId: string, inputPath?: string): string | null {
+  const candidates = (inputPath ? [inputPath] : candidateAuroDbPaths()).filter((candidate) => existsSync(candidate));
   for (const dbPath of candidates) {
     const db = new Database(dbPath, { readonly: true });
     try {
@@ -129,7 +129,7 @@ function ascendingId(prefix: "msg" | "prt", timestamp: number, counter: number):
   return `${prefix}_${bytes.toString("hex")}${randomBase62(14)}`;
 }
 
-export function seedOpencodeSessionMessages(input: {
+export function seedAuroSessionMessages(input: {
   sessionId: string;
   workspaceRoot: string;
   messages: SeedMessage[];
@@ -147,7 +147,7 @@ export function seedOpencodeSessionMessages(input: {
   }
 
   const explicitDbPath = input.dbPath?.trim() || undefined;
-  const dbPath = findOpencodeSessionDbPath(sessionId, explicitDbPath) || explicitDbPath || resolveOpencodeDbPath();
+  const dbPath = findAuroSessionDbPath(sessionId, explicitDbPath) || explicitDbPath || resolveAuroDbPath();
   if (!existsSync(dbPath)) {
     throw new Error(`OpenCode database not found at ${dbPath}`);
   }

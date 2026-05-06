@@ -11,7 +11,7 @@ use tauri_plugin_shell::ShellExt;
 use crate::paths::home_dir;
 use crate::paths::{prepended_path_env, sidecar_path_candidates};
 use crate::types::{
-    OrchestratorBinaryState, OrchestratorDaemonState, OrchestratorOpencodeState,
+    OrchestratorAuroState, OrchestratorBinaryState, OrchestratorDaemonState,
     OrchestratorSidecarInfo, OrchestratorStatus, OrchestratorWorkspace,
 };
 
@@ -20,8 +20,8 @@ pub mod manager;
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrchestratorAuthFile {
-    pub opencode_username: Option<String>,
-    pub opencode_password: Option<String>,
+    pub auro_username: Option<String>,
+    pub auro_password: Option<String>,
     pub project_dir: Option<String>,
     pub updated_at: Option<u64>,
 }
@@ -32,7 +32,7 @@ pub struct OrchestratorStateFile {
     #[allow(dead_code)]
     pub version: Option<u32>,
     pub daemon: Option<OrchestratorDaemonState>,
-    pub opencode: Option<OrchestratorOpencodeState>,
+    pub auro: Option<OrchestratorAuroState>,
     pub cli_version: Option<String>,
     pub sidecar: Option<OrchestratorSidecarInfo>,
     pub binaries: Option<OrchestratorBinaryState>,
@@ -46,7 +46,7 @@ pub struct OrchestratorStateFile {
 pub struct OrchestratorHealth {
     pub ok: bool,
     pub daemon: Option<OrchestratorDaemonState>,
-    pub opencode: Option<OrchestratorOpencodeState>,
+    pub auro: Option<OrchestratorAuroState>,
     pub cli_version: Option<String>,
     pub sidecar: Option<OrchestratorSidecarInfo>,
     pub binaries: Option<OrchestratorBinaryState>,
@@ -124,8 +124,8 @@ pub fn write_orchestrator_auth(
     }
 
     let payload = OrchestratorAuthFile {
-        opencode_username: opencode_username.map(|value| value.to_string()),
-        opencode_password: opencode_password.map(|value| value.to_string()),
+        auro_username: opencode_username.map(|value| value.to_string()),
+        auro_password: opencode_password.map(|value| value.to_string()),
         project_dir: project_dir.map(|value| value.to_string()),
         updated_at: Some(crate::utils::now_ms()),
     };
@@ -294,6 +294,86 @@ pub fn spawn_orchestrator_daemon(
         .map_err(|e| format!("Failed to start orchestrator: {e}"))
 }
 
+pub fn orchestrator_status_from_state(
+    data_dir: &str,
+    last_error: Option<String>,
+) -> OrchestratorStatus {
+    let state = read_orchestrator_state(data_dir);
+    let workspaces = state
+        .as_ref()
+        .map(|state| state.workspaces.clone())
+        .unwrap_or_default();
+    let workspace_count = workspaces.len();
+    let active_id = state
+        .as_ref()
+        .and_then(|state| state.active_id.clone())
+        .filter(|id| !id.trim().is_empty());
+    OrchestratorStatus {
+        running: false,
+        data_dir: data_dir.to_string(),
+        daemon: state.as_ref().and_then(|state| state.daemon.clone()),
+        auro: state.as_ref().and_then(|state| state.auro.clone()),
+        cli_version: state.as_ref().and_then(|state| state.cli_version.clone()),
+        sidecar: state.as_ref().and_then(|state| state.sidecar.clone()),
+        binaries: state.as_ref().and_then(|state| state.binaries.clone()),
+        active_id,
+        workspace_count,
+        workspaces,
+        last_error,
+    }
+}
+
+pub fn resolve_orchestrator_status(
+    data_dir: &str,
+    last_error: Option<String>,
+) -> OrchestratorStatus {
+    let fallback = orchestrator_status_from_state(data_dir, last_error);
+    let base_url = fallback
+        .daemon
+        .as_ref()
+        .map(|daemon| daemon.base_url.clone());
+    let Some(base_url) = base_url else {
+        return fallback;
+    };
+
+    match fetch_orchestrator_health(&base_url) {
+        Ok(health) => {
+            let workspace_payload = fetch_orchestrator_workspaces(&base_url).ok();
+            let workspaces = workspace_payload
+                .as_ref()
+                .map(|payload| payload.workspaces.clone())
+                .unwrap_or_else(|| fallback.workspaces.clone());
+            let active_id = workspace_payload
+                .as_ref()
+                .and_then(|payload| payload.active_id.clone())
+                .or_else(|| health.active_id.clone())
+                .filter(|id| !id.trim().is_empty());
+            let workspace_count = workspace_payload
+                .as_ref()
+                .map(|payload| payload.workspaces.len())
+                .or(health.workspace_count)
+                .unwrap_or(workspaces.len());
+            OrchestratorStatus {
+                running: health.ok,
+                data_dir: data_dir.to_string(),
+                daemon: health.daemon,
+                auro: health.auro,
+                cli_version: health.cli_version,
+                sidecar: health.sidecar,
+                binaries: health.binaries,
+                active_id,
+                workspace_count,
+                workspaces,
+                last_error: None,
+            }
+        }
+        Err(error) => OrchestratorStatus {
+            last_error: Some(error),
+            ..fallback
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::request_orchestrator_shutdown;
@@ -354,85 +434,5 @@ mod tests {
 
         handle.join().expect("server thread");
         let _ = fs::remove_dir_all(dir);
-    }
-}
-
-pub fn orchestrator_status_from_state(
-    data_dir: &str,
-    last_error: Option<String>,
-) -> OrchestratorStatus {
-    let state = read_orchestrator_state(data_dir);
-    let workspaces = state
-        .as_ref()
-        .map(|state| state.workspaces.clone())
-        .unwrap_or_default();
-    let workspace_count = workspaces.len();
-    let active_id = state
-        .as_ref()
-        .and_then(|state| state.active_id.clone())
-        .filter(|id| !id.trim().is_empty());
-    OrchestratorStatus {
-        running: false,
-        data_dir: data_dir.to_string(),
-        daemon: state.as_ref().and_then(|state| state.daemon.clone()),
-        opencode: state.as_ref().and_then(|state| state.opencode.clone()),
-        cli_version: state.as_ref().and_then(|state| state.cli_version.clone()),
-        sidecar: state.as_ref().and_then(|state| state.sidecar.clone()),
-        binaries: state.as_ref().and_then(|state| state.binaries.clone()),
-        active_id,
-        workspace_count,
-        workspaces,
-        last_error,
-    }
-}
-
-pub fn resolve_orchestrator_status(
-    data_dir: &str,
-    last_error: Option<String>,
-) -> OrchestratorStatus {
-    let fallback = orchestrator_status_from_state(data_dir, last_error);
-    let base_url = fallback
-        .daemon
-        .as_ref()
-        .map(|daemon| daemon.base_url.clone());
-    let Some(base_url) = base_url else {
-        return fallback;
-    };
-
-    match fetch_orchestrator_health(&base_url) {
-        Ok(health) => {
-            let workspace_payload = fetch_orchestrator_workspaces(&base_url).ok();
-            let workspaces = workspace_payload
-                .as_ref()
-                .map(|payload| payload.workspaces.clone())
-                .unwrap_or_else(|| fallback.workspaces.clone());
-            let active_id = workspace_payload
-                .as_ref()
-                .and_then(|payload| payload.active_id.clone())
-                .or_else(|| health.active_id.clone())
-                .filter(|id| !id.trim().is_empty());
-            let workspace_count = workspace_payload
-                .as_ref()
-                .map(|payload| payload.workspaces.len())
-                .or(health.workspace_count)
-                .unwrap_or(workspaces.len());
-            OrchestratorStatus {
-                running: health.ok,
-                data_dir: data_dir.to_string(),
-                daemon: health.daemon,
-                opencode: health.opencode,
-                cli_version: health.cli_version,
-                sidecar: health.sidecar,
-                binaries: health.binaries,
-                active_id,
-                workspace_count,
-                workspaces,
-                last_error: None,
-            }
-        }
-        Err(error) => OrchestratorStatus {
-            last_error: Some(error),
-            ..fallback
-        },
     }
 }

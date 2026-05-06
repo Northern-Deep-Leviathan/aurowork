@@ -6,8 +6,8 @@ import type {
   ProviderListResponse,
   Session,
 } from "@opencode-ai/sdk/v2/client";
-import type { createClient } from "./lib/opencode";
-import type { OpencodeConfigFile, WorkspaceInfo } from "./lib/tauri";
+import type { createClient } from "./lib/auro";
+import type { AuroConfigFile, WorkspaceInfo } from "./lib/tauri";
 
 export type Client = ReturnType<typeof createClient>;
 
@@ -345,7 +345,7 @@ export type WorkspaceState = {
 
 export type PluginState = {
   scope: PluginScope;
-  config: OpencodeConfigFile | null;
+  config: AuroConfigFile | null;
   list: string[];
 };
 

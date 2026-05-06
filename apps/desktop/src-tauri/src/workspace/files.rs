@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use zip::ZipArchive;
 
-use crate::types::{OpencodeCommand, WorkspaceAuroworkConfig};
+use crate::types::{AuroCommand, WorkspaceAuroworkConfig};
 use crate::utils::now_ms;
 use crate::workspace::commands::{sanitize_command_name, serialize_command_frontmatter};
 
@@ -21,7 +21,7 @@ pub fn merge_plugins(existing: Vec<String>, required: &[&str]) -> Vec<String> {
     out
 }
 
-fn seed_workspace_guide(skill_root: &PathBuf) -> Result<(), String> {
+fn seed_workspace_guide(skill_root: &Path) -> Result<(), String> {
     let guide_dir = skill_root.join("workspace-guide");
     if guide_dir.exists() {
         return Ok(());
@@ -84,7 +84,7 @@ End with two friendly next actions to try in AuroWork."#;
     Ok(())
 }
 
-fn seed_get_started_skill(skill_root: &PathBuf) -> Result<(), String> {
+fn seed_get_started_skill(skill_root: &Path) -> Result<(), String> {
     let skill_dir = skill_root.join("get-started");
     if skill_dir.exists() {
         return Ok(());
@@ -232,7 +232,7 @@ fn spawn_enterprise_creator_skills_seed(root: PathBuf, skill_root: PathBuf) {
     });
 }
 
-fn seed_enterprise_creator_skills(root: &PathBuf, skill_root: &PathBuf) -> Result<(), String> {
+fn seed_enterprise_creator_skills(root: &Path, skill_root: &Path) -> Result<(), String> {
     let marker_path = enterprise_seed_marker_path(root);
     if marker_path.exists() {
         return Ok(());
@@ -274,11 +274,13 @@ fn seed_enterprise_creator_skills(root: &PathBuf, skill_root: &PathBuf) -> Resul
             .map_err(|e| format!("Failed to read enterprise entry: {e}"))?;
         let name = entry.name().to_string();
         let entry_path = Path::new(&name);
-        if entry_path.components().any(|component| match component {
-            std::path::Component::ParentDir
-            | std::path::Component::RootDir
-            | std::path::Component::Prefix(_) => true,
-            _ => false,
+        if entry_path.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
         }) {
             continue;
         }
@@ -343,7 +345,7 @@ fn seed_commands(commands_dir: &PathBuf, preset: &str) -> Result<(), String> {
     }
 
     let defaults = vec![
-    OpencodeCommand {
+    AuroCommand {
       name: "learn-files".to_string(),
       description: Some("Safe, practical file workflows".to_string()),
       template: "Show me how to interact with files in this workspace. Include safe examples for reading, summarizing, and editing.".to_string(),
@@ -351,7 +353,7 @@ fn seed_commands(commands_dir: &PathBuf, preset: &str) -> Result<(), String> {
       model: None,
       subtask: None,
     },
-    OpencodeCommand {
+    AuroCommand {
       name: "learn-skills".to_string(),
       description: Some("How skills work and how to create your own".to_string()),
       template: "Explain what skills are, how to use them, and how to create a new skill for this workspace.".to_string(),
@@ -359,7 +361,7 @@ fn seed_commands(commands_dir: &PathBuf, preset: &str) -> Result<(), String> {
       model: None,
       subtask: None,
     },
-    OpencodeCommand {
+    AuroCommand {
       name: "learn-plugins".to_string(),
       description: Some("What plugins are and how to install them".to_string()),
       template: "Explain what plugins are and how to install them in this workspace.".to_string(),
@@ -371,7 +373,7 @@ fn seed_commands(commands_dir: &PathBuf, preset: &str) -> Result<(), String> {
 
     let mut defaults = defaults;
     if preset == "starter" {
-        defaults.push(OpencodeCommand {
+        defaults.push(AuroCommand {
             name: "Get Started".to_string(),
             description: Some("Get started".to_string()),
             template: "get started".to_string(),
