@@ -42,14 +42,22 @@ function appIconSvg(size) {
   return markSvg(size);
 }
 
-async function generatePng(svg, outputPath, size) {
-  const buffer = Buffer.from(svg);
-  await sharp(buffer)
-    .resize(size, size)
-    .png()
-    .toFile(outputPath);
+async function generatePng(svg, outputPath, size, { tint } = {}) {
+  let pipeline = sharp(Buffer.from(svg)).resize(size, size).png();
+  if (tint) pipeline = pipeline.tint(tint);
+  await pipeline.toFile(outputPath);
   console.log(`  ✓ ${outputPath} (${size}x${size})`);
 }
+
+async function generatePngBuffer(svg, size, { tint } = {}) {
+  let pipeline = sharp(Buffer.from(svg)).resize(size, size).png();
+  if (tint) pipeline = pipeline.tint(tint);
+  return pipeline.toBuffer();
+}
+
+// Dev shade — a warmer terracotta tint applied uniformly to dev icons so they
+// are visually distinct from production builds in the dock / taskbar.
+const DEV_TINT = { r: 0xD9, g: 0x8B, b: 0x6E };
 
 // Simple ICO file generator (single-image ICO)
 function createIco(pngBuffers) {
@@ -146,13 +154,10 @@ const ICNS_CHUNKS = [
   { type: "ic14", size: 512 },  // 256@2x
 ];
 
-async function buildIcnsFromSvg(svgFn) {
+async function buildIcnsFromSvg(svgFn, { tint } = {}) {
   const chunks = [];
   for (const { type, size } of ICNS_CHUNKS) {
-    const png = await sharp(Buffer.from(svgFn(size)))
-      .resize(size, size)
-      .png()
-      .toBuffer();
+    const png = await generatePngBuffer(svgFn(size), size, { tint });
     chunks.push({ type, png });
   }
   return createIcns(chunks);
@@ -197,18 +202,18 @@ async function main() {
   console.log(`  ✓ ${join(iconsDir, "icon.icns")} (multi-size)`);
 
   console.log("\n  Generating icon-dev.icns...");
-  const icnsDevBuffer = await buildIcnsFromSvg(markSvg);
+  const icnsDevBuffer = await buildIcnsFromSvg(markSvg, { tint: DEV_TINT });
   writeFileSync(join(iconsDir, "icon-dev.icns"), icnsDevBuffer);
-  console.log(`  ✓ ${join(iconsDir, "icon-dev.icns")} (multi-size)`);
+  console.log(`  ✓ ${join(iconsDir, "icon-dev.icns")} (multi-size, dev tint)`);
 
-  // Generate dev icons
+  // Generate dev icons (PNGs) — same tint applied uniformly.
   console.log("\n  Generating dev icons...");
   const devDir = join(iconsDir, "dev");
   mkdirSync(devDir, { recursive: true });
 
   for (const { name, size } of sizes) {
     const svg = markSvg(size);
-    await generatePng(svg, join(devDir, name), size);
+    await generatePng(svg, join(devDir, name), size, { tint: DEV_TINT });
   }
 
   // Publish the canonical SVG + favicon PNGs to the web app's public dir so the
