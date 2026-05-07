@@ -55,7 +55,7 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 | Styling | **Tailwind CSS v4** + **Radix color tokens** |
 | Code editor | **CodeMirror 6** |
 | List virtualization | **@tanstack/solid-virtual** |
-| SDK | **@opencode-ai/sdk v2** |
+| SDK | **@opencode-ai/sdk v1.1.x** (client library; engine version pinned separately in `constants.json`) |
 | Bundler | **Vite 6** + `vite-plugin-solid` |
 | i18n | Custom signal-based (EN, JA, ZH, VI, PT-BR) |
 | Fuzzy search | **fuzzysort** (composer @mentions) |
@@ -75,7 +75,7 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 | Concern | Technology |
 |---------|-----------|
 | Runtime | **Bun** (TypeScript, compiled to binary) |
-| TUI | **@opentui/core** + **@opentui/solid** |
+| TUI | **@opentui/core** + **@opentui/solid** (orchestrator only) |
 | Agent engine | **OpenCode v1.2.27** via `@opencode-ai/sdk` |
 | Config | `jsonc-parser`, `yaml`, `minimatch` |
 
@@ -99,9 +99,6 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 │   ├── desktop/              # Tauri 2 Rust desktop shell
 │   ├── server/               # AuroWork Server (Bun, filesystem-backed API)
 │   └── orchestrator/         # CLI host orchestrator + TUI
-├── packages/
-│   ├── app/                  # Shared app utilities, PR notes
-│   └── docs/                 # Mintlify .mdx documentation
 ├── packaging/
 │   ├── docker/               # Dockerfiles + docker-compose
 │   └── aur/                  # Arch Linux AUR PKGBUILD
@@ -110,7 +107,7 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 ├── .github/                  # GitHub Actions CI/CD + issue templates
 ├── .opencode/                # OpenCode agent config (skills, commands, agents)
 ├── constants.json            # OpenCode version pin (v1.2.27)
-├── opencode.json / opencode.jsonc  # OpenCode configuration
+├── opencode.jsonc            # OpenCode configuration
 ├── pnpm-workspace.yaml       # Monorepo workspace definition
 └── package.json              # Root workspace package
 ```
@@ -119,8 +116,7 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 
 ```yaml
 packages:
-  - apps/*
-  - packages/*
+  - "apps/*"
 ```
 
 ---
@@ -144,7 +140,7 @@ src/
 │   └── locales/                      # en, ja, zh, vi, pt-BR
 └── app/
     ├── entry.tsx                     # Provider tree bootstrap
-    ├── app.tsx                       # ~291KB monolith -- all view logic, state wiring
+    ├── app.tsx                       # ~300KB monolith -- all view logic, state wiring
     ├── constants.ts                  # App-wide constants (model keys, MCP list)
     ├── mcp.ts                        # MCP config parsing/validation helpers
     ├── theme.ts                      # Light/dark/system theme management
@@ -152,7 +148,7 @@ src/
     ├── pages/                        # View-level page components
     ├── components/                   # All UI components
     │   ├── session/                  # Composer, message-list, sidebar, context-panel
-    │   ├── code-editor-panel/        # CodeMirror 6 editor, file tree
+    │   ├── file-editor-panel/        # CodeMirror 6 editor, file tree
     │   ├── part-view.tsx             # Renders a single Part (text/tool/image)
     │   ├── thinking-block.tsx        # Collapsible reasoning block
     │   └── ... (30+ component files)
@@ -440,7 +436,7 @@ apps/server/
 ├── script/build.ts              # Cross-platform binary build
 ├── src/
 │   ├── cli.ts                   # CLI entry (parses args, starts server)
-│   ├── server.ts                # Core: all routes, dispatch, auth (~3700 lines)
+│   ├── server.ts                # Core: all routes, dispatch, auth (~2940 lines)
 │   ├── config.ts                # Config resolution (CLI -> env -> file -> defaults)
 │   ├── types.ts                 # Shared types
 │   ├── approvals.ts             # ApprovalService: in-memory approval gate
@@ -1072,7 +1068,6 @@ Command prompt content here
 | `docs/architecture/agents.md` | Agent development guide |
 | `docs/architecture/backend.md` | Rust/TypeScript API reference |
 | `docs/ops/release.md` | Release procedures |
-| `project-plan.md` | Current development roadmap |
 | `apps/orchestrator/README.md` | Orchestrator CLI docs |
 | `apps/server/README.md` | AuroWork Server docs |
 | `packaging/docker/README.md` | Docker dev setup |

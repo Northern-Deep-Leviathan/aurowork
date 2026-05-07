@@ -1,8 +1,11 @@
-# AuroWork Automation System - Detailed Code Reference
+# AuroWork Automation System — Code Reference
 
-## 1. Type Definitions (apps/server/src/server.ts, Lines 216-237)
+> Symbol-based references (not line numbers) so this stays accurate across refactors.
+> Last verified against code: 2026-05-07.
 
-### AgentLabSchedule Type (Lines 216-219)
+## 1. Type Definitions (`apps/server/src/server.ts`)
+
+### `AgentLabSchedule`
 ```typescript
 type AgentLabSchedule =
   | { kind: "interval"; seconds: number }
@@ -10,7 +13,7 @@ type AgentLabSchedule =
   | { kind: "weekly"; weekday: number; hour: number; minute: number };
 ```
 
-### AgentLabAutomation Type (Lines 221-231)
+### `AgentLabAutomation`
 ```typescript
 type AgentLabAutomation = {
   id: string;
@@ -25,7 +28,7 @@ type AgentLabAutomation = {
 };
 ```
 
-### AgentLabAutomationStore Type (Lines 233-237)
+### `AgentLabAutomationStore`
 ```typescript
 type AgentLabAutomationStore = {
   schemaVersion: number;
@@ -34,162 +37,128 @@ type AgentLabAutomationStore = {
 };
 ```
 
-## 2. Path Resolution (apps/server/src/server.ts, Lines 799-809)
+## 2. Path Resolution (`apps/server/src/server.ts`)
 
-**AgentLab Directory** (Line 800):
-```
-.opencode/aurowork/agentlab/
-```
+Resolved relative to the workspace root:
 
-**Automations File** (Line 804):
-```
-.opencode/aurowork/agentlab/automations.json
-```
+| Purpose | Path |
+| --- | --- |
+| AgentLab directory | `.opencode/aurowork/agentlab/` |
+| Automations file | `.opencode/aurowork/agentlab/automations.json` |
+| Logs directory | `.opencode/aurowork/agentlab/logs/` |
 
-**Logs Directory** (Line 808):
-```
-.opencode/aurowork/agentlab/logs/
-```
+## 3. Schedule Constraints (validated by `parseAgentLabSchedule`)
 
-## 3. Schedule Constraints (Lines 823-844)
+- **interval**: min `60` seconds, max `604800` seconds (7 days)
+- **daily**: `hour` 0-23, `minute` 0-59
+- **weekly**: `weekday` 1-7, `hour` 0-23, `minute` 0-59
 
-- **interval**: min 60 seconds, max 604800 seconds (7 days)
-- **daily**: hour 0-23, minute 0-59
-- **weekly**: weekday 1-7, hour 0-23, minute 0-59
+## 4. Read / Write Functions (`apps/server/src/server.ts`)
 
-## 4. Read/Write Functions (Lines 861-910)
-
-### readAgentLabAutomations (Lines 861-904)
-- Reads from automations.json
-- Returns empty store if file doesn't exist
+### `readAgentLabAutomations`
+- Reads from `automations.json`
+- Returns empty store if file does not exist
 - Validates and normalizes all items
 - Returns: `AgentLabAutomationStore`
 
-### writeAgentLabAutomations (Lines 906-910)
-- Writes to automations.json with timestamp
+### `writeAgentLabAutomations`
+- Writes to `automations.json` with timestamp
 - Creates parent directories
-- JSON formatting: 2-space indent, newline at end
+- Output formatting: 2-space JSON indent, trailing newline
 
-## 5. API Routes (Lines 3327-3486)
+## 5. API Routes (`apps/server/src/server.ts`)
 
-### GET /workspace/:id/agentlab/automations (Line 3327)
-Returns all automations for workspace.
+| Method + Path | Behavior |
+| --- | --- |
+| `GET    /workspace/:id/agentlab/automations` | List all automations for the workspace |
+| `POST   /workspace/:id/agentlab/automations` | Create or update an automation. Requires collaborator scope. Auto-generates ID `agentlab_{shortId}`. Returns `{ items, updatedAt }` with HTTP 201 |
+| `DELETE /workspace/:id/agentlab/automations/:automationId` | Delete an automation by ID |
+| `POST   /workspace/:id/agentlab/automations/:automationId/run` | Manually trigger. Creates an OpenCode session titled `Automation: {name}`, submits `automation.prompt`, updates `lastRunAt` / `lastRunSessionId` / `updatedAt`. Returns `{ ok, automationId, sessionId, ranAt }` |
+| `GET    /workspace/:id/agentlab/automations/logs` | List all `.log` files in the logs directory |
+| `GET    /workspace/:id/agentlab/automations/logs/:automationId` | Read a specific log file (`logs/{automationId}.log`) |
 
-### POST /workspace/:id/agentlab/automations (Line 3333)
-Creates or updates automation.
-- Requires: collaborator scope
-- Auto-generates ID: `agentlab_{shortId}`
-- Returns: `{ items, updatedAt }` with 201 status
+## 6. Workspace Initialization (`apps/server/src/workspace-init.ts`)
 
-### DELETE /workspace/:id/agentlab/automations/:automationId (Line 3390)
-Deletes automation by ID.
+Plugin requirements per preset:
 
-### POST /workspace/:id/agentlab/automations/:automationId/run (Line 3414)
-Manually triggers automation.
-- Creates OpenCode session with title: "Automation: {name}"
-- Submits automation.prompt to session
-- Updates: lastRunAt, lastRunSessionId, updatedAt
-- Returns: `{ ok, automationId, sessionId, ranAt }`
+| Preset | Plugins |
+| --- | --- |
+| `starter` | `["opencode-scheduler"]` |
+| `automation` | `["opencode-scheduler"]` |
+| `minimal` | `[]` (no plugins) |
 
-### GET /workspace/:id/agentlab/automations/logs (Line 3452)
-Lists all .log files in logs directory.
+## 7. Toy UI — Automation Management (`apps/server/src/toy-ui.ts`)
 
-### GET /workspace/:id/agentlab/automations/logs/:automationId (Line 3476)
-Reads specific log file: `logs/{automationId}.log`
+The Toy UI exposes an `Automations` tab with a CRUD form. Element IDs:
 
-## 6. Workspace Initialization (apps/server/src/workspace-init.ts, Lines 278-280)
+| ID | Purpose |
+| --- | --- |
+| `#btn-auto-refresh` | Refresh button |
+| `#automations` | List container |
+| `#auto-log` | Log viewer |
+| `#auto-name` | Name input |
+| `#auto-kind` | Schedule kind selector (`interval`/`daily`/`weekly`) |
+| `#auto-interval` | Interval input (min 60s) |
+| `#auto-hour`, `#auto-minute` | Daily inputs |
+| `#auto-weekday`, `#auto-weekly-hour`, `#auto-weekly-minute` | Weekly inputs |
+| `#auto-prompt` | Prompt textarea |
+| `#btn-auto-save` | Save button |
 
-**Plugin Requirements by Preset**:
-- starter: `["opencode-scheduler"]`
-- automation: `["opencode-scheduler"]`
-- minimal: `[]` (no plugins)
+Key JS functions: `refreshAutomations()`, `saveAutomation()`, manual run (creates session + submits prompt), log viewer (fetches and displays).
 
-## 7. Toy UI - Automation Management (apps/server/src/toy-ui.ts, Lines 434-480)
+## 8. Frontend References
 
-**Automation Tab** (Line 382):
-```html
-<button class="tab" data-tab="automations">Automations</button>
-```
+- `apps/app/src/app/app.tsx` — Preset handling for `automation` and `minimal`
+- `apps/app/src/app/pages/proto-v1-ux.tsx` — Beta UI for automations:
+  - Tab: `automations`
+  - Empty-state copy: "Automate work by setting up scheduled tasks"
+  - "New automation" button
+  - Beta badge
 
-**Key UI Elements**:
-- Refresh button (#btn-auto-refresh)
-- Automations list (#automations)
-- Log viewer (#auto-log)
-- Create form:
-  - Name input (#auto-name)
-  - Kind selector (#auto-kind): interval/daily/weekly
-  - Interval input (#auto-interval, min 60s)
-  - Daily inputs (#auto-hour, #auto-minute)
-  - Weekly inputs (#auto-weekday, #auto-weekly-hour, #auto-weekly-minute)
-  - Prompt textarea (#auto-prompt)
-  - Save button (#btn-auto-save)
+## 9. Orchestrator Role
 
-**JavaScript Functions** (Lines 1212-1350):
-- `refreshAutomations()`: Fetches and renders list
-- `saveAutomation()`: Creates/updates automation
-- Manual run: Creates session and submits prompt
-- Log viewer: Fetches and displays logs
+`apps/orchestrator/src/cli.ts` does **not** schedule or execute automations. It only handles:
 
-## 8. Frontend References (apps/app/src/app/)
-
-**app.tsx**: Preset handling for "automation" and "minimal"
-
-**proto-v1-ux.tsx**: Beta UI for automations (Lines 529-577)
-- Tab: "automations"
-- Message: "Automate work by setting up scheduled tasks"
-- "New automation" button
-- Shows Beta badge
-
-## 9. CRITICAL FINDING: Orchestrator Analysis
-
-**NO SCHEDULER/CRON CODE EXISTS** in `apps/orchestrator/src/cli.ts`
-
-Orchestrator contains:
-- Child process management
+- Child process management (OpenCode + AuroWork server)
 - Activity heartbeat
 - Hot reload watching
 - TUI management
 
-Orchestrator does NOT contain:
-- Automation execution
-- Cron job scheduling
-- Automation triggers
+Scheduled execution is delegated to the **`opencode-scheduler` plugin** loaded inside OpenCode itself, which reads `automations.json` and triggers prompts on schedule.
 
-**Conclusion**: Automations are executed by the `opencode-scheduler` plugin (external), not by the orchestrator.
-
-## 10. Directory Structure
+## 10. Directory Layout
 
 ```
 .opencode/aurowork/
-├── inbox/                    (file uploads)
-├── outbox/                   (file downloads)
+├── inbox/                      (file uploads)
+├── outbox/                     (file downloads)
 └── agentlab/
-    ├── automations.json      (automation store)
+    ├── automations.json        (automation store)
     └── logs/
-        └── {automationId}.log (per-automation logs)
+        └── {automationId}.log  (per-automation logs)
 ```
 
-## 11. Constants
+## 11. OpenCode Version Pin
 
 ```json
-{
-  "opencodeVersion": "v1.2.27"
-}
+{ "opencodeVersion": "v1.2.27" }
 ```
 
-## 12. Automation Execution Flow
+(`constants.json` at repo root.)
 
-1. **Creation**: User creates automation via Toy UI → API creates entry in automations.json
-2. **Manual Trigger**: User clicks "Run" → API creates OpenCode session → submits prompt
-3. **Scheduled Execution**: opencode-scheduler plugin reads automations.json → executes per schedule
-4. **Logging**: Execution results saved to .../agentlab/logs/{id}.log
+## 12. Execution Flow
+
+1. **Creation** — User creates automation via Toy UI → API persists entry in `automations.json`.
+2. **Manual trigger** — User clicks "Run" → API creates OpenCode session → submits prompt.
+3. **Scheduled execution** — `opencode-scheduler` plugin reads `automations.json` → executes per schedule.
+4. **Logging** — Execution results written to `.../agentlab/logs/{id}.log`.
 
 ## Key Takeaways
 
-- Type-safe automation definitions with three schedule types
-- Full CRUD API backed by JSON file storage
-- Manual trigger capability via session creation
-- Scheduled execution delegated to opencode-scheduler plugin
-- Complete Toy UI for management
-- Beta frontend UI in proto-v1-ux.tsx
-- Preset-based plugin installation
+- Type-safe automation definitions with three schedule kinds.
+- Full CRUD API backed by JSON file storage.
+- Manual trigger via session creation.
+- Scheduled execution delegated to the `opencode-scheduler` plugin.
+- Complete Toy UI for management.
+- Beta frontend UI in `proto-v1-ux.tsx`.
+- Preset-based plugin installation.

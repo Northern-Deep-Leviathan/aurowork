@@ -46,21 +46,17 @@ AuroWork is an experience layer. `opencode` is the engine. This document defines
 * Writes require explicit host approval when requested remotely.
 
 9.  Debuggable by agents
-    Agents like (you?) make tool calls tool calls can do a variety of things form using chrome
-    to calling curl, using the cli, using bun, making scripts.
 
-You're not afraid to run the program on your OS but to benefit from it you need to design the arch
-so these things are callable.
+Agents (like you) make tool calls — they can drive Chrome, run `curl`, invoke CLIs, run Bun scripts, and so on. Components must be designed so an agent can exercise them end-to-end without going through the desktop UI (which offers little programmatic control).
 
-E.g. it is very hard to call a things from the desktop app (you have not a lot of control).
+Concretely, an agent should be able to:
 
-But what you can do is:
+* run the underlying CLIs directly (since each component is implemented as a sidecar)
+* talk to the real OpenCode HTTP surface (loopback, dynamic port — read it from the orchestrator state file)
+* use bash + `curl` against AuroWork Server / OpenCode endpoints
+* request credentials when needed (e.g. to test Telegram or other connector flows)
 
-* run the undelrying clis (since they are implented as sidecar)
-* run against real opencode value
-* use bash to test endpionts of these various servers/etc
-* if needed don't hestiate to ask for credentialse.g. to test telegram or other similar flow
-  -you should be able to test 99% of the flow on your own
+The goal: an agent can exercise ~99% of any flow without UI mediation.
 
 ## Applied to Current Components
 
