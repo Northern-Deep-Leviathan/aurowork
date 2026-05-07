@@ -64,8 +64,8 @@ Before making changes, explicitly confirm the target repository in your first ta
 
 Required format:
 
-1. `Target repo: <path>` (for example: `_repos/aurowork`)
-2. `Out of scope repos: <list>` (for example: `_repos/opencode`)
+1. `Target repo: <path>` (the AuroWork repo root, e.g. `.`)
+2. `Out of scope repos: <list>` (any sibling repos you must NOT touch)
 3. `Planned output: <what will be changed/tested>`
 
 If the user request references multiple repos and the intended edit location is ambiguous, stop after discovery and ask for a single repo target before editing files.
@@ -157,7 +157,6 @@ aurowork/
       src/
       scripts/
       package.json
-  packages/                                     # Shared packages
   docs/                                         # All product/architecture/ops docs
     architecture/
     product/
@@ -174,18 +173,18 @@ aurowork/
 
 ## OpenCode SDK Usage
 
-AuroWork integrates with OpenCode via:
+AuroWork integrates with OpenCode via the **JavaScript SDK over HTTP**:
 
-1.  **Non-interactive mode**: `opencode -p "prompt" -f json -q`
-2.  **Database access**: Read `.opencode/opencode.db` for sessions and messages.
+1. **Client mode**: `createOpencodeClient({ baseUrl, directory })` from `@opencode-ai/sdk/v2/client` connects to an OpenCode server spawned by `aurowork-orchestrator`.
+2. **Server proxy**: most UI calls go through the AuroWork server (`apps/server/`), which forwards to OpenCode HTTP routes — keeping permission, approval, and audit semantics consistent.
 
-Key primitives to expose:
+Key SDK surfaces:
 
-* `session.Service` — Task runs, history
-* `message.Service` — Chat bubbles, tool calls
-* `agent.Service` — Task execution, progress
-* `permission.Service` — Permission prompts
-* `tools.BaseTool` — Step-level actions
+* `client.session.*` (create/list/get/messages/prompt/abort/summarize) — Task runs and history
+* `client.event.subscribe()` — Real-time SSE streaming for assistant output, tool steps, permission prompts
+* `client.permission.reply()` — Respond to permission prompts (`once` / `always` / `reject`)
+* `client.find.*` / `client.file.*` — File browsing and search (planned direct usage)
+* `client.global.health()` — Startup and compatibility checks (in active use today)
 
 ## Safety + Accessibility
 

@@ -54,14 +54,7 @@ Guidelines:
 
 ## Agent authority map
 
-When AuroWork is edited from `aurowork-enterprise`, architecture and runtime behavior should be sourced from this document.
-
-| Entry point | Role | Architecture authority |
-| --- | --- | --- |
-| `aurowork-enterprise/AGENTS.md` | AuroWork Factory multi-repo orchestration | Defers AuroWork runtime flow, server-vs-shell ownership, and filesystem mutation behavior to `_repos/aurowork/ARCHITECTURE.md`. |
-| `aurowork-enterprise/.opencode/agents/aurowork-surgeon.md` | Surgical fix agent for `_repos/aurowork` | Uses `_repos/aurowork/ARCHITECTURE.md` as the runtime and architecture source of truth before changing product behavior. |
-| `_repos/aurowork/AGENTS.md` | Product vocabulary, audience, and repo-local development guidance | Refers to `docs/architecture/overview.md` for runtime flow, server ownership, and architectural boundaries. |
-| Skills / commands / agents that mutate workspace state | Capability layer on top of the product runtime | Should assume the AuroWork server path is canonical for workspace creation, config writes, `.opencode/` mutation, and reload signaling. |
+This document (`docs/architecture/overview.md`) is the canonical architectural reference for AuroWork. Agents, skills, and commands that mutate workspace state should assume the AuroWork server path is canonical for workspace creation, config writes, `.opencode/` mutation, and reload signaling.
 
 ### Agent access to server-owned behavior
 
@@ -133,7 +126,6 @@ These are all opencode primitives you can read the docs to find out exactly how 
 - `/apps/desktop/`: Tauri desktop shell that hosts the app UI and manages native process lifecycles.
 - `/apps/server/`: AuroWork server (API/control layer consumed by the app).
 - `/apps/orchestrator/`: AuroWork orchestrator CLI/daemon. In `start`/`serve` host mode it manages AuroWork server + OpenCode; in daemon mode it manages workspace activation and OpenCode lifecycle for desktop runtime.
-- `/apps/share/`: share-link publisher service for AuroWork bundle imports.
 
 ## Core Architecture
 
@@ -149,8 +141,8 @@ AuroWork therefore has two runtime connection modes:
 ### Mode A - Desktop
 
 - AuroWork runs on a desktop/laptop and can host AuroWork server surfaces locally.
-- The OpenCode server runs on loopback (default `127.0.0.1:4096`).
-- The AuroWork server also defaults to loopback-only access. Remote sharing is an explicit opt-in that rebinds the AuroWork server to `0.0.0.0` while keeping OpenCode on loopback.
+- The OpenCode server runs on loopback (`127.0.0.1`) on a dynamically allocated port; the port is recorded in the orchestrator state file. Defaults are not hardcoded.
+- The AuroWork server also defaults to loopback-only access on a port within the range `48000-51000`. Remote sharing is an explicit opt-in that rebinds the AuroWork server to `0.0.0.0` while keeping OpenCode on loopback.
 - AuroWork UI connects via the official SDK and listens to events.
 - `aurowork-orchestrator` is the CLI host path for this mode.
 
@@ -227,105 +219,67 @@ This ensures the same UI flows work on desktop, mobile, and web clients, with ap
 
 AuroWork uses the official JavaScript/TypeScript SDK:
 
-- Package: `@opencode-ai/sdk/v2` (UI should import `@opencode-ai/sdk/v2/client` to avoid Node-only server code)
+- Package: `@opencode-ai/sdk` (currently pinned to `^1.1.31`)
+- UI imports the v2 client subpath (`@opencode-ai/sdk/v2/client`) to avoid Node-only server code
 - Purpose: type-safe client generated from OpenAPI spec
 
 ### Engine Lifecycle
 
-#### Start server + client (Host mode)
+#### Connect to an existing OpenCode server (Client mode)
 
-Use `createOpencode()` to launch the OpenCode server and create a client.
-
-```ts
-import { createOpencode } from "@opencode-ai/sdk/v2";
-
-const opencode = await createOpencode({
-  hostname: "127.0.0.1",
-  port: 4096,
-  timeout: 5000,
-  config: {
-    model: "anthropic/claude-3-5-sonnet-20241022",
-  },
-});
-
-const { client } = opencode;
-// opencode.server.url is available
-```
-
-#### Connect to an existing server (Client mode)
+AuroWork itself does **not** spawn the OpenCode server from JS. The OpenCode process is launched by `aurowork-orchestrator` (Rust/CLI) and AuroWork connects to it as a client via `createOpencodeClient`:
 
 ```ts
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 
 const client = createOpencodeClient({
-  baseUrl: "http://localhost:4096",
+  baseUrl: "http://127.0.0.1:<dynamic-port>",
   directory: "/path/to/project",
 });
 ```
 
+> Note: The SDK also exports `createOpencode()` for in-process server creation. AuroWork does not use it — process lifecycle is owned by the orchestrator.
+
 ### Health + Version
 
-- `client.global.health()`
-  - Used for startup checks, compatibility warnings, and diagnostics.
+- `client.global.health()` — used for startup checks, compatibility warnings, and diagnostics. **In active use.**
 
-### Event Streaming (Real-time UI)
+### SDK surface used today vs planned
 
-AuroWork must be real-time. It subscribes to SSE events:
+Today AuroWork primarily talks to OpenCode through the **AuroWork server proxy** (`/apps/server/`), which forwards to OpenCode HTTP routes. Direct SDK calls from the UI are limited to lightweight checks (e.g. `client.global.health()`).
 
-- `client.event.subscribe()`
+The methods listed below are part of the OpenCode SDK surface that AuroWork plans to consume directly or proxy through. They are documented here as the integration target — **not all are wired up yet**. Confirm against `apps/app/` and `apps/server/` before relying on them.
 
-The UI uses these events to drive:
+#### Event Streaming (Real-time UI) — *via server proxy / planned for direct subscription*
 
-- streaming assistant responses
-- step-level tool execution timeline
-- permission prompts
-- session lifecycle changes
+AuroWork must be real-time. The relevant SDK surface:
 
-### Sessions (Primary Primitive)
+- `client.event.subscribe()` (SSE)
 
-AuroWork maps a "Task Run" to an OpenCode **Session**.
+Drives streaming assistant responses, step-level tool execution timeline, permission prompts, session lifecycle changes.
 
-Core methods:
+#### Sessions (Primary Primitive) — *proxied through AuroWork server*
 
-- `client.session.create()`
-- `client.session.list()`
-- `client.session.get()`
-- `client.session.messages()`
-- `client.session.prompt()`
-- `client.session.abort()`
-- `client.session.summarize()`
+AuroWork maps a "Task Run" to an OpenCode **Session**. Relevant SDK methods:
 
-### Files + Search
+- `client.session.create()`, `client.session.list()`, `client.session.get()`
+- `client.session.messages()`, `client.session.prompt()`
+- `client.session.abort()`, `client.session.summarize()`
 
-AuroWork's file browser and "what changed" UI are powered by:
+#### Files + Search — *planned*
 
-- `client.find.text()`
-- `client.find.files()`
-- `client.find.symbols()`
-- `client.file.read()`
-- `client.file.status()`
+- `client.find.text()`, `client.find.files()`, `client.find.symbols()`
+- `client.file.read()`, `client.file.status()`
 
-### Permissions
+#### Permissions — *planned*
 
-AuroWork must surface permission requests clearly and respond explicitly.
+- `client.permission.reply({ requestID, reply })` where `reply` is `once` | `always` | `reject`
 
-- Permission response API:
-  - `client.permission.reply({ requestID, reply })` (where `reply` is `once` | `always` | `reject`)
+UI should: show what is requested (scope + reason); provide allow-once / allow-session / deny choices; post the response; record the decision in the run audit log.
 
-AuroWork UI should:
+#### Config + Providers — *planned*
 
-1. Show what is being requested (scope + reason).
-2. Provide choices (allow once / allow for session / deny).
-3. Post the response to the server.
-4. Record the decision in the run's audit log.
-
-### Config + Providers
-
-AuroWork's settings pages use:
-
-- `client.config.get()`
-- `client.config.providers()`
-- `client.auth.set()` (optional flow to store keys)
+- `client.config.get()`, `client.config.providers()`, `client.auth.set()`
 
 ### Extensibility - Skills + Plugins
 
