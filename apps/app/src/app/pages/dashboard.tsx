@@ -14,6 +14,7 @@ import type {
   WorkspaceConnectionState,
   WorkspaceSessionGroup,
   View,
+  OpencodeRouterInfo,
 } from "../types";
 import type { McpDirectoryInfo } from "../constants";
 import {
@@ -40,6 +41,7 @@ import type {
   AuroworkWorkspaceExport,
   AuroworkServerSettings,
   AuroworkServerStatus,
+  AuroworkAuditEntry,
 } from "../lib/aurowork-server";
 import type { EngineInfo, OrchestratorStatus, AuroworkServerInfo, WorkspaceInfo } from "../lib/tauri";
 
@@ -254,7 +256,7 @@ export type DashboardViewProps = {
   toggleShowThinking: () => void;
   hideTitlebar: boolean;
   toggleHideTitlebar: () => void;
-  opencodeEnableExa: boolean;
+  auroEnableExa: boolean;
   toggleOpencodeEnableExa: () => void;
   modelVariantLabel: string;
   editModelVariant: () => void;
@@ -334,6 +336,19 @@ export type DashboardViewProps = {
   notionBusy: boolean;
   connectNotion: () => void;
   openDebugDeepLink: (rawUrl: string) => Promise<{ ok: boolean; message: string }>;
+  auroworkAuditEntries: AuroworkAuditEntry[];
+  auroworkAuditStatus: "idle" | "loading" | "error";
+  auroworkAuditError: string | null;
+  opencodeRouterInfo: OpencodeRouterInfo | null;
+  scheduledJobs: unknown[];
+  scheduledJobsSource: "local" | "remote";
+  scheduledJobsSourceReady: boolean;
+  scheduledJobsStatus: string | null;
+  scheduledJobsBusy: boolean;
+  scheduledJobsUpdatedAt: number | null;
+  schedulerPluginInstalled: boolean;
+  refreshScheduledJobs: (options?: { force?: boolean }) => unknown;
+  deleteScheduledJob: (id: string) => void | Promise<void>;
 };
 
 type SharedSkillItem = {
@@ -1435,6 +1450,19 @@ export default function DashboardView(props: DashboardViewProps) {
                   runtimeWorkspaceId={props.runtimeWorkspaceId}
                   selectedWorkspaceRoot={props.selectedWorkspaceRoot}
                   activeWorkspaceType={props.activeWorkspaceType}
+                  auroworkAuditEntries={props.auroworkAuditEntries}
+                  auroworkAuditStatus={props.auroworkAuditStatus}
+                  auroworkAuditError={props.auroworkAuditError}
+                  opencodeRouterInfo={props.opencodeRouterInfo}
+                  scheduledJobs={props.scheduledJobs}
+                  scheduledJobsSource={props.scheduledJobsSource}
+                  scheduledJobsSourceReady={props.scheduledJobsSourceReady}
+                  scheduledJobsStatus={props.scheduledJobsStatus}
+                  scheduledJobsBusy={props.scheduledJobsBusy}
+                  scheduledJobsUpdatedAt={props.scheduledJobsUpdatedAt}
+                  schedulerPluginInstalled={props.schedulerPluginInstalled}
+                  refreshScheduledJobs={props.refreshScheduledJobs}
+                  deleteScheduledJob={props.deleteScheduledJob}
                   opencodeConnectStatus={props.opencodeConnectStatus}
                   engineInfo={props.engineInfo}
                   orchestratorStatus={props.orchestratorStatus}
@@ -1449,7 +1477,7 @@ export default function DashboardView(props: DashboardViewProps) {
                   setEngineCustomBinPath={props.setEngineCustomBinPath}
                   engineRuntime={props.engineRuntime}
                   setEngineRuntime={props.setEngineRuntime}
-                  opencodeEnableExa={props.opencodeEnableExa}
+                  auroEnableExa={props.auroEnableExa}
                   toggleOpencodeEnableExa={props.toggleOpencodeEnableExa}
                   isWindows={props.isWindows}
                   defaultModelLabel={props.defaultModelLabel}

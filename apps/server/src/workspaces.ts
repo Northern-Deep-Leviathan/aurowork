@@ -65,8 +65,8 @@ export function buildWorkspaceInfos(
       sandboxBackend: workspace.sandboxBackend,
       sandboxRunId: workspace.sandboxRunId,
       sandboxContainerName: workspace.sandboxContainerName,
-      opencodeUsername: workspace.opencodeUsername,
-      opencodePassword: workspace.opencodePassword,
+      auroUsername: workspace.auroUsername,
+      auroPassword: workspace.auroPassword,
     };
   });
 }

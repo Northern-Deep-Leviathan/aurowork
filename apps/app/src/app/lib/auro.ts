@@ -34,16 +34,16 @@ type CommandParameters = {
   reasoning_effort?: string;
 };
 
-export type OpencodeAuth = {
+export type AuroAuth = {
   username?: string;
   password?: string;
   token?: string;
   mode?: "basic" | "aurowork";
 };
 
-const DEFAULT_OPENCODE_REQUEST_TIMEOUT_MS = 10_000;
-const OAUTH_OPENCODE_REQUEST_TIMEOUT_MS = 5 * 60_000;
-const MCP_AUTH_OPENCODE_REQUEST_TIMEOUT_MS = 90_000;
+const DEFAULT_AURO_REQUEST_TIMEOUT_MS = 10_000;
+const OAUTH_AURO_REQUEST_TIMEOUT_MS = 5 * 60_000;
+const MCP_AUTH_AURO_REQUEST_TIMEOUT_MS = 90_000;
 
 function getRequestUrl(input: RequestInfo | URL): string {
   if (typeof input === "string") return input;
@@ -55,10 +55,10 @@ function getRequestUrl(input: RequestInfo | URL): string {
 function resolveRequestTimeoutMs(input: RequestInfo | URL, fallbackMs: number): number {
   const url = getRequestUrl(input);
   if (/\/provider\/oauth\//.test(url) || /\/mcp\/auth\/callback\b/.test(url)) {
-    return Math.max(fallbackMs, OAUTH_OPENCODE_REQUEST_TIMEOUT_MS);
+    return Math.max(fallbackMs, OAUTH_AURO_REQUEST_TIMEOUT_MS);
   }
   if (/\/mcp\/.*auth\b/.test(url)) {
-    return Math.max(fallbackMs, MCP_AUTH_OPENCODE_REQUEST_TIMEOUT_MS);
+    return Math.max(fallbackMs, MCP_AUTH_AURO_REQUEST_TIMEOUT_MS);
   }
   return fallbackMs;
 }
@@ -152,7 +152,7 @@ async function fetchWithTimeout(
   }
 }
 
-const encodeBasicAuth = (auth?: OpencodeAuth) => {
+const encodeBasicAuth = (auth?: AuroAuth) => {
   if (!auth?.username || !auth?.password) return null;
   const token = `${auth.username}:${auth.password}`;
   if (typeof btoa === "function") return btoa(token);
@@ -161,7 +161,7 @@ const encodeBasicAuth = (auth?: OpencodeAuth) => {
   return buffer ? buffer.from(token, "utf8").toString("base64") : null;
 };
 
-const resolveAuthHeader = (auth?: OpencodeAuth) => {
+const resolveAuthHeader = (auth?: AuroAuth) => {
   if (auth?.mode === "aurowork" && auth.token) {
     return `Bearer ${auth.token}`;
   }
@@ -169,7 +169,7 @@ const resolveAuthHeader = (auth?: OpencodeAuth) => {
   return encoded ? `Basic ${encoded}` : null;
 };
 
-const createTauriFetch = (auth?: OpencodeAuth) => {
+const createTauriFetch = (auth?: AuroAuth) => {
   const authHeader = resolveAuthHeader(auth);
   const addAuth = (headers: Headers) => {
     if (!authHeader || headers.has("Authorization")) return;
@@ -185,7 +185,7 @@ const createTauriFetch = (auth?: OpencodeAuth) => {
         tauriFetch as unknown as typeof globalThis.fetch,
         request,
         undefined,
-        DEFAULT_OPENCODE_REQUEST_TIMEOUT_MS,
+        DEFAULT_AURO_REQUEST_TIMEOUT_MS,
       );
     }
 
@@ -198,7 +198,7 @@ const createTauriFetch = (auth?: OpencodeAuth) => {
         ...init,
         headers,
       },
-      DEFAULT_OPENCODE_REQUEST_TIMEOUT_MS,
+      DEFAULT_AURO_REQUEST_TIMEOUT_MS,
     );
   };
 };
@@ -216,7 +216,7 @@ export function unwrap<T>(result: FieldsResult<T>): NonNullable<T> {
   throw new Error(message || "Unknown error");
 }
 
-export function createClient(baseUrl: string, directory?: string, auth?: OpencodeAuth) {
+export function createClient(baseUrl: string, directory?: string, auth?: AuroAuth) {
   const headers: Record<string, string> = {};
   if (!isTauriRuntime()) {
     const authHeader = resolveAuthHeader(auth);
@@ -228,7 +228,7 @@ export function createClient(baseUrl: string, directory?: string, auth?: Opencod
   const fetchImpl = isTauriRuntime()
     ? createTauriFetch(auth)
     : (input: RequestInfo | URL, init?: RequestInit) =>
-        fetchWithTimeout(globalThis.fetch, input, init, DEFAULT_OPENCODE_REQUEST_TIMEOUT_MS);
+        fetchWithTimeout(globalThis.fetch, input, init, DEFAULT_AURO_REQUEST_TIMEOUT_MS);
   const client = createOpencodeClient({
     baseUrl,
     directory,

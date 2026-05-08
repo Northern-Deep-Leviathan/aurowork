@@ -35,7 +35,7 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 
 | Mode | Description |
 |------|-------------|
-| **Mode A -- Desktop** | AuroWork runs locally. Tauri shell hosts the UI. OpenCode + AuroWork server run on loopback (`127.0.0.1`). `aurowork-orchestrator` manages the process lifecycle. |
+| **Mode A -- Desktop** | AuroWork runs locally. Tauri shell hosts the UI. The auro engine (upstream OpenCode binary) + AuroWork server run on loopback (`127.0.0.1`). `aurowork-orchestrator` manages the process lifecycle. |
 | **Mode B -- Web/Cloud** | User signs into hosted Den web surface, launches a cloud worker via Den controller, connects via URL + token from any client (desktop, mobile, web). |
 
 ### Core Design Principle
@@ -251,7 +251,7 @@ SolidJS primitives exclusively -- no Redux, Zustand, or MobX.
 
 ```
 PlatformProvider          -> platform abstraction (desktop/web)
-  ServerProvider          -> active OpenCode server URL + health
+  ServerProvider          -> active Auro engine URL + health
     GlobalSDKProvider     -> SDK client instance + SSE event emitter
       GlobalSyncProvider  -> global data (config, providers, MCP, LSP, projects)
         LocalProvider     -> persisted local UI preferences
@@ -262,11 +262,11 @@ PlatformProvider          -> platform abstraction (desktop/web)
 
 ### 4.6 Backend Communication
 
-#### A) OpenCode Engine (REST + SSE)
+#### A) Auro Engine (REST + SSE)
 
-All AI session operations via OpenCode HTTP server (default `http://127.0.0.1:4096`).
+All AI session operations via the upstream OpenCode HTTP server (default `http://127.0.0.1:4096`).
 
-- **Client creation** (`lib/opencode.ts`): Wraps `@opencode-ai/sdk/v2/client`, adds `x-opencode-directory` header
+- **Client creation** (`lib/auro.ts`): Wraps `@opencode-ai/sdk/v2/client`, adds `x-opencode-directory` header
 - **Key operations** (`context/session.ts`): `session.list()`, `session.messages()`, `session.promptAsync()`, `session.todo()`, `permission.list()/reply()`, `question.list()/reply()`, `global.health()`
 - **SSE events** (`context/global-sdk.tsx`): Event coalescing pipeline with keyed deduplication, 16ms batch flush, exponential backoff reconnect (1s -> max 30s)
 - **Event types**: `session.{updated,created,deleted,status,idle,error}`, `message.{updated,removed}`, `message.part.{updated,delta,removed}`, `todo.updated`, `permission.{asked,replied}`, `question.{asked,replied}`
@@ -305,7 +305,7 @@ src-tauri/src/
 ├── main.rs                    # Entry point -> aurowork::run()
 ├── lib.rs                     # Module declarations + Tauri builder + app run loop
 ├── types.rs                   # All shared serializable types (Serde)
-├── config.rs                  # opencode config file R/W
+├── config.rs                  # auro config file R/W
 ├── bun_env.rs                 # Bun/Node DNS flag sanitization
 ├── fs.rs                      # Recursive filesystem helpers
 ├── opkg.rs                    # Package installer (opkg)
@@ -318,9 +318,9 @@ src-tauri/src/
 ├── utils.rs                   # truncate_output, now_ms
 ├── engine/
 │   ├── manager.rs             # EngineState mutex + EngineManager
-│   ├── spawn.rs               # spawn_engine() -- launches opencode serve
-│   ├── doctor.rs              # opencode binary resolution + healthcheck
-│   └── paths.rs               # opencode binary search (PATH + known dirs)
+│   ├── spawn.rs               # spawn_engine() -- launches the upstream opencode serve
+│   ├── doctor.rs              # auro engine binary resolution + healthcheck
+│   └── paths.rs               # auro engine binary search (PATH + known dirs)
 ├── aurowork_server/
 │   ├── mod.rs                 # start_aurowork_server(), token management
 │   ├── manager.rs             # AuroworkServerState mutex + manager
@@ -337,8 +337,8 @@ src-tauri/src/
     ├── aurowork_server.rs     # aurowork_server_info/restart
     ├── orchestrator.rs        # orchestrator_status/activate/dispose/start_detached
     ├── workspace.rs           # workspace CRUD + import/export
-    ├── config.rs              # read/write opencode config
-    ├── command_files.rs       # opencode command file CRUD
+    ├── config.rs              # read/write auro config
+    ├── command_files.rs       # auro command file CRUD
     ├── skills.rs              # list/read/write/uninstall SKILL.md
     ├── fs.rs                  # fs_read_dir/read_text_file/write_text_file
     ├── misc.rs                # app_build_info, nuke/reset, db_migrate, mcp_auth
@@ -352,12 +352,12 @@ src-tauri/src/
 
 The desktop shell manages **three independent sidecar processes**:
 
-#### A. `opencode` (AI engine)
+#### A. `auro` (AI engine, upstream OpenCode binary)
 
-- Binary bundled at `src-tauri/sidecars/opencode[-<target-triple>]`
-- CLI: `opencode serve --hostname 127.0.0.1 --port <free_port> --cors *`
-- Environment: `OPENCODE_CLIENT=aurowork`, `AUROWORK=1`, random 512-char UUID-chain credentials (`OPENCODE_SERVER_USERNAME/PASSWORD`)
-- **Binary resolution order:** `OPENCODE_BIN_PATH` env -> bundled sidecar -> PATH -> well-known locations (`~/.opencode/bin`, `/opt/homebrew/bin`, npm globals, scoop, chocolatey)
+- Binary bundled at `src-tauri/sidecars/opencode[-<target-triple>]` (filename owned by upstream)
+- CLI: `opencode serve --hostname 127.0.0.1 --port <free_port> --cors *` (upstream CLI)
+- Environment: `OPENCODE_CLIENT=aurowork`, `AUROWORK=1`, random 512-char UUID-chain credentials (`OPENCODE_SERVER_USERNAME/PASSWORD` consumed by the upstream binary)
+- **Binary resolution order:** `AURO_BIN_PATH` env -> bundled sidecar -> PATH -> well-known locations (`~/.opencode/bin`, `/opt/homebrew/bin`, npm globals, scoop, chocolatey)
 
 #### B. `aurowork-orchestrator` (process manager)
 
@@ -371,7 +371,7 @@ The desktop shell manages **three independent sidecar processes**:
 #### C. `aurowork-server` (local HTTP relay)
 
 - Ports: random from **48000-51000** range, persisted per-workspace
-- CLI: `aurowork-server --host 127.0.0.1 --port <port> --token <uuid> --host-token <uuid> --cors * --approval auto --workspace <paths...> --opencode-base-url <url>`
+- CLI: `aurowork-server --host 127.0.0.1 --port <port> --token <uuid> --host-token <uuid> --cors * --approval auto --workspace <paths...> --auro-base-url <url>`
 - Credentials: UUIDv4 tokens persisted per-workspace in `aurowork-server-tokens.json`; `owner_token` issued post-startup via `POST /tokens`
 
 #### D. `chrome-devtools-mcp` (utility sidecar)
@@ -399,7 +399,7 @@ Registration in `tauri.conf.json`:
 
 ### 5.5 Build Configuration
 
-- **Production:** App ID `com.differentai.aurowork`, sidecars: opencode, aurowork-server, aurowork-orchestrator, chrome-devtools-mcp
+- **Production:** App ID `com.differentai.aurowork`, sidecars: auro (upstream `opencode` binary), aurowork-server, aurowork-orchestrator, chrome-devtools-mcp
 - **Auto-updater:** Minisign-signed, endpoint `https://github.com/different-ai/aurowork/releases/latest/download/latest.json`
 - **Release profile:** `panic = "abort"`, `codegen-units = 1`, `lto = true`, `opt-level = "s"`, `strip = true`
 - **Sidecar build pipeline** (`scripts/prepare-sidecar.mjs`): Downloads versioned OpenCode release, SHA-256 validates, builds server + orchestrator via `bun build --compile`
@@ -418,7 +418,7 @@ Registration in `tauri.conf.json`:
 
 **PATH augmentation** (`paths.rs`): Since macOS GUI apps don't inherit shell PATH, prepends Homebrew, nvm, fnm, volta, pnpm, bun, cargo, pyenv to every spawned sidecar's environment.
 
-**Security:** Random 512-char credentials generated per `engine_start`. Injected into both OpenCode and AuroWork server. Persisted to disk only for orchestrator reconnection.
+**Security:** Random 512-char credentials generated per `engine_start`. Injected into both the upstream OpenCode binary and AuroWork server. Persisted to disk only for orchestrator reconnection.
 
 ---
 
@@ -451,9 +451,9 @@ apps/server/
 │   ├── workspace-files.ts       # Path helpers (.opencode/* paths)
 │   ├── workspace-init.ts        # Workspace bootstrapping (skills, commands, config)
 │   ├── workspaces.ts            # WorkspaceInfo builder + ID derivation
-│   ├── opencode-connection.ts   # Resolves OpenCode baseUrl + auth header
-│   ├── opencode-db.ts           # Direct SQLite access to OpenCode's database
-│   ├── portable-opencode.ts     # Config sanitization (export-safe keys only)
+│   ├── auro-connection.ts      # Resolves upstream OpenCode baseUrl + auth header
+│   ├── auro-db.ts              # Direct SQLite access to upstream OpenCode's database
+│   ├── portable-auro.ts        # Config sanitization (export-safe keys only)
 │   ├── paths.ts                 # Safe path resolution (no traversal)
 │   ├── utils.ts                 # exists, ensureDir, hashToken, shortId
 │   ├── errors.ts                # ApiError class + formatError
@@ -658,13 +658,13 @@ Every mutating operation calls `requireApproval()`:
 - **Auto mode:** Returns `{ allowed: true }` immediately.
 - **Timeout:** 30s default, yields `{ allowed: false, reason: "timeout" }`.
 
-### 6.7 OpenCode Integration
+### 6.7 Auro (OpenCode) Integration
 
-The server is a **sidecar to OpenCode** -- augments, doesn't replace:
+The server is a **sidecar to the upstream OpenCode binary** -- augments, doesn't replace:
 
-- **Proxy layer:** `/opencode/*` paths forwarded to OpenCode with stripped auth headers and injected `X-OpenCode-Directory`
+- **Proxy layer:** `/opencode/*` paths forwarded to the upstream OpenCode HTTP API with stripped auth headers and injected `X-OpenCode-Directory`
 - **Direct API calls:** Session deletion, automation prompts, MCP auth/disconnect, engine reload
-- **Direct SQLite access:** `opencode-db.ts` opens OpenCode's SQLite database for seeding sessions with initial messages
+- **Direct SQLite access:** `auro-db.ts` opens upstream OpenCode's SQLite database (`opencode.db`) for seeding sessions with initial messages
 
 ### 6.8 Workspace Initialization
 
@@ -682,7 +682,7 @@ Preset system (`starter`, `automation`, `remote`) controls which items are inclu
 
 **Package:** `aurowork-orchestrator` v0.11.193
 
-CLI host daemon that manages OpenCode + AuroWork server together. Features a TUI (terminal dashboard). Published to npm as the `aurowork` command.
+CLI host daemon that manages the upstream OpenCode binary + AuroWork server + OpenCode Router together. Features a TUI (terminal dashboard). Published to npm as the `aurowork` command.
 
 ### 7.1 Directory Structure
 
@@ -723,15 +723,15 @@ apps/orchestrator/
 ### 7.3 Startup Sequence (`runStart()`)
 
 ```
-1. Resolve workspace, data dir, opencode state layout
-2. Resolve binary paths for opencode + aurowork-server
-3. Allocate random free ports (opencode, aurowork-server, control)
+1. Resolve workspace, data dir, auro engine state layout
+2. Resolve binary paths for the auro engine + aurowork-server
+3. Allocate random free ports (auro engine, aurowork-server, control)
 4. Generate managed credentials (512-char random username/password)
 5. Start control HTTP server on 127.0.0.1:{random}
 6. Conditionally start TUI (if TTY + pretty format + not --detach/--check)
-7. Spawn OpenCode: opencode serve --hostname 127.0.0.1 --port {port}
-8. Wait for OpenCode health (polls /health via SDK)
-9. Spawn aurowork-server with resolved OpenCode URL
+7. Spawn the auro engine (upstream `opencode serve --hostname 127.0.0.1 --port {port}`)
+8. Wait for auro engine health (polls /health via SDK)
+9. Spawn aurowork-server with resolved auro engine URL
 10. Wait for aurowork-server health
 11. Issue AuroWork owner token via POST /tokens
 12. Optionally start worker activity heartbeat (Den integration)
@@ -772,7 +772,7 @@ For `auto` mode:
 ### 7.6 Daemon Mode (`runRouterDaemon()`)
 
 Multi-workspace daemon:
-- Starts a **single shared OpenCode** instance (the "active workspace")
+- Starts a **single shared Auro engine** instance (the "active workspace")
 - Lightweight HTTP server on `127.0.0.1:{daemonPort}` as workspace registry
 - State persisted to `aurowork-orchestrator-state.json`
 - Routes: `GET /health`, `GET/POST /workspaces`, `POST /workspaces/:id/activate`, `POST /instances/:id/dispose`, `POST /shutdown`
@@ -781,7 +781,7 @@ Multi-workspace daemon:
 
 Internal HTTP on `127.0.0.1:{controlPort}`, authenticated with per-run UUID bearer token:
 - `GET /runtime/versions` -- snapshot of service versions and upgrade state
-- `POST /runtime/upgrade` -- hot upgrade of opencode and/or aurowork-server (stop, re-resolve, re-spawn, wait for health)
+- `POST /runtime/upgrade` -- hot upgrade of the auro engine and/or aurowork-server (stop, re-resolve, re-spawn, wait for health)
 
 ### 7.8 CLI Flags
 
@@ -796,7 +796,7 @@ Internal HTTP on `127.0.0.1:{controlPort}`, authenticated with per-run UUID bear
 | `--log-format` | `AUROWORK_LOG_FORMAT` | `pretty` | `pretty` or `json` (OTel) |
 | `--verbose` | `AUROWORK_VERBOSE` | false | Extra diagnostics |
 
-#### OpenCode Sidecar Flags
+#### Auro (engine) Sidecar Flags
 
 | Flag | Env | Default |
 |------|-----|---------|
@@ -871,7 +871,7 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 |----------|---------|
 | `aur-validate.yml` | AUR package validation |
 | `download-stats.yml` | Download stats collection |
-| `opencode-agents.yml` | OpenCode agent automation |
+| `opencode-agents.yml` | Upstream OpenCode agent automation |
 
 ### 8.4 Release Scripts (`scripts/release/`)
 
@@ -892,7 +892,7 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 - **Predictable > Clever:** Explicit configuration over heuristics. Auto-detection must be explainable, overrideable, and safe.
 - **Filesystem mutation policy:** All writes routed through AuroWork server (not Tauri directly) for parity between desktop and cloud.
 - **Server-consumption first:** AuroWork app consumes AuroWork server surfaces instead of inventing parallel behavior.
-- **Parity:** UI actions map to OpenCode server APIs.
+- **Parity:** UI actions map to the auro engine's HTTP APIs.
 - **Transparency:** Plans, steps, tool calls, permissions are visible.
 - **Least privilege:** Only user-authorized folders + explicit approvals.
 - **Prompt is the workflow:** Product logic lives in prompts, rules, and skills.
@@ -903,7 +903,7 @@ Triggers on `v*` tag push or manual dispatch. Jobs in dependency order:
 1. **CLI-first, always** -- every component runnable via single CLI command
 2. **Unix-like interfaces** -- JSON over stdout, flags, env vars
 3. **Sidecar-composable** -- any component runs as sidecar
-4. **Clear boundaries** -- OpenCode is engine, AuroWork adds thin UX layer
+4. **Clear boundaries** -- the auro engine (upstream OpenCode) is the engine, AuroWork adds a thin UX layer
 5. **Local-first, graceful degradation** -- cloud is first-class option, not separate product
 6. **Portable configuration** -- config files + env vars, no hidden state
 7. **Observability by default** -- health endpoints + structured logs
@@ -957,7 +957,7 @@ How to pick the right extension abstraction:
     +--> /apps/orchestrator (daemon or start/serve host)
     |          |
     |          v
-    |        OpenCode (AI engine, loopback)
+    |        Auro engine (upstream OpenCode, AI engine, loopback)
     |
     +--> /apps/server (AuroWork API + proxy)
                |
@@ -967,7 +967,7 @@ How to pick the right extension abstraction:
 ### 10.2 SSE Event Pipeline
 
 ```
-OpenCode Engine
+Auro Engine
   -> SSE event stream
      -> GlobalSDKProvider (context/global-sdk.tsx)
         -> Event coalescing queue (keyed deduplication)
@@ -986,20 +986,20 @@ OpenCode Engine
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `opencode.json` / `opencode.jsonc` | Workspace root | OpenCode configuration (model, MCP, plugins) |
+| `opencode.json` / `opencode.jsonc` | Workspace root | Auro engine configuration (model, MCP, plugins; consumed by upstream `opencode` binary) |
 | `.opencode/aurowork.json` | Workspace `.opencode/` | AuroWork workspace config |
 | `~/.config/aurowork/server.json` | User home | AuroWork server configuration |
 | `~/.config/aurowork/tokens.json` | User home | Scoped token hashes |
-| `~/.config/opencode/opencode.json` | User home | Global OpenCode configuration |
-| `constants.json` | Repo root | OpenCode version pin (`v1.2.27`) |
+| `~/.config/opencode/opencode.json` | User home | Global auro engine configuration (upstream path) |
+| `constants.json` | Repo root | Auro engine version pin (`v1.2.27`) |
 | `tauri.conf.json` | `apps/desktop/src-tauri/` | Tauri build + runtime configuration |
 
 ### 11.2 Environment Variables
 
 | Variable | Component | Description |
 |----------|-----------|-------------|
-| `OPENCODE_BIN_PATH` | Desktop/Orchestrator | Override opencode binary path |
-| `OPENCODE_CLIENT` | Engine | Set to `aurowork` |
+| `AURO_BIN_PATH` | Desktop/Orchestrator | Override auro engine binary path |
+| `OPENCODE_CLIENT` | Engine | Set to `aurowork` (consumed by upstream binary) |
 | `AUROWORK_WORKSPACE` | Orchestrator | Working directory override |
 | `AUROWORK_DATA_DIR` | Orchestrator | State directory |
 | `AUROWORK_HOST` / `AUROWORK_PORT` | Server | Bind host/port |
@@ -1015,7 +1015,7 @@ OpenCode Engine
 
 | Component | Port Range | Notes |
 |-----------|-----------|-------|
-| OpenCode Engine | `4096` (default) | Loopback only, randomized by orchestrator |
+| Auro Engine | `4096` (default) | Loopback only, randomized by orchestrator |
 | AuroWork Server | `8787` (default) | Desktop: `48000-51000` per-workspace |
 | Orchestrator daemon | Random | Loopback only |
 | Control server | Random | Internal, per-run |

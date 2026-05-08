@@ -29,8 +29,8 @@ export interface WorkspaceConfig {
   sandboxBackend?: string;
   sandboxRunId?: string;
   sandboxContainerName?: string;
-  opencodeUsername?: string;
-  opencodePassword?: string;
+  auroUsername?: string;
+  auroPassword?: string;
 }
 
 export interface WorkspaceInfo {
@@ -50,8 +50,8 @@ export interface WorkspaceInfo {
   sandboxBackend?: string;
   sandboxRunId?: string;
   sandboxContainerName?: string;
-  opencodeUsername?: string;
-  opencodePassword?: string;
+  auroUsername?: string;
+  auroPassword?: string;
   opencode?: {
     baseUrl?: string;
     directory?: string;
@@ -60,7 +60,7 @@ export interface WorkspaceInfo {
   };
 }
 
-export interface OpencodeConfigFile {
+export interface AuroConfigFile {
   path: string;
   exists: boolean;
   content: string | null;
@@ -77,10 +77,10 @@ export interface ServerConfig {
   token: string;
   hostToken: string;
   configPath?: string;
-  opencodeBaseUrl?: string;
-  opencodeDirectory?: string;
-  opencodeUsername?: string;
-  opencodePassword?: string;
+  auroBaseUrl?: string;
+  auroDirectory?: string;
+  auroUsername?: string;
+  auroPassword?: string;
   approval: ApprovalConfig;
   corsOrigins: string[];
   workspaces: WorkspaceInfo[];

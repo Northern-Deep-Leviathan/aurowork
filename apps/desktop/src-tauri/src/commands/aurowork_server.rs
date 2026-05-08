@@ -22,7 +22,7 @@ pub fn aurowork_server_restart(
     engine_manager: State<EngineManager>,
     remote_access_enabled: Option<bool>,
 ) -> Result<AuroworkServerInfo, String> {
-    let (workspace_paths, opencode_url, opencode_username, opencode_password) = {
+    let (workspace_paths, auro_connect_url, auro_username, auro_password) = {
         let engine = engine_manager
             .inner
             .lock()
@@ -37,8 +37,8 @@ pub fn aurowork_server_restart(
         (
             workspace_paths,
             engine.base_url.clone(),
-            engine.opencode_username.clone(),
-            engine.opencode_password.clone(),
+            engine.auro_username.clone(),
+            engine.auro_password.clone(),
         )
     };
 
@@ -61,9 +61,9 @@ pub fn aurowork_server_restart(
         &app,
         &manager,
         &workspace_paths,
-        opencode_url.as_deref(),
-        opencode_username.as_deref(),
-        opencode_password.as_deref(),
+        auro_connect_url.as_deref(),
+        auro_username.as_deref(),
+        auro_password.as_deref(),
         remote_access_enabled.unwrap_or(false),
     )
 }

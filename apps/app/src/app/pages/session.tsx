@@ -27,6 +27,7 @@ import type {
   WorkspaceDisplay,
   WorkspaceAuroworkConfig,
   WorkspaceSessionGroup,
+  OpencodeRouterInfo,
 } from "../types";
 
 import {
@@ -112,7 +113,15 @@ function defaultBlueprintCopyForPreset(_preset: string): { title: string; body: 
   const tr = (key: string) => t(key, currentLocale());
   return { title: tr("session.empty_state_title"), body: tr("session.empty_state_body") };
 }
-function defaultBlueprintStartersForPreset(_preset: string): Array<{ label: string; prompt: string }> {
+function defaultBlueprintStartersForPreset(_preset: string): Array<{
+  id?: string | null;
+  title?: string | null;
+  description?: string | null;
+  prompt?: string | null;
+  action?: string | null;
+  kind?: string | null;
+  label?: string | null;
+}> {
   return [];
 }
 
@@ -167,6 +176,7 @@ export type SessionViewProps = {
   engineInfo: EngineInfo | null;
   engineDoctorVersion: string | null;
   orchestratorStatus: OrchestratorStatus | null;
+  opencodeRouterInfo: OpencodeRouterInfo | null;
   appVersion: string | null;
   stopHost: () => void;
   headerStatus: string;
@@ -490,6 +500,7 @@ export default function SessionView(props: SessionViewProps) {
         props.engineDoctorVersion ??
         null,
       orchestratorVersion: props.orchestratorStatus?.cliVersion ?? null,
+      opencodeRouterVersion: props.opencodeRouterInfo?.version ?? null,
     });
     if (!resolved) return;
     platform.openLink(resolved);
@@ -3944,7 +3955,7 @@ export default function SessionView(props: SessionViewProps) {
           kind: "action",
           title,
           description,
-          action,
+          action: action as "connect-openai",
         });
         continue;
       }

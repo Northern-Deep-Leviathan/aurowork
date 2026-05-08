@@ -1,6 +1,11 @@
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { isTauriRuntime } from "../utils";
-import type { ExecResult, OpencodeConfigFile, WorkspaceInfo, WorkspaceList } from "./tauri";
+import type {
+  ExecResult,
+  AuroConfigFile,
+  WorkspaceInfo,
+  WorkspaceList,
+} from "./tauri";
 
 export type AuroworkServerCapabilities = {
   skills: { read: boolean; write: boolean; source: "aurowork" | "opencode" };
@@ -16,7 +21,7 @@ export type AuroworkServerCapabilities = {
   commands: { read: boolean; write: boolean };
   config: { read: boolean; write: boolean };
   sandbox?: { enabled: boolean; backend: "none" | "docker" | "container" };
-  proxy?: { opencode: boolean };
+  proxy?: { opencode: boolean; opencodeRouter: boolean };
   toolProviders?: {
     browser?: {
       enabled: boolean;
@@ -35,6 +40,16 @@ export type AuroworkServerCapabilities = {
 
 export type AuroworkServerStatus = "connected" | "disconnected" | "limited";
 
+export type AuroworkAuditEntry = {
+  id: string;
+  workspaceId: string;
+  action: string;
+  target: string;
+  summary: string;
+  timestamp: number;
+  actor?: { type: "host" } | { type: "remote"; clientId?: string } | null;
+};
+
 export type AuroworkServerDiagnostics = {
   ok: boolean;
   version: string;
@@ -51,7 +66,10 @@ export type AuroworkServerDiagnostics = {
   tokenSource: { client: string; host: string };
 };
 
-export type AuroworkRuntimeServiceName = "aurowork-server" | "opencode";
+export type AuroworkRuntimeServiceName =
+  | "aurowork-server"
+  | "opencode"
+  | "opencode-router";
 
 export type AuroworkRuntimeServiceSnapshot = {
   name: AuroworkRuntimeServiceName;
@@ -259,7 +277,12 @@ export type AuroworkWorkspaceExport = {
   exportedAt: number;
   opencode?: Record<string, unknown>;
   aurowork?: Record<string, unknown>;
-  skills?: Array<{ name: string; description?: string; trigger?: string; content: string }>;
+  skills?: Array<{
+    name: string;
+    description?: string;
+    trigger?: string;
+    content: string;
+  }>;
   commands?: Array<{ name: string; description?: string; template?: string }>;
   files?: Array<{ path: string; content: string }>;
 };
@@ -330,7 +353,9 @@ const STORAGE_REMOTE_ACCESS = "aurowork.server.remoteAccessEnabled";
 export function normalizeAuroworkServerUrl(input: string) {
   const trimmed = input.trim();
   if (!trimmed) return null;
-  const withProtocol = /^https?:\/\//.test(trimmed) ? trimmed : `http://${trimmed}`;
+  const withProtocol = /^https?:\/\//.test(trimmed)
+    ? trimmed
+    : `http://${trimmed}`;
   return withProtocol.replace(/\/+$/, "");
 }
 
@@ -356,7 +381,10 @@ export function parseAuroworkWorkspaceIdFromUrl(input: string) {
   }
 }
 
-export function buildAuroworkWorkspaceBaseUrl(hostUrl: string, workspaceId?: string | null) {
+export function buildAuroworkWorkspaceBaseUrl(
+  hostUrl: string,
+  workspaceId?: string | null,
+) {
   const normalized = normalizeAuroworkServerUrl(hostUrl) ?? "";
   if (!normalized) return null;
 
@@ -412,9 +440,15 @@ export type AuroworkBundleInvite = {
   label?: string;
 };
 
-function normalizeAuroworkBundleInviteIntent(value: string | null | undefined): AuroworkBundleInviteIntent {
+function normalizeAuroworkBundleInviteIntent(
+  value: string | null | undefined,
+): AuroworkBundleInviteIntent {
   const normalized = (value ?? "").trim().toLowerCase();
-  if (normalized === "new_worker" || normalized === "new-worker" || normalized === "newworker") {
+  if (
+    normalized === "new_worker" ||
+    normalized === "new-worker" ||
+    normalized === "newworker"
+  ) {
     return "new_worker";
   }
   return "import_current";
@@ -427,10 +461,13 @@ export function buildAuroworkConnectInviteUrl(input: {
   startup?: "server";
   autoConnect?: boolean;
 }) {
-  const workspaceUrl = normalizeAuroworkServerUrl(input.workspaceUrl ?? "") ?? "";
+  const workspaceUrl =
+    normalizeAuroworkServerUrl(input.workspaceUrl ?? "") ?? "";
   if (!workspaceUrl) return "";
 
-  const base = normalizeAuroworkServerUrl(input.appUrl ?? "") ?? DEFAULT_AUROWORK_CONNECT_APP_URL;
+  const base =
+    normalizeAuroworkServerUrl(input.appUrl ?? "") ??
+    DEFAULT_AUROWORK_CONNECT_APP_URL;
 
   try {
     const url = new URL(base);
@@ -465,7 +502,9 @@ export function buildAuroworkConnectInviteUrl(input: {
   }
 }
 
-export function readAuroworkConnectInviteFromSearch(input: string | URLSearchParams) {
+export function readAuroworkConnectInviteFromSearch(
+  input: string | URLSearchParams,
+) {
   const search =
     typeof input === "string"
       ? new URLSearchParams(input.startsWith("?") ? input.slice(1) : input)
@@ -478,7 +517,8 @@ export function readAuroworkConnectInviteFromSearch(input: string | URLSearchPar
   const token = search.get(AUROWORK_INVITE_PARAM_TOKEN)?.trim() ?? "";
   const startupRaw = search.get(AUROWORK_INVITE_PARAM_STARTUP)?.trim() ?? "";
   const startup = startupRaw === "server" ? "server" : undefined;
-  const autoConnect = search.get(AUROWORK_INVITE_PARAM_AUTO_CONNECT)?.trim() === "1";
+  const autoConnect =
+    search.get(AUROWORK_INVITE_PARAM_AUTO_CONNECT)?.trim() === "1";
 
   return {
     url,
@@ -506,7 +546,9 @@ export function buildAuroworkBundleInviteUrl(input: {
     return "";
   }
 
-  const base = normalizeAuroworkServerUrl(input.appUrl ?? "") ?? DEFAULT_AUROWORK_CONNECT_APP_URL;
+  const base =
+    normalizeAuroworkServerUrl(input.appUrl ?? "") ??
+    DEFAULT_AUROWORK_CONNECT_APP_URL;
 
   try {
     const url = new URL(base);
@@ -557,7 +599,9 @@ export function buildAuroworkBundleInviteUrl(input: {
   }
 }
 
-export function readAuroworkBundleInviteFromSearch(input: string | URLSearchParams) {
+export function readAuroworkBundleInviteFromSearch(
+  input: string | URLSearchParams,
+) {
   const search =
     typeof input === "string"
       ? new URLSearchParams(input.startsWith("?") ? input.slice(1) : input)
@@ -577,7 +621,9 @@ export function readAuroworkBundleInviteFromSearch(input: string | URLSearchPara
     return null;
   }
 
-  const intent = normalizeAuroworkBundleInviteIntent(search.get(AUROWORK_INVITE_PARAM_BUNDLE_INTENT));
+  const intent = normalizeAuroworkBundleInviteIntent(
+    search.get(AUROWORK_INVITE_PARAM_BUNDLE_INTENT),
+  );
   const source = search.get(AUROWORK_INVITE_PARAM_BUNDLE_SOURCE)?.trim() ?? "";
   const orgId = search.get(AUROWORK_INVITE_PARAM_BUNDLE_ORG)?.trim() ?? "";
   const label = search.get(AUROWORK_INVITE_PARAM_BUNDLE_LABEL)?.trim() ?? "";
@@ -627,7 +673,8 @@ export function readAuroworkServerSettings(): AuroworkServerSettings {
     const portRaw = window.localStorage.getItem(STORAGE_PORT_OVERRIDE) ?? "";
     const portOverride = portRaw ? Number(portRaw) : undefined;
     const token = window.localStorage.getItem(STORAGE_TOKEN) ?? undefined;
-    const remoteAccessRaw = window.localStorage.getItem(STORAGE_REMOTE_ACCESS) ?? "";
+    const remoteAccessRaw =
+      window.localStorage.getItem(STORAGE_REMOTE_ACCESS) ?? "";
     return {
       urlOverride: urlOverride ?? undefined,
       portOverride: Number.isNaN(portOverride) ? undefined : portOverride,
@@ -639,11 +686,14 @@ export function readAuroworkServerSettings(): AuroworkServerSettings {
   }
 }
 
-export function writeAuroworkServerSettings(next: AuroworkServerSettings): AuroworkServerSettings {
+export function writeAuroworkServerSettings(
+  next: AuroworkServerSettings,
+): AuroworkServerSettings {
   if (typeof window === "undefined") return next;
   try {
     const urlOverride = normalizeAuroworkServerUrl(next.urlOverride ?? "");
-    const portOverride = typeof next.portOverride === "number" ? next.portOverride : undefined;
+    const portOverride =
+      typeof next.portOverride === "number" ? next.portOverride : undefined;
     const token = next.token?.trim() || undefined;
     const remoteAccessEnabled = next.remoteAccessEnabled === true;
 
@@ -680,15 +730,18 @@ export function writeAuroworkServerSettings(next: AuroworkServerSettings): Aurow
 export function hydrateAuroworkServerSettingsFromEnv() {
   if (typeof window === "undefined") return;
 
-  const envUrl = typeof import.meta.env?.VITE_AUROWORK_URL === "string"
-    ? import.meta.env.VITE_AUROWORK_URL.trim()
-    : "";
-  const envPort = typeof import.meta.env?.VITE_AUROWORK_PORT === "string"
-    ? import.meta.env.VITE_AUROWORK_PORT.trim()
-    : "";
-  const envToken = typeof import.meta.env?.VITE_AUROWORK_TOKEN === "string"
-    ? import.meta.env.VITE_AUROWORK_TOKEN.trim()
-    : "";
+  const envUrl =
+    typeof import.meta.env?.VITE_AUROWORK_URL === "string"
+      ? import.meta.env.VITE_AUROWORK_URL.trim()
+      : "";
+  const envPort =
+    typeof import.meta.env?.VITE_AUROWORK_PORT === "string"
+      ? import.meta.env.VITE_AUROWORK_PORT.trim()
+      : "";
+  const envToken =
+    typeof import.meta.env?.VITE_AUROWORK_TOKEN === "string"
+      ? import.meta.env.VITE_AUROWORK_TOKEN.trim()
+      : "";
 
   if (!envUrl && !envPort && !envToken) return;
 
@@ -764,7 +817,12 @@ export class AuroworkServerError extends Error {
   code: string;
   details?: unknown;
 
-  constructor(status: number, code: string, message: string, details?: unknown) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details?: unknown,
+  ) {
     super(message);
     this.status = status;
     this.code = code;
@@ -777,7 +835,9 @@ function buildHeaders(
   hostToken?: string,
   extra?: Record<string, string>,
 ) {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -790,7 +850,11 @@ function buildHeaders(
   return headers;
 }
 
-function buildAuthHeaders(token?: string, hostToken?: string, extra?: Record<string, string>) {
+function buildAuthHeaders(
+  token?: string,
+  hostToken?: string,
+  extra?: Record<string, string>,
+) {
   const headers: Record<string, string> = {};
   if (token) {
     headers.Authorization = `Bearer ${token}`;
@@ -809,7 +873,10 @@ const resolveFetch = () => (isTauriRuntime() ? tauriFetch : globalThis.fetch);
 
 const DEFAULT_AUROWORK_SERVER_TIMEOUT_MS = 10_000;
 
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+type FetchLike = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>;
 
 async function fetchWithTimeout(
   fetchImpl: FetchLike,
@@ -821,7 +888,8 @@ async function fetchWithTimeout(
     return fetchImpl(url, init);
   }
 
-  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const controller =
+    typeof AbortController !== "undefined" ? new AbortController() : null;
   const signal = controller?.signal;
   const initWithSignal = signal && !init.signal ? { ...init, signal } : init;
 
@@ -840,7 +908,11 @@ async function fetchWithTimeout(
   try {
     return await Promise.race([fetchImpl(url, initWithSignal), timeoutPromise]);
   } catch (error) {
-    const name = (error && typeof error === "object" && "name" in error ? (error as any).name : "") as string;
+    const name = (
+      error && typeof error === "object" && "name" in error
+        ? (error as any).name
+        : ""
+    ) as string;
     if (name === "AbortError") {
       throw new Error("Request timed out.");
     }
@@ -853,7 +925,13 @@ async function fetchWithTimeout(
 async function requestJson<T>(
   baseUrl: string,
   path: string,
-  options: { method?: string; token?: string; hostToken?: string; body?: unknown; timeoutMs?: number } = {},
+  options: {
+    method?: string;
+    token?: string;
+    hostToken?: string;
+    body?: unknown;
+    timeoutMs?: number;
+  } = {},
 ): Promise<T> {
   const url = `${baseUrl}${path}`;
   const fetchImpl = resolveFetch();
@@ -873,8 +951,14 @@ async function requestJson<T>(
 
   if (!response.ok) {
     const code = typeof json?.code === "string" ? json.code : "request_failed";
-    const message = typeof json?.message === "string" ? json.message : response.statusText;
-    throw new AuroworkServerError(response.status, code, message, json?.details);
+    const message =
+      typeof json?.message === "string" ? json.message : response.statusText;
+    throw new AuroworkServerError(
+      response.status,
+      code,
+      message,
+      json?.details,
+    );
   }
 
   return json as T;
@@ -883,7 +967,13 @@ async function requestJson<T>(
 async function requestJsonRaw<T>(
   baseUrl: string,
   path: string,
-  options: { method?: string; token?: string; hostToken?: string; body?: unknown; timeoutMs?: number } = {},
+  options: {
+    method?: string;
+    token?: string;
+    hostToken?: string;
+    body?: unknown;
+    timeoutMs?: number;
+  } = {},
 ): Promise<RawJsonResponse<T>> {
   const url = `${baseUrl}${path}`;
   const fetchImpl = resolveFetch();
@@ -912,8 +1002,14 @@ async function requestJsonRaw<T>(
 async function requestMultipartRaw(
   baseUrl: string,
   path: string,
-  options: { method?: string; token?: string; hostToken?: string; body?: FormData; timeoutMs?: number } = {},
-): Promise<{ ok: boolean; status: number; text: string }>{
+  options: {
+    method?: string;
+    token?: string;
+    hostToken?: string;
+    body?: FormData;
+    timeoutMs?: number;
+  } = {},
+): Promise<{ ok: boolean; status: number; text: string }> {
   const url = `${baseUrl}${path}`;
   const fetchImpl = resolveFetch();
   const response = await fetchWithTimeout(
@@ -933,8 +1029,17 @@ async function requestMultipartRaw(
 async function requestBinary(
   baseUrl: string,
   path: string,
-  options: { method?: string; token?: string; hostToken?: string; timeoutMs?: number } = {},
-): Promise<{ data: ArrayBuffer; contentType: string | null; filename: string | null }>{
+  options: {
+    method?: string;
+    token?: string;
+    hostToken?: string;
+    timeoutMs?: number;
+  } = {},
+): Promise<{
+  data: ArrayBuffer;
+  contentType: string | null;
+  filename: string | null;
+}> {
   const url = `${baseUrl}${path}`;
   const fetchImpl = resolveFetch();
   const response = await fetchWithTimeout(
@@ -956,20 +1061,32 @@ async function requestBinary(
       json = null;
     }
     const code = typeof json?.code === "string" ? json.code : "request_failed";
-    const message = typeof json?.message === "string" ? json.message : response.statusText;
-    throw new AuroworkServerError(response.status, code, message, json?.details);
+    const message =
+      typeof json?.message === "string" ? json.message : response.statusText;
+    throw new AuroworkServerError(
+      response.status,
+      code,
+      message,
+      json?.details,
+    );
   }
 
   const contentType = response.headers.get("content-type");
   const disposition = response.headers.get("content-disposition") ?? "";
-  const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+  const filenameMatch = disposition.match(
+    /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i,
+  );
   const filenameRaw = filenameMatch?.[1] ?? filenameMatch?.[2] ?? null;
   const filename = filenameRaw ? decodeURIComponent(filenameRaw) : null;
   const data = await response.arrayBuffer();
   return { data, contentType, filename };
 }
 
-export function createAuroworkServerClient(options: { baseUrl: string; token?: string; hostToken?: string }) {
+export function createAuroworkServerClient(options: {
+  baseUrl: string;
+  token?: string;
+  hostToken?: string;
+}) {
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
   const token = options.token;
   const hostToken = options.hostToken;
@@ -991,14 +1108,74 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
   return {
     baseUrl,
     token,
+    fetchBundle: async (_url: string): Promise<unknown> => {
+      throw new Error("AuroWork server fetchBundle is not implemented");
+    },
+    publishBundle: async (
+      _payload: unknown,
+      _kind: string,
+      _opts?: { name?: string; baseUrl?: string; workspaceId?: string },
+    ): Promise<{ url: string }> => {
+      throw new Error("AuroWork server publishBundle is not implemented");
+    },
+    listAudit: async (
+      _workspaceId: string,
+      _limit: number,
+    ): Promise<{ items: AuroworkAuditEntry[] }> => {
+      throw new Error("AuroWork server listAudit is not implemented");
+    },
+    listScheduledJobs: async (
+      _workspaceId: string,
+    ): Promise<{
+      items: Array<{ id: string; cron: string; nextRunAt: number | null }>;
+    }> => {
+      throw new Error("AuroWork server listScheduledJobs is not implemented");
+    },
+    materializeBlueprintSessions: async (
+      _workspaceId: string,
+    ): Promise<{
+      created: Array<{ sessionId: string; templateId?: string | null }>;
+      openSessionId?: string | null;
+    }> => {
+      throw new Error(
+        "AuroWork server materializeBlueprintSessions is not implemented",
+      );
+    },
     health: () =>
-      requestJson<{ ok: boolean; version: string; uptimeMs: number }>(baseUrl, "/health", { token, hostToken, timeoutMs: timeouts.health }),
+      requestJson<{ ok: boolean; version: string; uptimeMs: number }>(
+        baseUrl,
+        "/health",
+        { token, hostToken, timeoutMs: timeouts.health },
+      ),
     runtimeVersions: () =>
-      requestJson<AuroworkRuntimeSnapshot>(baseUrl, "/runtime/versions", { token, hostToken, timeoutMs: timeouts.status }),
-    status: () => requestJson<AuroworkServerDiagnostics>(baseUrl, "/status", { token, hostToken, timeoutMs: timeouts.status }),
-    capabilities: () => requestJson<AuroworkServerCapabilities>(baseUrl, "/capabilities", { token, hostToken, timeoutMs: timeouts.capabilities }),
-    listWorkspaces: () => requestJson<AuroworkWorkspaceList>(baseUrl, "/workspaces", { token, hostToken, timeoutMs: timeouts.listWorkspaces }),
-    createLocalWorkspace: (payload: { folderPath: string; name: string; preset: string }) =>
+      requestJson<AuroworkRuntimeSnapshot>(baseUrl, "/runtime/versions", {
+        token,
+        hostToken,
+        timeoutMs: timeouts.status,
+      }),
+    status: () =>
+      requestJson<AuroworkServerDiagnostics>(baseUrl, "/status", {
+        token,
+        hostToken,
+        timeoutMs: timeouts.status,
+      }),
+    capabilities: () =>
+      requestJson<AuroworkServerCapabilities>(baseUrl, "/capabilities", {
+        token,
+        hostToken,
+        timeoutMs: timeouts.capabilities,
+      }),
+    listWorkspaces: () =>
+      requestJson<AuroworkWorkspaceList>(baseUrl, "/workspaces", {
+        token,
+        hostToken,
+        timeoutMs: timeouts.listWorkspaces,
+      }),
+    createLocalWorkspace: (payload: {
+      folderPath: string;
+      name: string;
+      preset: string;
+    }) =>
       requestJson<WorkspaceList>(baseUrl, "/workspaces/local", {
         token,
         hostToken,
@@ -1006,75 +1183,138 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
         body: payload,
         timeoutMs: timeouts.activateWorkspace,
       }),
-    updateWorkspaceDisplayName: (workspaceId: string, displayName: string | null) =>
-      requestJson<WorkspaceList>(baseUrl, `/workspaces/${encodeURIComponent(workspaceId)}/display-name`, {
-        token,
-        hostToken,
-        method: "PATCH",
-        body: { displayName },
-        timeoutMs: timeouts.activateWorkspace,
-      }),
+    updateWorkspaceDisplayName: (
+      workspaceId: string,
+      displayName: string | null,
+    ) =>
+      requestJson<WorkspaceList>(
+        baseUrl,
+        `/workspaces/${encodeURIComponent(workspaceId)}/display-name`,
+        {
+          token,
+          hostToken,
+          method: "PATCH",
+          body: { displayName },
+          timeoutMs: timeouts.activateWorkspace,
+        },
+      ),
     activateWorkspace: (workspaceId: string) =>
       requestJson<{ activeId: string; workspace: AuroworkWorkspaceInfo }>(
         baseUrl,
         `/workspaces/${encodeURIComponent(workspaceId)}/activate`,
-        { token, hostToken, method: "POST", timeoutMs: timeouts.activateWorkspace },
+        {
+          token,
+          hostToken,
+          method: "POST",
+          timeoutMs: timeouts.activateWorkspace,
+        },
       ),
     deleteWorkspace: (workspaceId: string) =>
-      requestJson<{ ok: boolean; deleted: boolean; persisted: boolean; activeId: string | null; items: AuroworkWorkspaceInfo[]; workspaces?: WorkspaceInfo[] }>(
-        baseUrl,
-        `/workspaces/${encodeURIComponent(workspaceId)}`,
-        { token, hostToken, method: "DELETE", timeoutMs: timeouts.deleteWorkspace },
-      ),
+      requestJson<{
+        ok: boolean;
+        deleted: boolean;
+        persisted: boolean;
+        activeId: string | null;
+        items: AuroworkWorkspaceInfo[];
+        workspaces?: WorkspaceInfo[];
+      }>(baseUrl, `/workspaces/${encodeURIComponent(workspaceId)}`, {
+        token,
+        hostToken,
+        method: "DELETE",
+        timeoutMs: timeouts.deleteWorkspace,
+      }),
     deleteSession: (workspaceId: string, sessionId: string) =>
       requestJson<{ ok: boolean }>(
         baseUrl,
         `/workspace/${encodeURIComponent(workspaceId)}/sessions/${encodeURIComponent(sessionId)}`,
-        { token, hostToken, method: "DELETE", timeoutMs: timeouts.deleteSession },
+        {
+          token,
+          hostToken,
+          method: "DELETE",
+          timeoutMs: timeouts.deleteSession,
+        },
       ),
     exportWorkspace: (workspaceId: string) =>
-      requestJson<AuroworkWorkspaceExport>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/export`, {
-        token,
-        hostToken,
-        timeoutMs: timeouts.workspaceExport,
-      }),
+      requestJson<AuroworkWorkspaceExport>(
+        baseUrl,
+        `/workspace/${encodeURIComponent(workspaceId)}/export`,
+        {
+          token,
+          hostToken,
+          timeoutMs: timeouts.workspaceExport,
+        },
+      ),
     importWorkspace: (workspaceId: string, payload: Record<string, unknown>) =>
-      requestJson<{ ok: boolean }>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/import`, {
+      requestJson<{ ok: boolean }>(
+        baseUrl,
+        `/workspace/${encodeURIComponent(workspaceId)}/import`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: payload,
+          timeoutMs: timeouts.workspaceImport,
+        },
+      ),
+    getConfig: (workspaceId: string) =>
+      requestJson<{
+        opencode: Record<string, unknown>;
+        aurowork: Record<string, unknown>;
+        updatedAt?: number | null;
+      }>(baseUrl, `/workspace/${workspaceId}/config`, {
         token,
         hostToken,
-        method: "POST",
-        body: payload,
-        timeoutMs: timeouts.workspaceImport,
+        timeoutMs: timeouts.config,
       }),
-    getConfig: (workspaceId: string) =>
-      requestJson<{ opencode: Record<string, unknown>; aurowork: Record<string, unknown>; updatedAt?: number | null }>(
+    patchConfig: (
+      workspaceId: string,
+      payload: {
+        opencode?: Record<string, unknown>;
+        aurowork?: Record<string, unknown>;
+      },
+    ) =>
+      requestJson<{ updatedAt?: number | null }>(
         baseUrl,
         `/workspace/${workspaceId}/config`,
-        { token, hostToken, timeoutMs: timeouts.config },
+        {
+          token,
+          hostToken,
+          method: "PATCH",
+          body: payload,
+        },
       ),
-    patchConfig: (workspaceId: string, payload: { opencode?: Record<string, unknown>; aurowork?: Record<string, unknown> }) =>
-      requestJson<{ updatedAt?: number | null }>(baseUrl, `/workspace/${workspaceId}/config`, {
-        token,
-        hostToken,
-        method: "PATCH",
-        body: payload,
-      }),
-    readOpencodeConfigFile: (workspaceId: string, scope: "project" | "global" = "project") => {
+    readAuroConfigFile: (
+      workspaceId: string,
+      scope: "project" | "global" = "project",
+    ) => {
       const query = `?scope=${scope}`;
-      return requestJson<OpencodeConfigFile>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/opencode-config${query}`, {
-        token,
-        hostToken,
-      });
+      return requestJson<AuroConfigFile>(
+        baseUrl,
+        `/workspace/${encodeURIComponent(workspaceId)}/auro-config${query}`,
+        {
+          token,
+          hostToken,
+        },
+      );
     },
-    writeOpencodeConfigFile: (workspaceId: string, scope: "project" | "global", content: string) =>
-      requestJson<ExecResult>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/opencode-config`, {
-        token,
-        hostToken,
-        method: "POST",
-        body: { scope, content },
-      }),
+    writeAuroConfigFile: (
+      workspaceId: string,
+      scope: "project" | "global",
+      content: string,
+    ) =>
+      requestJson<ExecResult>(
+        baseUrl,
+        `/workspace/${encodeURIComponent(workspaceId)}/auro-config`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: { scope, content },
+        },
+      ),
     listReloadEvents: (workspaceId: string, options?: { since?: number }) => {
-      const query = typeof options?.since === "number" ? `?since=${options.since}` : "";
+      const query =
+        typeof options?.since === "number" ? `?since=${options.since}` : "";
       return requestJson<{ items: AuroworkReloadEvent[]; cursor?: number }>(
         baseUrl,
         `/workspace/${workspaceId}/events${query}`,
@@ -1082,12 +1322,19 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
       );
     },
     reloadEngine: (workspaceId: string) =>
-      requestJson<{ ok: boolean; reloadedAt?: number }>(baseUrl, `/workspace/${workspaceId}/engine/reload`, {
-        token,
-        hostToken,
-        method: "POST",
-      }),
-    listPlugins: (workspaceId: string, options?: { includeGlobal?: boolean }) => {
+      requestJson<{ ok: boolean; reloadedAt?: number }>(
+        baseUrl,
+        `/workspace/${workspaceId}/engine/reload`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+        },
+      ),
+    listPlugins: (
+      workspaceId: string,
+      options?: { includeGlobal?: boolean },
+    ) => {
       const query = options?.includeGlobal ? "?includeGlobal=true" : "";
       return requestJson<{ items: AuroworkPluginItem[]; loadOrder: string[] }>(
         baseUrl,
@@ -1107,7 +1354,10 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
         `/workspace/${workspaceId}/plugins/${encodeURIComponent(name)}`,
         { token, hostToken, method: "DELETE" },
       ),
-    listSkills: (workspaceId: string, options?: { includeGlobal?: boolean }) => {
+    listSkills: (
+      workspaceId: string,
+      options?: { includeGlobal?: boolean },
+    ) => {
       const query = options?.includeGlobal ? "?includeGlobal=true" : "";
       return requestJson<{ items: AuroworkSkillItem[] }>(
         baseUrl,
@@ -1124,17 +1374,31 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
       if (repo) params.set("repo", repo);
       if (ref) params.set("ref", ref);
       const query = params.size ? `?${params.toString()}` : "";
-      return requestJson<{ items: AuroworkHubSkillItem[] }>(baseUrl, `/hub/skills${query}`, {
-        token,
-        hostToken,
-      });
+      return requestJson<{ items: AuroworkHubSkillItem[] }>(
+        baseUrl,
+        `/hub/skills${query}`,
+        {
+          token,
+          hostToken,
+        },
+      );
     },
     installHubSkill: (
       workspaceId: string,
       name: string,
-      options?: { overwrite?: boolean; repo?: { owner?: string; repo?: string; ref?: string } },
+      options?: {
+        overwrite?: boolean;
+        repo?: { owner?: string; repo?: string; ref?: string };
+      },
     ) =>
-      requestJson<{ ok: boolean; name: string; path: string; action: "added" | "updated"; written: number; skipped: number }>(
+      requestJson<{
+        ok: boolean;
+        name: string;
+        path: string;
+        action: "added" | "updated";
+        written: number;
+        skipped: number;
+      }>(
         baseUrl,
         `/workspace/${workspaceId}/skills/hub/${encodeURIComponent(name)}`,
         {
@@ -1147,7 +1411,11 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
           },
         },
       ),
-    getSkill: (workspaceId: string, name: string, options?: { includeGlobal?: boolean }) => {
+    getSkill: (
+      workspaceId: string,
+      name: string,
+      options?: { includeGlobal?: boolean },
+    ) => {
       const query = options?.includeGlobal ? "?includeGlobal=true" : "";
       return requestJson<AuroworkSkillContent>(
         baseUrl,
@@ -1155,37 +1423,66 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
         { token, hostToken },
       );
     },
-    upsertSkill: (workspaceId: string, payload: { name: string; content: string; description?: string }) =>
-      requestJson<AuroworkSkillItem>(baseUrl, `/workspace/${workspaceId}/skills`, {
-        token,
-        hostToken,
-        method: "POST",
-        body: payload,
-      }),
+    upsertSkill: (
+      workspaceId: string,
+      payload: { name: string; content: string; description?: string },
+    ) =>
+      requestJson<AuroworkSkillItem>(
+        baseUrl,
+        `/workspace/${workspaceId}/skills`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: payload,
+        },
+      ),
     listMcp: (workspaceId: string) =>
-      requestJson<{ items: AuroworkMcpItem[] }>(baseUrl, `/workspace/${workspaceId}/mcp`, { token, hostToken }),
-    addMcp: (workspaceId: string, payload: { name: string; config: Record<string, unknown> }) =>
-      requestJson<{ items: AuroworkMcpItem[] }>(baseUrl, `/workspace/${workspaceId}/mcp`, {
-        token,
-        hostToken,
-        method: "POST",
-        body: payload,
-      }),
+      requestJson<{ items: AuroworkMcpItem[] }>(
+        baseUrl,
+        `/workspace/${workspaceId}/mcp`,
+        { token, hostToken },
+      ),
+    addMcp: (
+      workspaceId: string,
+      payload: { name: string; config: Record<string, unknown> },
+    ) =>
+      requestJson<{ items: AuroworkMcpItem[] }>(
+        baseUrl,
+        `/workspace/${workspaceId}/mcp`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: payload,
+        },
+      ),
     removeMcp: (workspaceId: string, name: string) =>
-      requestJson<{ items: AuroworkMcpItem[] }>(baseUrl, `/workspace/${workspaceId}/mcp/${encodeURIComponent(name)}`, {
-        token,
-        hostToken,
-        method: "DELETE",
-      }),
+      requestJson<{ items: AuroworkMcpItem[] }>(
+        baseUrl,
+        `/workspace/${workspaceId}/mcp/${encodeURIComponent(name)}`,
+        {
+          token,
+          hostToken,
+          method: "DELETE",
+        },
+      ),
 
     logoutMcpAuth: (workspaceId: string, name: string) =>
-      requestJson<{ ok: true }>(baseUrl, `/workspace/${workspaceId}/mcp/${encodeURIComponent(name)}/auth`, {
-        token,
-        hostToken,
-        method: "DELETE",
-      }),
+      requestJson<{ ok: true }>(
+        baseUrl,
+        `/workspace/${workspaceId}/mcp/${encodeURIComponent(name)}/auth`,
+        {
+          token,
+          hostToken,
+          method: "DELETE",
+        },
+      ),
 
-    listCommands: (workspaceId: string, scope: "workspace" | "global" = "workspace") =>
+    listCommands: (
+      workspaceId: string,
+      scope: "workspace" | "global" = "workspace",
+    ) =>
       requestJson<{ items: AuroworkCommandItem[] }>(
         baseUrl,
         `/workspace/${workspaceId}/commands?scope=${scope}`,
@@ -1193,21 +1490,40 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
       ),
     upsertCommand: (
       workspaceId: string,
-      payload: { name: string; description?: string; template: string; agent?: string; model?: string | null; subtask?: boolean },
+      payload: {
+        name: string;
+        description?: string;
+        template: string;
+        agent?: string;
+        model?: string | null;
+        subtask?: boolean;
+      },
     ) =>
-      requestJson<{ items: AuroworkCommandItem[] }>(baseUrl, `/workspace/${workspaceId}/commands`, {
-        token,
-        hostToken,
-        method: "POST",
-        body: payload,
-      }),
+      requestJson<{ items: AuroworkCommandItem[] }>(
+        baseUrl,
+        `/workspace/${workspaceId}/commands`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: payload,
+        },
+      ),
     deleteCommand: (workspaceId: string, name: string) =>
-      requestJson<{ ok: boolean }>(baseUrl, `/workspace/${workspaceId}/commands/${encodeURIComponent(name)}`, {
-        token,
-        hostToken,
-        method: "DELETE",
-      }),
-    uploadInbox: async (workspaceId: string, file: File, options?: { path?: string }) => {
+      requestJson<{ ok: boolean }>(
+        baseUrl,
+        `/workspace/${workspaceId}/commands/${encodeURIComponent(name)}`,
+        {
+          token,
+          hostToken,
+          method: "DELETE",
+        },
+      ),
+    uploadInbox: async (
+      workspaceId: string,
+      file: File,
+      options?: { path?: string },
+    ) => {
       const id = workspaceId.trim();
       if (!id) throw new Error("workspaceId is required");
       if (!file) throw new Error("file is required");
@@ -1217,13 +1533,17 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
         form.append("path", options.path.trim());
       }
 
-      const result = await requestMultipartRaw(baseUrl, `/workspace/${encodeURIComponent(id)}/inbox`, {
-        token,
-        hostToken,
-        method: "POST",
-        body: form,
-        timeoutMs: timeouts.binary,
-      });
+      const result = await requestMultipartRaw(
+        baseUrl,
+        `/workspace/${encodeURIComponent(id)}/inbox`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: form,
+          timeoutMs: timeouts.binary,
+        },
+      );
 
       if (!result.ok) {
         let message = result.text.trim();
@@ -1250,7 +1570,8 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
             return {
               ok: parsed.ok ?? true,
               path: parsed.path.trim(),
-              bytes: typeof parsed.bytes === "number" ? parsed.bytes : file.size,
+              bytes:
+                typeof parsed.bytes === "number" ? parsed.bytes : file.size,
             } satisfies AuroworkInboxUploadResult;
           }
         } catch {
@@ -1266,10 +1587,14 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
     },
 
     listInbox: (workspaceId: string) =>
-      requestJson<AuroworkInboxList>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/inbox`, {
-        token,
-        hostToken,
-      }),
+      requestJson<AuroworkInboxList>(
+        baseUrl,
+        `/workspace/${encodeURIComponent(workspaceId)}/inbox`,
+        {
+          token,
+          hostToken,
+        },
+      ),
 
     downloadInboxItem: (workspaceId: string, inboxId: string) =>
       requestBinary(
@@ -1278,43 +1603,71 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
         { token, hostToken, timeoutMs: timeouts.binary },
       ),
 
-    createFileSession: (workspaceId: string, options?: { ttlSeconds?: number; write?: boolean }) =>
-      requestJson<{ session: AuroworkFileSession }>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/files/sessions`, {
-        token,
-        hostToken,
-        method: "POST",
-        body: {
-          ...(typeof options?.ttlSeconds === "number" ? { ttlSeconds: options.ttlSeconds } : {}),
-          ...(typeof options?.write === "boolean" ? { write: options.write } : {}),
+    createFileSession: (
+      workspaceId: string,
+      options?: { ttlSeconds?: number; write?: boolean },
+    ) =>
+      requestJson<{ session: AuroworkFileSession }>(
+        baseUrl,
+        `/workspace/${encodeURIComponent(workspaceId)}/files/sessions`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: {
+            ...(typeof options?.ttlSeconds === "number"
+              ? { ttlSeconds: options.ttlSeconds }
+              : {}),
+            ...(typeof options?.write === "boolean"
+              ? { write: options.write }
+              : {}),
+          },
         },
-      }),
+      ),
 
     renewFileSession: (sessionId: string, options?: { ttlSeconds?: number }) =>
-      requestJson<{ session: AuroworkFileSession }>(baseUrl, `/files/sessions/${encodeURIComponent(sessionId)}/renew`, {
-        token,
-        hostToken,
-        method: "POST",
-        body: {
-          ...(typeof options?.ttlSeconds === "number" ? { ttlSeconds: options.ttlSeconds } : {}),
+      requestJson<{ session: AuroworkFileSession }>(
+        baseUrl,
+        `/files/sessions/${encodeURIComponent(sessionId)}/renew`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: {
+            ...(typeof options?.ttlSeconds === "number"
+              ? { ttlSeconds: options.ttlSeconds }
+              : {}),
+          },
         },
-      }),
+      ),
 
     closeFileSession: (sessionId: string) =>
-      requestJson<{ ok: boolean }>(baseUrl, `/files/sessions/${encodeURIComponent(sessionId)}`, {
-        token,
-        hostToken,
-        method: "DELETE",
-      }),
+      requestJson<{ ok: boolean }>(
+        baseUrl,
+        `/files/sessions/${encodeURIComponent(sessionId)}`,
+        {
+          token,
+          hostToken,
+          method: "DELETE",
+        },
+      ),
 
     getFileCatalogSnapshot: (
       sessionId: string,
-      options?: { prefix?: string; after?: string; includeDirs?: boolean; limit?: number },
+      options?: {
+        prefix?: string;
+        after?: string;
+        includeDirs?: boolean;
+        limit?: number;
+      },
     ) => {
       const params = new URLSearchParams();
       if (options?.prefix?.trim()) params.set("prefix", options.prefix.trim());
       if (options?.after?.trim()) params.set("after", options.after.trim());
-      if (typeof options?.includeDirs === "boolean") params.set("includeDirs", options.includeDirs ? "true" : "false");
-      if (typeof options?.limit === "number") params.set("limit", String(options.limit));
+      if (typeof options?.includeDirs === "boolean")
+        params.set("includeDirs", options.includeDirs ? "true" : "false");
+      if (typeof options?.limit === "number")
+        params.set("limit", String(options.limit));
       const query = params.toString();
       return requestJson<{
         sessionId: string;
@@ -1332,8 +1685,14 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
       );
     },
 
-    listFileSessionEvents: (sessionId: string, options?: { since?: number }) => {
-      const query = typeof options?.since === "number" ? `?since=${encodeURIComponent(String(options.since))}` : "";
+    listFileSessionEvents: (
+      sessionId: string,
+      options?: { since?: number },
+    ) => {
+      const query =
+        typeof options?.since === "number"
+          ? `?since=${encodeURIComponent(String(options.since))}`
+          : "";
       return requestJson<{ items: AuroworkFileSessionEvent[]; cursor: number }>(
         baseUrl,
         `/files/sessions/${encodeURIComponent(sessionId)}/catalog/events${query}`,
@@ -1342,23 +1701,36 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
     },
 
     readFileBatch: (sessionId: string, paths: string[]) =>
-      requestJson<AuroworkFileReadBatchResult>(baseUrl, `/files/sessions/${encodeURIComponent(sessionId)}/read-batch`, {
-        token,
-        hostToken,
-        method: "POST",
-        body: { paths },
-      }),
+      requestJson<AuroworkFileReadBatchResult>(
+        baseUrl,
+        `/files/sessions/${encodeURIComponent(sessionId)}/read-batch`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: { paths },
+        },
+      ),
 
     writeFileBatch: (
       sessionId: string,
-      writes: Array<{ path: string; contentBase64: string; ifMatchRevision?: string; force?: boolean }>,
+      writes: Array<{
+        path: string;
+        contentBase64: string;
+        ifMatchRevision?: string;
+        force?: boolean;
+      }>,
     ) =>
-      requestJson<AuroworkFileWriteBatchResult>(baseUrl, `/files/sessions/${encodeURIComponent(sessionId)}/write-batch`, {
-        token,
-        hostToken,
-        method: "POST",
-        body: { writes },
-      }),
+      requestJson<AuroworkFileWriteBatchResult>(
+        baseUrl,
+        `/files/sessions/${encodeURIComponent(sessionId)}/write-batch`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: { writes },
+        },
+      ),
 
     runFileBatchOps: (
       sessionId: string,
@@ -1368,12 +1740,16 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
         | { type: "rename"; from: string; to: string }
       >,
     ) =>
-      requestJson<AuroworkFileOpsBatchResult>(baseUrl, `/files/sessions/${encodeURIComponent(sessionId)}/ops`, {
-        token,
-        hostToken,
-        method: "POST",
-        body: { operations },
-      }),
+      requestJson<AuroworkFileOpsBatchResult>(
+        baseUrl,
+        `/files/sessions/${encodeURIComponent(sessionId)}/ops`,
+        {
+          token,
+          hostToken,
+          method: "POST",
+          body: { operations },
+        },
+      ),
 
     readWorkspaceFile: (workspaceId: string, path: string) =>
       requestJson<AuroworkWorkspaceFileContent>(
@@ -1384,7 +1760,12 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
 
     writeWorkspaceFile: (
       workspaceId: string,
-      payload: { path: string; content: string; baseUpdatedAt?: number | null; force?: boolean },
+      payload: {
+        path: string;
+        content: string;
+        baseUpdatedAt?: number | null;
+        force?: boolean;
+      },
     ) =>
       requestJson<AuroworkWorkspaceFileWriteResult>(
         baseUrl,
@@ -1398,10 +1779,14 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
       ),
 
     listArtifacts: (workspaceId: string) =>
-      requestJson<AuroworkArtifactList>(baseUrl, `/workspace/${encodeURIComponent(workspaceId)}/artifacts`, {
-        token,
-        hostToken,
-      }),
+      requestJson<AuroworkArtifactList>(
+        baseUrl,
+        `/workspace/${encodeURIComponent(workspaceId)}/artifacts`,
+        {
+          token,
+          hostToken,
+        },
+      ),
 
     downloadArtifact: (workspaceId: string, artifactId: string) =>
       requestBinary(
@@ -1412,4 +1797,6 @@ export function createAuroworkServerClient(options: { baseUrl: string; token?: s
   };
 }
 
-export type AuroworkServerClient = ReturnType<typeof createAuroworkServerClient>;
+export type AuroworkServerClient = ReturnType<
+  typeof createAuroworkServerClient
+>;

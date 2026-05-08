@@ -8,8 +8,8 @@ export type EngineInfo = {
   projectDir: string | null;
   hostname: string | null;
   port: number | null;
-  opencodeUsername: string | null;
-  opencodePassword: string | null;
+  auroUsername: string | null;
+  auroPassword: string | null;
   pid: number | null;
   lastStdout: string | null;
   lastStderr: string | null;
@@ -155,16 +155,16 @@ export async function engineStart(
     preferSidecar?: boolean;
     runtime?: "direct" | "aurowork-orchestrator";
     workspacePaths?: string[];
-    opencodeBinPath?: string | null;
-    opencodeEnableExa?: boolean;
+    auroBinPath?: string | null;
+    auroEnableExa?: boolean;
     auroworkRemoteAccess?: boolean;
   },
 ): Promise<EngineInfo> {
   return invoke<EngineInfo>("engine_start", {
     projectDir,
     preferSidecar: options?.preferSidecar ?? false,
-    opencodeBinPath: options?.opencodeBinPath ?? null,
-    opencodeEnableExa: options?.opencodeEnableExa ?? null,
+    auroBinPath: options?.auroBinPath ?? null,
+    auroEnableExa: options?.auroEnableExa ?? null,
     auroworkRemoteAccess: options?.auroworkRemoteAccess ?? null,
     runtime: options?.runtime ?? null,
     workspacePaths: options?.workspacePaths ?? null,
@@ -348,6 +348,37 @@ export type WorkspaceAuroworkConfig = {
     preset?: string | null;
   } | null;
   authorizedRoots: string[];
+  blueprint?: {
+    emptyState?: {
+      title?: string | null;
+      body?: string | null;
+      starters?: Array<{
+        id?: string | null;
+        title?: string | null;
+        description?: string | null;
+        prompt?: string | null;
+        action?: string | null;
+        kind?: string | null;
+        label?: string | null;
+      }> | null;
+    } | null;
+    sessions?: Array<{
+      id?: string | null;
+      title?: string | null;
+      messages?: Array<{ role?: "assistant" | "user" | null; text?: string | null }> | null;
+      openOnFirstLoad?: boolean | null;
+    }> | null;
+    starters?: Array<{
+      id?: string | null;
+      title?: string | null;
+      description?: string | null;
+      prompt?: string | null;
+      action?: string | null;
+      kind?: string | null;
+      label?: string | null;
+    }> | null;
+    [extra: string]: unknown;
+  } | null;
   reload?: {
     auto?: boolean;
     resume?: boolean;
@@ -372,34 +403,34 @@ export async function workspaceAuroworkWrite(input: {
   });
 }
 
-export async function opencodeCommandList(input: {
+export async function auroCommandList(input: {
   scope: "workspace" | "global";
   projectDir: string;
 }): Promise<string[]> {
-  return invoke<string[]>("opencode_command_list", {
+  return invoke<string[]>("auro_command_list", {
     scope: input.scope,
     projectDir: input.projectDir,
   });
 }
 
-export async function opencodeCommandWrite(input: {
+export async function auroCommandWrite(input: {
   scope: "workspace" | "global";
   projectDir: string;
   command: OpencodeCommandDraft;
 }): Promise<ExecResult> {
-  return invoke<ExecResult>("opencode_command_write", {
+  return invoke<ExecResult>("auro_command_write", {
     scope: input.scope,
     projectDir: input.projectDir,
     command: input.command,
   });
 }
 
-export async function opencodeCommandDelete(input: {
+export async function auroCommandDelete(input: {
   scope: "workspace" | "global";
   projectDir: string;
   name: string;
 }): Promise<ExecResult> {
-  return invoke<ExecResult>("opencode_command_delete", {
+  return invoke<ExecResult>("auro_command_delete", {
     scope: input.scope,
     projectDir: input.projectDir,
     name: input.name,
@@ -411,11 +442,11 @@ export async function engineStop(): Promise<EngineInfo> {
 }
 
 export async function engineRestart(options?: {
-  opencodeEnableExa?: boolean;
+  auroEnableExa?: boolean;
   auroworkRemoteAccess?: boolean;
 }): Promise<EngineInfo> {
   return invoke<EngineInfo>("engine_restart", {
-    opencodeEnableExa: options?.opencodeEnableExa ?? null,
+    auroEnableExa: options?.auroEnableExa ?? null,
     auroworkRemoteAccess: options?.auroworkRemoteAccess ?? null,
   });
 }
@@ -449,8 +480,8 @@ export async function appBuildInfo(): Promise<AppBuildInfo> {
   return invoke<AppBuildInfo>("app_build_info");
 }
 
-export async function nukeAuroworkAndOpencodeConfigAndExit(): Promise<void> {
-  return invoke<void>("nuke_aurowork_and_opencode_config_and_exit");
+export async function nukeAuroworkAndAuroConfigAndExit(): Promise<void> {
+  return invoke<void>("nuke_aurowork_and_auro_config_and_exit");
 }
 
 export type OrchestratorDetachedHost = {
@@ -498,11 +529,11 @@ export async function engineInfo(): Promise<EngineInfo> {
 
 export async function engineDoctor(options?: {
   preferSidecar?: boolean;
-  opencodeBinPath?: string | null;
+  auroBinPath?: string | null;
 }): Promise<EngineDoctorResult> {
   return invoke<EngineDoctorResult>("engine_doctor", {
     preferSidecar: options?.preferSidecar ?? false,
-    opencodeBinPath: options?.opencodeBinPath ?? null,
+    auroBinPath: options?.auroBinPath ?? null,
   });
 }
 
@@ -618,7 +649,7 @@ export async function uninstallSkill(projectDir: string, name: string): Promise<
   return invoke<ExecResult>("uninstall_skill", { projectDir, name });
 }
 
-export type OpencodeConfigFile = {
+export type AuroConfigFile = {
   path: string;
   exists: boolean;
   content: string | null;
@@ -635,19 +666,19 @@ export async function updaterEnvironment(): Promise<UpdaterEnvironment> {
   return invoke<UpdaterEnvironment>("updater_environment");
 }
 
-export async function readOpencodeConfig(
+export async function readAuroConfig(
   scope: "project" | "global",
   projectDir: string,
-): Promise<OpencodeConfigFile> {
-  return invoke<OpencodeConfigFile>("read_opencode_config", { scope, projectDir });
+): Promise<AuroConfigFile> {
+  return invoke<AuroConfigFile>("read_auro_config", { scope, projectDir });
 }
 
-export async function writeOpencodeConfig(
+export async function writeAuroConfig(
   scope: "project" | "global",
   projectDir: string,
   content: string,
 ): Promise<ExecResult> {
-  return invoke<ExecResult>("write_opencode_config", { scope, projectDir, content });
+  return invoke<ExecResult>("write_auro_config", { scope, projectDir, content });
 }
 
 export async function resetAuroworkState(mode: "onboarding" | "all"): Promise<void> {
@@ -660,28 +691,28 @@ export type CacheResetResult = {
   errors: string[];
 };
 
-export async function resetOpencodeCache(): Promise<CacheResetResult> {
-  return invoke<CacheResetResult>("reset_opencode_cache");
+export async function resetAuroCache(): Promise<CacheResetResult> {
+  return invoke<CacheResetResult>("reset_auro_cache");
 }
 
-export async function opencodeDbMigrate(input: {
+export async function auroDbMigrate(input: {
   projectDir: string;
   preferSidecar?: boolean;
-  opencodeBinPath?: string | null;
+  auroBinPath?: string | null;
 }): Promise<ExecResult> {
   const safeProjectDir = input.projectDir.trim();
   if (!safeProjectDir) {
     throw new Error("project_dir is required");
   }
 
-  return invoke<ExecResult>("opencode_db_migrate", {
+  return invoke<ExecResult>("auro_db_migrate", {
     projectDir: safeProjectDir,
     preferSidecar: input.preferSidecar ?? false,
-    opencodeBinPath: input.opencodeBinPath ?? null,
+    auroBinPath: input.auroBinPath ?? null,
   });
 }
 
-export async function opencodeMcpAuth(
+export async function auroMcpAuth(
   projectDir: string,
   serverName: string,
 ): Promise<ExecResult> {
@@ -692,7 +723,7 @@ export async function opencodeMcpAuth(
 
   const safeServerName = validateMcpServerName(serverName);
 
-  return invoke<ExecResult>("opencode_mcp_auth", {
+  return invoke<ExecResult>("auro_mcp_auth", {
     projectDir: safeProjectDir,
     serverName: safeServerName,
   });

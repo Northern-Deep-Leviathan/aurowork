@@ -53,6 +53,7 @@ import type {
   McpServerEntry,
   McpStatusMap,
   OpencodeConnectStatus,
+  OpencodeRouterInfo,
   PluginScope,
   ProviderListItem,
   SettingsTab,
@@ -61,6 +62,7 @@ import type {
   SuggestedPlugin,
 } from "../types";
 import type {
+  AuroworkAuditEntry,
   AuroworkServerClient,
   AuroworkServerCapabilities,
   AuroworkServerDiagnostics,
@@ -77,7 +79,7 @@ import type {
 import {
   appBuildInfo,
   engineRestart,
-  nukeAuroworkAndOpencodeConfigAndExit,
+  nukeAuroworkAndAuroConfigAndExit,
   auroworkServerRestart,
   pickFile,
 } from "../lib/tauri";
@@ -111,12 +113,13 @@ export type SettingsViewProps = {
   runtimeWorkspaceId: string | null;
   selectedWorkspaceRoot: string;
   activeWorkspaceType: "local" | "remote";
-  auroworkAuditEntries: unknown[];
+  auroworkAuditEntries: AuroworkAuditEntry[];
   auroworkAuditStatus: "idle" | "loading" | "error";
   auroworkAuditError: string | null;
   opencodeConnectStatus: OpencodeConnectStatus | null;
   engineInfo: EngineInfo | null;
   orchestratorStatus: OrchestratorStatus | null;
+  opencodeRouterInfo: OpencodeRouterInfo | null;
   developerMode: boolean;
   toggleDeveloperMode: () => void;
   stopHost: () => void;
@@ -127,7 +130,7 @@ export type SettingsViewProps = {
   setEngineCustomBinPath: (value: string) => void;
   engineRuntime: "direct" | "aurowork-orchestrator";
   setEngineRuntime: (value: "direct" | "aurowork-orchestrator") => void;
-  opencodeEnableExa: boolean;
+  auroEnableExa: boolean;
   toggleOpencodeEnableExa: () => void;
   isWindows: boolean;
   defaultModelLabel: string;
@@ -742,6 +745,22 @@ export default function SettingsView(props: SettingsViewProps) {
     return formatRelativeTime(at);
   });
 
+  const opencodeRouterStatusLabel = createMemo(() => {
+    if (!isTauriRuntime()) return translate("settings.status_unavailable");
+    return props.opencodeRouterInfo?.running ? translate("settings.status_running") : translate("settings.status_offline");
+  });
+
+  const opencodeRouterStatusStyle = createMemo(() => {
+    if (!isTauriRuntime()) return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
+    return props.opencodeRouterInfo?.running
+      ? "bg-green-7/10 text-green-11 border-green-7/20"
+      : "bg-dls-active/60 text-dls-secondary border-dls-border/50";
+  });
+
+  const [opencodeRouterRestarting, setOpenCodeRouterRestarting] =
+    createSignal(false);
+  const [opencodeRouterRestartError, setOpenCodeRouterRestartError] =
+    createSignal<string | null>(null);
   const [auroworkServerRestarting, setAuroworkServerRestarting] =
     createSignal(false);
   const [auroworkServerRestartError, setAuroworkServerRestartError] =
@@ -750,6 +769,14 @@ export default function SettingsView(props: SettingsViewProps) {
   const [opencodeRestartError, setOpencodeRestartError] = createSignal<
     string | null
   >(null);
+
+  const handleOpenCodeRouterRestart = async () => {
+    // OpenCode Router removed
+  };
+
+  const handleOpenCodeRouterStop = async () => {
+    // OpenCode Router removed
+  };
 
   const handleAuroworkServerRestart = async () => {
     if (auroworkServerRestarting() || !isTauriRuntime()) return;
@@ -774,7 +801,7 @@ export default function SettingsView(props: SettingsViewProps) {
     setOpencodeRestartError(null);
     try {
       await engineRestart({
-        opencodeEnableExa: props.opencodeEnableExa,
+        auroEnableExa: props.auroEnableExa,
         auroworkRemoteAccess:
           props.auroworkServerSettings.remoteAccessEnabled === true,
       });
@@ -930,6 +957,20 @@ export default function SettingsView(props: SettingsViewProps) {
     );
   };
 
+  const opencodeRouterStdout = () => {
+    if (!isTauriRuntime()) return translate("settings.available_in_desktop");
+    return (
+      props.opencodeRouterInfo?.lastStdout?.trim() || translate("settings.no_stdout_yet")
+    );
+  };
+
+  const opencodeRouterStderr = () => {
+    if (!isTauriRuntime()) return translate("settings.available_in_desktop");
+    return (
+      props.opencodeRouterInfo?.lastStderr?.trim() || translate("settings.no_stderr_yet")
+    );
+  };
+
   const formatOrchestratorBinary = (binary?: OrchestratorBinaryInfo | null) => {
     if (!binary) return translate("settings.binary_unavailable");
     const version = binary.actualVersion || binary.expectedVersion || "unknown";
@@ -967,6 +1008,8 @@ export default function SettingsView(props: SettingsViewProps) {
   };
   const auroworkServerVersionLabel = () =>
     props.auroworkServerDiagnostics?.version ?? "—";
+  const opencodeRouterVersionLabel = () =>
+    props.opencodeRouterInfo?.version ?? "—";
   const orchestratorVersionLabel = () =>
     props.orchestratorStatus?.cliVersion ?? "—";
 
@@ -1068,6 +1111,7 @@ export default function SettingsView(props: SettingsViewProps) {
       orchestrator: orchestratorVersionLabel(),
       opencode: opencodeVersionLabel(),
       auroworkServer: auroworkServerVersionLabel(),
+      opencodeRouter: opencodeRouterVersionLabel(),
     },
     services: {
       engine: {
@@ -1094,6 +1138,18 @@ export default function SettingsView(props: SettingsViewProps) {
         pid: props.auroworkServerHostInfo?.pid ?? null,
         stdout: auroworkStdout(),
         stderr: auroworkStderr(),
+      },
+      opencodeRouter: {
+        scope: props.startupPreference === "server" ? "local-desktop" : "local-host",
+        note:
+          props.startupPreference === "server"
+            ? translate("settings.router_desktop_note")
+            : null,
+        status: opencodeRouterStatusLabel(),
+        healthPort: props.opencodeRouterInfo?.healthPort ?? null,
+        pid: props.opencodeRouterInfo?.pid ?? null,
+        stdout: opencodeRouterStdout(),
+        stderr: opencodeRouterStderr(),
       },
     },
     diagnostics: props.auroworkServerDiagnostics,
@@ -1238,7 +1294,7 @@ export default function SettingsView(props: SettingsViewProps) {
         window.requestAnimationFrame(() => resolve());
       });
 
-      await nukeAuroworkAndOpencodeConfigAndExit();
+      await nukeAuroworkAndAuroConfigAndExit();
       setNukeConfigStatus(
         translate("settings.nuke_success"),
       );
@@ -2575,6 +2631,7 @@ export default function SettingsView(props: SettingsViewProps) {
                     <div>{translate("settings.debug_orchestrator_label")}: {orchestratorVersionLabel()}</div>
                     <div>{translate("settings.debug_opencode_label")}: {opencodeVersionLabel()}</div>
                     <div>{translate("settings.debug_aurowork_server_label")}: {auroworkServerVersionLabel()}</div>
+                    <div>{translate("settings.debug_opencode_router_label")}: {opencodeRouterVersionLabel()}</div>
                   </div>
                   <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-64 overflow-auto bg-dls-surface border border-dls-border rounded-lg p-3">
                     {runtimeDebugReportJson()}
@@ -2920,6 +2977,21 @@ export default function SettingsView(props: SettingsViewProps) {
                           ? translate("settings.restarting")
                           : translate("settings.debug_restart_aurowork_server")}
                       </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={handleOpenCodeRouterRestart}
+                        disabled={
+                          opencodeRouterRestarting() || !isTauriRuntime()
+                        }
+                        class="text-xs px-3 py-1.5 justify-center"
+                      >
+                        <RefreshCcw
+                          class={`w-3.5 h-3.5 mr-1.5 ${opencodeRouterRestarting() ? "animate-spin" : ""}`}
+                        />
+                        {opencodeRouterRestarting()
+                          ? translate("settings.restarting")
+                          : translate("settings.debug_restart_opencode_router")}
+                      </Button>
                     </div>
                     <Show when={auroworkRestartStatus()}>
                       <div class="text-xs text-green-11 bg-green-3/50 border border-green-6 rounded-lg p-2">
@@ -2930,13 +3002,15 @@ export default function SettingsView(props: SettingsViewProps) {
                       when={
                         auroworkRestartError() ||
                         opencodeRestartError() ||
-                        auroworkServerRestartError()
+                        auroworkServerRestartError() ||
+                        opencodeRouterRestartError()
                       }
                     >
                       <div class="text-xs text-red-11 bg-red-3/50 border border-red-6 rounded-lg p-2">
                         {auroworkRestartError() ||
                           opencodeRestartError() ||
-                          auroworkServerRestartError()}
+                          auroworkServerRestartError() ||
+                          opencodeRouterRestartError()}
                       </div>
                     </Show>
                   </div>
@@ -2966,6 +3040,9 @@ export default function SettingsView(props: SettingsViewProps) {
                         </div>
                         <div class="text-[11px] text-dls-secondary font-mono truncate">
                           {translate("settings.debug_aurowork_server_label")}: {auroworkServerVersionLabel()}
+                        </div>
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
+                          {translate("settings.debug_opencode_router_label")}: {opencodeRouterVersionLabel()}
                         </div>
                       </div>
                     </div>
@@ -3216,6 +3293,91 @@ export default function SettingsView(props: SettingsViewProps) {
                         </div>
                       </div>
                     </div>
+
+                    <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
+                      <div class="flex items-center justify-between gap-3">
+                        <div>
+                          <div class="text-sm font-medium text-dls-text">
+                            {translate("settings.debug_opencode_router_card_title")}
+                          </div>
+                          <div class="text-xs text-dls-secondary">
+                            {translate("settings.debug_opencode_router_card_description")}
+                          </div>
+                        </div>
+                        <div
+                          class={`text-xs px-2 py-1 rounded-full border ${opencodeRouterStatusStyle()}`}
+                        >
+                          {opencodeRouterStatusLabel()}
+                        </div>
+                      </div>
+                      <div class="space-y-1">
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
+                          {props.opencodeRouterInfo?.opencodeUrl?.trim() ||
+                            translate("settings.opencode_url_unavailable")}
+                        </div>
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
+                          {props.opencodeRouterInfo?.workspacePath?.trim() ||
+                            translate("settings.no_worker_directory")}
+                        </div>
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
+                          {translate("settings.label_health_port")}:{" "}
+                          {props.opencodeRouterInfo?.healthPort ?? "—"}
+                        </div>
+                        <div class="text-[11px] text-dls-secondary font-mono truncate">
+                          {translate("settings.label_pid")}: {props.opencodeRouterInfo?.pid ?? "—"}
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          onClick={handleOpenCodeRouterRestart}
+                          disabled={
+                            opencodeRouterRestarting() || !isTauriRuntime()
+                          }
+                          class="text-xs px-3 py-1.5"
+                        >
+                          <RefreshCcw
+                            class={`w-3.5 h-3.5 mr-1.5 ${opencodeRouterRestarting() ? "animate-spin" : ""}`}
+                          />
+                          {opencodeRouterRestarting()
+                            ? translate("settings.restarting")
+                            : translate("settings.debug_restart")}
+                        </Button>
+                        <Show when={props.opencodeRouterInfo?.running}>
+                          <Button
+                            variant="ghost"
+                            onClick={handleOpenCodeRouterStop}
+                            disabled={opencodeRouterRestarting()}
+                            class="text-xs px-3 py-1.5"
+                          >
+                            {translate("settings.debug_stop")}
+                          </Button>
+                        </Show>
+                      </div>
+                      <Show when={opencodeRouterRestartError()}>
+                        <div class="text-xs text-red-11 bg-red-3/50 border border-red-6 rounded-lg p-2">
+                          {opencodeRouterRestartError()}
+                        </div>
+                      </Show>
+                      <div class="grid gap-2">
+                        <div>
+                          <div class="text-[11px] text-dls-secondary mb-1">
+                            {translate("settings.last_stdout")}
+                          </div>
+                          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-24 overflow-auto bg-dls-hover/50 border border-dls-border rounded-lg p-2">
+                            {opencodeRouterStdout()}
+                          </pre>
+                        </div>
+                        <div>
+                          <div class="text-[11px] text-dls-secondary mb-1">
+                            {translate("settings.last_stderr")}
+                          </div>
+                          <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-24 overflow-auto bg-dls-hover/50 border border-dls-border rounded-lg p-2">
+                            {opencodeRouterStderr()}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div class="bg-dls-surface p-4 rounded-xl border border-dls-border space-y-3">
@@ -3294,7 +3456,7 @@ export default function SettingsView(props: SettingsViewProps) {
                           <div>{translate("settings.cap_config")}: {formatCapability(caps().config)}</div>
                           <div>
                             {translate("settings.cap_proxy")}:{" "}
-                            {caps().proxy?.opencode
+                            {caps().proxy?.opencodeRouter
                               ? translate("settings.cap_enabled")
                               : translate("settings.cap_disabled")}
                           </div>

@@ -1,6 +1,6 @@
 import { parse } from "jsonc-parser";
 import type { McpServerConfig, McpServerEntry } from "./types";
-import { readOpencodeConfig, writeOpencodeConfig } from "./lib/tauri";
+import { readAuroConfig, writeAuroConfig } from "./lib/tauri";
 import { CHROME_DEVTOOLS_MCP_COMMAND, CHROME_DEVTOOLS_MCP_ID } from "./constants";
 
 type McpConfigValue = Record<string, unknown> | null | undefined;
@@ -55,7 +55,7 @@ export async function removeMcpFromConfig(
   projectDir: string,
   name: string,
 ): Promise<void> {
-  const configFile = await readOpencodeConfig("project", projectDir);
+  const configFile = await readAuroConfig("project", projectDir);
   let existingConfig: Record<string, unknown> = {};
   if (configFile.exists && configFile.content?.trim()) {
     try {
@@ -69,7 +69,7 @@ export async function removeMcpFromConfig(
   if (!mcpSection || !(name in mcpSection)) return;
 
   delete mcpSection[name];
-  const writeResult = await writeOpencodeConfig(
+  const writeResult = await writeAuroConfig(
     "project",
     projectDir,
     `${JSON.stringify(existingConfig, null, 2)}\n`,

@@ -65,6 +65,113 @@ pub fn resolve_aurowork_port(
     Err("Failed to find a free AuroWork server port".to_string())
 }
 
+pub fn build_aurowork_args(
+    host: &str,
+    port: u16,
+    workspace_paths: &[String],
+    token: &str,
+    host_token: &str,
+    auro_base_url: Option<&str>,
+    auro_directory: Option<&str>,
+) -> Vec<String> {
+    let mut args = vec![
+        "--host".to_string(),
+        host.to_string(),
+        "--port".to_string(),
+        port.to_string(),
+        "--token".to_string(),
+        token.to_string(),
+        "--host-token".to_string(),
+        host_token.to_string(),
+        // Always allow all origins since the AuroWork server is designed to accept
+        // remote connections from client devices (phones, laptops) which may use
+        // different origins (localhost dev servers, tauri apps, web browsers).
+        "--cors".to_string(),
+        "*".to_string(),
+        // Auto-approve write operations when running from the desktop app.
+        // The user is already authenticated as host and in control of the UI.
+        "--approval".to_string(),
+        "auto".to_string(),
+    ];
+
+    for workspace_path in workspace_paths {
+        if !workspace_path.trim().is_empty() {
+            args.push("--workspace".to_string());
+            args.push(workspace_path.to_string());
+        }
+    }
+
+    if let Some(base_url) = auro_base_url {
+        if !base_url.trim().is_empty() {
+            args.push("--auro-base-url".to_string());
+            args.push(base_url.to_string());
+        }
+    }
+
+    if let Some(directory) = auro_directory {
+        if !directory.trim().is_empty() {
+            args.push("--auro-directory".to_string());
+            args.push(directory.to_string());
+        }
+    }
+
+    args
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn spawn_aurowork_server(
+    app: &AppHandle,
+    host: &str,
+    port: u16,
+    workspace_paths: &[String],
+    token: &str,
+    host_token: &str,
+    auro_base_url: Option<&str>,
+    auro_directory: Option<&str>,
+    auro_username: Option<&str>,
+    auro_password: Option<&str>,
+) -> Result<(Receiver<CommandEvent>, CommandChild), String> {
+    let command = match app.shell().sidecar("aurowork-server") {
+        Ok(command) => command,
+        Err(_) => app.shell().command("aurowork-server"),
+    };
+
+    let args = build_aurowork_args(
+        host,
+        port,
+        workspace_paths,
+        token,
+        host_token,
+        auro_base_url,
+        auro_directory,
+    );
+    let cwd = workspace_paths
+        .first()
+        .map(Path::new)
+        .unwrap_or_else(|| Path::new("."));
+    let mut command = command.args(args).current_dir(cwd);
+
+    if let Some(username) = auro_username {
+        if !username.trim().is_empty() {
+            command = command.env("AUROWORK_AURO_USERNAME", username);
+        }
+    }
+
+    if let Some(password) = auro_password {
+        if !password.trim().is_empty() {
+            command = command.env("AUROWORK_AURO_PASSWORD", password);
+        }
+    }
+
+    for (key, value) in crate::bun_env::bun_env_overrides() {
+        command = command.env(key, value);
+    }
+
+    command
+        .spawn()
+        .map_err(|e| format!("Failed to start AuroWork server: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{resolve_aurowork_port, AUROWORK_PORT_RANGE_END, AUROWORK_PORT_RANGE_START};
@@ -110,110 +217,4 @@ mod tests {
         assert!(resolved >= AUROWORK_PORT_RANGE_START);
         assert!(resolved <= AUROWORK_PORT_RANGE_END);
     }
-}
-
-pub fn build_aurowork_args(
-    host: &str,
-    port: u16,
-    workspace_paths: &[String],
-    token: &str,
-    host_token: &str,
-    opencode_base_url: Option<&str>,
-    opencode_directory: Option<&str>,
-) -> Vec<String> {
-    let mut args = vec![
-        "--host".to_string(),
-        host.to_string(),
-        "--port".to_string(),
-        port.to_string(),
-        "--token".to_string(),
-        token.to_string(),
-        "--host-token".to_string(),
-        host_token.to_string(),
-        // Always allow all origins since the AuroWork server is designed to accept
-        // remote connections from client devices (phones, laptops) which may use
-        // different origins (localhost dev servers, tauri apps, web browsers).
-        "--cors".to_string(),
-        "*".to_string(),
-        // Auto-approve write operations when running from the desktop app.
-        // The user is already authenticated as host and in control of the UI.
-        "--approval".to_string(),
-        "auto".to_string(),
-    ];
-
-    for workspace_path in workspace_paths {
-        if !workspace_path.trim().is_empty() {
-            args.push("--workspace".to_string());
-            args.push(workspace_path.to_string());
-        }
-    }
-
-    if let Some(base_url) = opencode_base_url {
-        if !base_url.trim().is_empty() {
-            args.push("--opencode-base-url".to_string());
-            args.push(base_url.to_string());
-        }
-    }
-
-    if let Some(directory) = opencode_directory {
-        if !directory.trim().is_empty() {
-            args.push("--opencode-directory".to_string());
-            args.push(directory.to_string());
-        }
-    }
-
-    args
-}
-
-pub fn spawn_aurowork_server(
-    app: &AppHandle,
-    host: &str,
-    port: u16,
-    workspace_paths: &[String],
-    token: &str,
-    host_token: &str,
-    opencode_base_url: Option<&str>,
-    opencode_directory: Option<&str>,
-    opencode_username: Option<&str>,
-    opencode_password: Option<&str>,
-) -> Result<(Receiver<CommandEvent>, CommandChild), String> {
-    let command = match app.shell().sidecar("aurowork-server") {
-        Ok(command) => command,
-        Err(_) => app.shell().command("aurowork-server"),
-    };
-
-    let args = build_aurowork_args(
-        host,
-        port,
-        workspace_paths,
-        token,
-        host_token,
-        opencode_base_url,
-        opencode_directory,
-    );
-    let cwd = workspace_paths
-        .first()
-        .map(|path| Path::new(path))
-        .unwrap_or_else(|| Path::new("."));
-    let mut command = command.args(args).current_dir(cwd);
-
-    if let Some(username) = opencode_username {
-        if !username.trim().is_empty() {
-            command = command.env("AUROWORK_OPENCODE_USERNAME", username);
-        }
-    }
-
-    if let Some(password) = opencode_password {
-        if !password.trim().is_empty() {
-            command = command.env("AUROWORK_OPENCODE_PASSWORD", password);
-        }
-    }
-
-    for (key, value) in crate::bun_env::bun_env_overrides() {
-        command = command.env(key, value);
-    }
-
-    command
-        .spawn()
-        .map_err(|e| format!("Failed to start AuroWork server: {e}"))
 }

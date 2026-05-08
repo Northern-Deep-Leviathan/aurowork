@@ -25,8 +25,8 @@ import {
   normalizeSessionStatus,
   safeStringify,
 } from "../utils";
-import { unwrap } from "../lib/opencode";
-import { abortSessionSafe } from "../lib/opencode-session";
+import { unwrap } from "../lib/auro";
+import { abortSessionSafe } from "../lib/auro-session";
 import { finishPerf, perfNow, recordPerfLog } from "../lib/perf-log";
 import { debugFileLog } from "../lib/debug-file-log";
 import { describeDirectoryScope, toSessionTransportDirectory } from "../lib/session-scope";
