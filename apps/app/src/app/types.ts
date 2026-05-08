@@ -6,8 +6,8 @@ import type {
   ProviderListResponse,
   Session,
 } from "@opencode-ai/sdk/v2/client";
-import type { createClient } from "./lib/opencode";
-import type { OpencodeConfigFile, WorkspaceInfo } from "./lib/tauri";
+import type { createClient } from "./lib/auro";
+import type { AuroConfigFile, WorkspaceInfo } from "./lib/tauri";
 
 export type Client = ReturnType<typeof createClient>;
 
@@ -155,7 +155,9 @@ export type DashboardTab =
   | "plugins"
   | "mcp"
   | "config"
-  | "settings";
+  | "settings"
+  | "scheduled"
+  | "identities";
 
 export type SettingsTab =
   | "general"
@@ -167,7 +169,9 @@ export type SettingsTab =
   | "appearance"
   | "updates"
   | "recovery"
-  | "debug";
+  | "debug"
+  | "automations"
+  | "messaging";
 
 export type WorkspacePreset = "starter" | "automation" | "minimal";
 
@@ -189,10 +193,57 @@ export type WorkspaceAuroworkConfig = {
     preset?: string | null;
   } | null;
   authorizedRoots: string[];
+  blueprint?: {
+    emptyState?: {
+      title?: string | null;
+      body?: string | null;
+      starters?: Array<{
+        id?: string | null;
+        title?: string | null;
+        description?: string | null;
+        prompt?: string | null;
+        action?: string | null;
+        kind?: string | null;
+        label?: string | null;
+      }> | null;
+    } | null;
+    sessions?: Array<{
+      id?: string | null;
+      title?: string | null;
+      messages?: Array<{ role?: "assistant" | "user" | null; text?: string | null }> | null;
+      openOnFirstLoad?: boolean | null;
+    }> | null;
+    starters?: Array<{
+      id?: string | null;
+      title?: string | null;
+      description?: string | null;
+      prompt?: string | null;
+      action?: string | null;
+      kind?: string | null;
+      label?: string | null;
+    }> | null;
+    [extra: string]: unknown;
+  } | null;
   reload?: {
     auto?: boolean;
     resume?: boolean;
   } | null;
+};
+
+/**
+ * Stub shape for the (currently pruned) OpenCode router runtime info.
+ * Kept so UI code that reads these fields type-checks; today the value
+ * is always `null` at runtime. Re-author when the router lands.
+ */
+export type OpencodeRouterInfo = {
+  running?: boolean;
+  version?: string | null;
+  healthPort?: number | null;
+  pid?: number | null;
+  opencodeUrl?: string | null;
+  workspacePath?: string | null;
+  lastStdout?: string | null;
+  lastStderr?: string | null;
 };
 
 export type SkillCard = {
@@ -345,7 +396,7 @@ export type WorkspaceState = {
 
 export type PluginState = {
   scope: PluginScope;
-  config: OpencodeConfigFile | null;
+  config: AuroConfigFile | null;
   list: string[];
 };
 

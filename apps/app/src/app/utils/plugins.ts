@@ -1,6 +1,6 @@
 import { parse } from "jsonc-parser";
 
-import type { OpencodeConfigFile } from "../lib/tauri";
+import type { AuroConfigFile } from "../lib/tauri";
 
 type PluginListValue = string | string[] | null | undefined;
 
@@ -78,7 +78,7 @@ export function loadPluginsFromConfig(
   }
 }
 
-export function parsePluginsFromConfig(config: OpencodeConfigFile | null) {
+export function parsePluginsFromConfig(config: AuroConfigFile | null) {
   if (!config?.content) return [] as string[];
   return parsePluginListFromContent(config.content);
 }

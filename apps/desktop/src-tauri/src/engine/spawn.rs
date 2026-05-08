@@ -15,7 +15,7 @@ struct DevModePaths {
     xdg_data_home: PathBuf,
     xdg_cache_home: PathBuf,
     xdg_state_home: PathBuf,
-    opencode_config_dir: PathBuf,
+    auro_config_dir: PathBuf,
 }
 
 const AUROWORK_DEV_DATA_DIR: &str = "aurowork-dev-data";
@@ -33,7 +33,7 @@ fn resolve_dev_mode_paths(app: &AppHandle) -> Result<DevModePaths, String> {
         xdg_data_home: root_dir.join("xdg").join("data"),
         xdg_cache_home: root_dir.join("xdg").join("cache"),
         xdg_state_home: root_dir.join("xdg").join("state"),
-        opencode_config_dir: root_dir.join("config").join("opencode"),
+        auro_config_dir: root_dir.join("config").join("opencode"),
     };
 
     for dir in [
@@ -42,7 +42,7 @@ fn resolve_dev_mode_paths(app: &AppHandle) -> Result<DevModePaths, String> {
         &paths.xdg_data_home,
         &paths.xdg_cache_home,
         &paths.xdg_state_home,
-        &paths.opencode_config_dir,
+        &paths.auro_config_dir,
         &paths.xdg_data_home.join("opencode"),
     ] {
         fs::create_dir_all(dir).map_err(|e| format!("Failed to create {}: {e}", dir.display()))?;
@@ -71,6 +71,7 @@ pub fn build_engine_args(bind_host: &str, port: u16) -> Vec<String> {
     ]
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_engine(
     app: &AppHandle,
     program: &Path,
@@ -79,15 +80,15 @@ pub fn spawn_engine(
     project_dir: &str,
     use_sidecar: bool,
     dev_mode: bool,
-    opencode_username: Option<&str>,
-    opencode_password: Option<&str>,
+    auro_username: Option<&str>,
+    auro_password: Option<&str>,
 ) -> Result<(Receiver<CommandEvent>, CommandChild), String> {
     let args = build_engine_args(hostname, port);
 
     let command = if use_sidecar {
         app.shell()
-            .sidecar("opencode")
-            .map_err(|e| format!("Failed to locate bundled OpenCode sidecar: {e}"))?
+            .sidecar("auro")
+            .map_err(|e| format!("Failed to locate bundled Auro sidecar: {e}"))?
     } else {
         app.shell().command(program)
     };
@@ -103,7 +104,7 @@ pub fn spawn_engine(
         command = command.env("XDG_DATA_HOME", dev_paths.xdg_data_home);
         command = command.env("XDG_CACHE_HOME", dev_paths.xdg_cache_home);
         command = command.env("XDG_STATE_HOME", dev_paths.xdg_state_home);
-        command = command.env("OPENCODE_CONFIG_DIR", dev_paths.opencode_config_dir);
+        command = command.env("OPENCODE_CONFIG_DIR", dev_paths.auro_config_dir);
     } else {
         if let Some(xdg_data_home) = maybe_infer_xdg_home(
             "XDG_DATA_HOME",
@@ -148,13 +149,13 @@ pub fn spawn_engine(
         command = command.env("PATH", path_env);
     }
 
-    if let Some(username) = opencode_username {
+    if let Some(username) = auro_username {
         if !username.trim().is_empty() {
             command = command.env("OPENCODE_SERVER_USERNAME", username);
         }
     }
 
-    if let Some(password) = opencode_password {
+    if let Some(password) = auro_password {
         if !password.trim().is_empty() {
             command = command.env("OPENCODE_SERVER_PASSWORD", password);
         }

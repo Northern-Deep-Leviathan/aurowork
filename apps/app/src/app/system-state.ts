@@ -19,9 +19,9 @@ import { filterProviderList, mapConfigProvidersToList } from "./utils/providers"
 import { createUpdaterState } from "./context/updater";
 import {
   resetAuroworkState,
-  resetOpencodeCache,
+  resetAuroCache,
 } from "./lib/tauri";
-import { unwrap, waitForHealthy } from "./lib/opencode";
+import { unwrap, waitForHealthy } from "./lib/auro";
 
 function throttle<T extends (...args: any[]) => any>(
   fn: T,
@@ -409,7 +409,7 @@ export function createSystemState(options: {
     options.setError(null);
 
     try {
-      const result = await resetOpencodeCache();
+      const result = await resetAuroCache();
       if (result.errors.length) {
         setCacheRepairResult(result.errors[0]);
         return;

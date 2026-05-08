@@ -425,6 +425,7 @@ pub fn workspace_create(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn workspace_create_remote(
     app: tauri::AppHandle,
     base_url: String,
@@ -546,6 +547,7 @@ pub fn workspace_create_remote(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn workspace_update_remote(
     app: tauri::AppHandle,
     workspace_id: String,
@@ -842,6 +844,7 @@ fn should_exclude(path: &Path) -> bool {
     is_secret_name(name)
 }
 
+#[allow(clippy::type_complexity)]
 fn collect_workspace_entries(
     workspace_root: &Path,
 ) -> Result<(Vec<(PathBuf, String)>, Vec<String>), String> {
@@ -1016,11 +1019,13 @@ pub fn workspace_import_config(
             continue;
         }
         let entry_path = Path::new(&name);
-        if entry_path.components().any(|component| match component {
-            std::path::Component::ParentDir
-            | std::path::Component::RootDir
-            | std::path::Component::Prefix(_) => true,
-            _ => false,
+        if entry_path.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
         }) {
             return Err("Archive contains an unsafe path".to_string());
         }

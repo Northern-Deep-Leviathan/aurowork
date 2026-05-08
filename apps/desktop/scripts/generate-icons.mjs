@@ -3,51 +3,61 @@
  * Uses sharp to render SVG → PNG at multiple sizes, plus ICO.
  */
 import sharp from "sharp";
-import { writeFileSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const iconsDir = join(__dirname, "..", "src-tauri", "icons");
+const logoSourcePath = join(iconsDir, "logo-template.svg");
+const webPublicDir = join(__dirname, "..", "..", "app", "public");
 
-// Aurora Flame SVG — matching the in-app logo design
-// Uses terracotta #C4745B as the brand color on a transparent background
+function logoImageHref() {
+  const sourceSvg = readFileSync(logoSourcePath, "utf8");
+  const match = sourceSvg.match(/xlink:href="([^"]+)"/);
+
+  if (!match) {
+    throw new Error(`Unable to find embedded image data in ${logoSourcePath}`);
+  }
+
+  return match[1].replace(/\s+/g, "");
+}
+
+const logoHref = logoImageHref();
+
+// AuroWork mark — sourced from icons/logo-template.svg so generated icons match it.
+function markSvg(size) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${size}" height="${size}" viewBox="0 0 980 985" fill="none">
+  <image width="980" height="985" x="0" y="0" xlink:href="${logoHref}"/>
+</svg>`;
+}
+
+// Transparent-background variant (e.g. for in-app monochrome use)
 function flameSvg(size) {
-  // Scale factor from the 32x32 viewBox
-  const s = size / 32;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 32 32" fill="none">
-  <path d="M16 3C12.5 8 7 14 7 20a9 9 0 0 0 18 0c0-6-5.5-12-9-17Z" fill="#C4745B" opacity="0.25"/>
-  <path d="M16 7C13.5 11 10 15.5 10 20a6 6 0 0 0 12 0c0-4.5-3.5-9-6-13Z" fill="#C4745B" opacity="0.55"/>
-  <path d="M16 12C14.5 14.5 13 17 13 20a3 3 0 0 0 6 0c0-3-1.5-5.5-3-8Z" fill="#C4745B"/>
-</svg>`;
+  return markSvg(size);
 }
 
-// Rounded-square app icon SVG (macOS/Windows style with background)
+// App icon SVG — full-bleed circular mark (no rounded-square frame).
 function appIconSvg(size) {
-  const r = Math.round(size * 0.22); // corner radius ~22%
-  const pad = Math.round(size * 0.15); // padding for the flame inside
-  const innerSize = size - pad * 2;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none">
-  <rect width="${size}" height="${size}" rx="${r}" fill="#FAF9F6"/>
-  <rect x="0.5" y="0.5" width="${size - 1}" height="${size - 1}" rx="${r}" stroke="#E8E4DE" stroke-width="1" fill="none"/>
-  <g transform="translate(${pad}, ${pad})">
-    <svg width="${innerSize}" height="${innerSize}" viewBox="0 0 32 32" fill="none">
-      <path d="M16 3C12.5 8 7 14 7 20a9 9 0 0 0 18 0c0-6-5.5-12-9-17Z" fill="#C4745B" opacity="0.25"/>
-      <path d="M16 7C13.5 11 10 15.5 10 20a6 6 0 0 0 12 0c0-4.5-3.5-9-6-13Z" fill="#C4745B" opacity="0.55"/>
-      <path d="M16 12C14.5 14.5 13 17 13 20a3 3 0 0 0 6 0c0-3-1.5-5.5-3-8Z" fill="#C4745B"/>
-    </svg>
-  </g>
-</svg>`;
+  return markSvg(size);
 }
 
-async function generatePng(svg, outputPath, size) {
-  const buffer = Buffer.from(svg);
-  await sharp(buffer)
-    .resize(size, size)
-    .png()
-    .toFile(outputPath);
+async function generatePng(svg, outputPath, size, { tint } = {}) {
+  let pipeline = sharp(Buffer.from(svg)).resize(size, size).png();
+  if (tint) pipeline = pipeline.tint(tint);
+  await pipeline.toFile(outputPath);
   console.log(`  ✓ ${outputPath} (${size}x${size})`);
 }
+
+async function generatePngBuffer(svg, size, { tint } = {}) {
+  let pipeline = sharp(Buffer.from(svg)).resize(size, size).png();
+  if (tint) pipeline = pipeline.tint(tint);
+  return pipeline.toBuffer();
+}
+
+// Dev shade — a warmer terracotta tint applied uniformly to dev icons so they
+// are visually distinct from production builds in the dock / taskbar.
+const DEV_TINT = { r: 0xD9, g: 0x8B, b: 0x6E };
 
 // Simple ICO file generator (single-image ICO)
 function createIco(pngBuffers) {
@@ -102,10 +112,61 @@ function createIco(pngBuffers) {
   return ico;
 }
 
+// ICNS file generator (Apple Icon Image format, PNG-based chunks).
+// Spec: 8-byte header ("icns" + total BE size), then typed chunks
+// (4-byte OSType + 4-byte BE size + PNG data). Modern macOS reads PNG payloads
+// directly, so we don't need RGBA-encoded chunks. Works cross-platform —
+// no `iconutil` required.
+//
+// chunks: array of { type: 4-char string, png: Buffer }
+function createIcns(chunks) {
+  const HEADER = 8;
+  const CHUNK_HEADER = 8;
+  let totalSize = HEADER;
+  for (const { png } of chunks) totalSize += CHUNK_HEADER + png.length;
+
+  const out = Buffer.alloc(totalSize);
+  out.write("icns", 0, "ascii");
+  out.writeUInt32BE(totalSize, 4);
+
+  let offset = HEADER;
+  for (const { type, png } of chunks) {
+    out.write(type, offset, "ascii");
+    out.writeUInt32BE(CHUNK_HEADER + png.length, offset + 4);
+    png.copy(out, offset + CHUNK_HEADER);
+    offset += CHUNK_HEADER + png.length;
+  }
+  return out;
+}
+
+// Map each ICNS chunk type to its rendered pixel size. Modern macOS readers
+// pick from this set when displaying app icons across DPI/contexts.
+const ICNS_CHUNKS = [
+  { type: "icp4", size: 16 },
+  { type: "icp5", size: 32 },
+  { type: "ic07", size: 128 },
+  { type: "ic08", size: 256 },
+  { type: "ic09", size: 512 },
+  { type: "ic10", size: 1024 }, // 512@2x
+  { type: "ic11", size: 32 },   // 16@2x
+  { type: "ic12", size: 64 },   // 32@2x
+  { type: "ic13", size: 256 },  // 128@2x
+  { type: "ic14", size: 512 },  // 256@2x
+];
+
+async function buildIcnsFromSvg(svgFn, { tint } = {}) {
+  const chunks = [];
+  for (const { type, size } of ICNS_CHUNKS) {
+    const png = await generatePngBuffer(svgFn(size), size, { tint });
+    chunks.push({ type, png });
+  }
+  return createIcns(chunks);
+}
+
 async function main() {
   console.log("Generating AuroWork icons...\n");
 
-  // Generate PNG files with app-icon style (rounded square with background)
+  // Generate PNG files with app-icon style
   const sizes = [
     { name: "32x32.png", size: 32 },
     { name: "128x128.png", size: 128 },
@@ -134,15 +195,45 @@ async function main() {
   writeFileSync(join(iconsDir, "icon.ico"), icoBuffer);
   console.log(`  ✓ ${join(iconsDir, "icon.ico")} (multi-size)`);
 
-  // Generate dev icon (slightly different tint for dev builds)
+  // Generate ICNS (macOS) — both production and dev variants.
+  console.log("\n  Generating icon.icns...");
+  const icnsBuffer = await buildIcnsFromSvg(appIconSvg);
+  writeFileSync(join(iconsDir, "icon.icns"), icnsBuffer);
+  console.log(`  ✓ ${join(iconsDir, "icon.icns")} (multi-size)`);
+
+  console.log("\n  Generating icon-dev.icns...");
+  const icnsDevBuffer = await buildIcnsFromSvg(markSvg, { tint: DEV_TINT });
+  writeFileSync(join(iconsDir, "icon-dev.icns"), icnsDevBuffer);
+  console.log(`  ✓ ${join(iconsDir, "icon-dev.icns")} (multi-size, dev tint)`);
+
+  // Generate dev icons (PNGs) — same tint applied uniformly.
   console.log("\n  Generating dev icons...");
   const devDir = join(iconsDir, "dev");
   mkdirSync(devDir, { recursive: true });
 
   for (const { name, size } of sizes) {
-    // Dev icon uses a slightly different shade
-    const svg = appIconSvg(size).replace(/#C4745B/g, "#D98B6E").replace(/#FAF9F6/g, "#1A1917").replace(/#E8E4DE/g, "#2E2B27");
-    await generatePng(svg, join(devDir, name), size);
+    const svg = markSvg(size);
+    await generatePng(svg, join(devDir, name), size, { tint: DEV_TINT });
+  }
+
+  // Publish the canonical SVG + favicon PNGs to the web app's public dir so the
+  // SolidJS <AuroWorkLogo> component and browser favicons stay in sync with
+  // the desktop icon source of truth.
+  console.log("\n  Publishing web assets to apps/app/public...");
+  mkdirSync(webPublicDir, { recursive: true });
+  copyFileSync(logoSourcePath, join(webPublicDir, "aurowork-logo.svg"));
+  copyFileSync(logoSourcePath, join(webPublicDir, "aurowork-logo-square.svg"));
+  console.log(`  ✓ ${join(webPublicDir, "aurowork-logo.svg")}`);
+  console.log(`  ✓ ${join(webPublicDir, "aurowork-logo-square.svg")}`);
+
+  const faviconSizes = [
+    { name: "favicon-16x16.png", size: 16 },
+    { name: "favicon-32x32.png", size: 32 },
+    { name: "apple-touch-icon.png", size: 180 },
+  ];
+  for (const { name, size } of faviconSizes) {
+    const svg = markSvg(size);
+    await generatePng(svg, join(webPublicDir, name), size);
   }
 
   console.log("\n✅ All icons generated successfully!");

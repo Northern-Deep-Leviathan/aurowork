@@ -305,7 +305,7 @@ export async function ensureWorkspaceFiles(workspaceRoot: string, presetInput: s
   await ensureWorkspaceAuroworkConfig(workspaceRoot, preset);
 }
 
-export async function readRawOpencodeConfig(path: string): Promise<{ exists: boolean; content: string | null }> {
+export async function readRawAuroConfig(path: string): Promise<{ exists: boolean; content: string | null }> {
   const hasFile = await exists(path);
   if (!hasFile) {
     return { exists: false, content: null };

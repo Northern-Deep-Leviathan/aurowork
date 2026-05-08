@@ -17,7 +17,7 @@ import type {
 } from "@opencode-ai/sdk/v2/client";
 
 import type { McpStatusMap, TodoItem } from "../types";
-import { unwrap } from "../lib/opencode";
+import { unwrap } from "../lib/auro";
 import { safeStringify } from "../utils";
 import { filterProviderList, mapConfigProvidersToList } from "../utils/providers";
 import { useGlobalSDK } from "./global-sdk";

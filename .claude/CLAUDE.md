@@ -55,7 +55,7 @@ pnpm test:e2e         # E2E 测试
 ## 重要约定
 
 - 修改 `apps/server/src` 后需要重新构建: `pnpm --filter aurowork-server build:bin`
-- OpenCode 保持 loopback (127.0.0.1:4096)，不直接暴露
+- Auro 引擎 (上游 OpenCode binary) 保持 loopback (127.0.0.1:4096)，不直接暴露
 - 桌面端 AuroWork Server 端口范围: 48000-51000
 - 优先使用 OpenCode 原生 primitives (sessions, skills, plugins, commands)
 

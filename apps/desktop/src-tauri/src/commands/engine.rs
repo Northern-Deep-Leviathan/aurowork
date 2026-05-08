@@ -1,9 +1,9 @@
 use tauri::{AppHandle, Manager, State};
 
 use crate::aurowork_server::{manager::AuroworkServerManager, start_aurowork_server};
-use crate::config::{read_opencode_config, write_opencode_config};
+use crate::config::{read_auro_config, write_auro_config};
 use crate::engine::doctor::{
-    opencode_serve_help, opencode_version, resolve_engine_path, resolve_sidecar_candidate,
+    auro_serve_help, auro_version, resolve_engine_path, resolve_sidecar_candidate,
 };
 use crate::engine::manager::EngineManager;
 use crate::engine::spawn::{find_free_port, spawn_engine};
@@ -15,7 +15,7 @@ use serde_json::json;
 use tauri_plugin_shell::process::CommandEvent;
 use uuid::Uuid;
 
-const MANAGED_OPENCODE_CREDENTIAL_LENGTH: usize = 512;
+const MANAGED_AURO_CREDENTIAL_LENGTH: usize = 512;
 
 struct EnvVarGuard {
     key: &'static str,
@@ -60,7 +60,7 @@ fn aurowork_dev_mode_enabled() -> bool {
     env_truthy("AUROWORK_DEV_MODE").unwrap_or(cfg!(debug_assertions))
 }
 
-fn pinned_opencode_version() -> String {
+fn pinned_auro_version() -> String {
     let constants = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../constants.json"
@@ -75,10 +75,10 @@ fn pinned_opencode_version() -> String {
         .to_string()
 }
 
-fn pinned_opencode_install_command() -> String {
+fn pinned_auro_install_command() -> String {
     format!(
         "curl -fsSL https://opencode.ai/install | bash -s -- --version {} --no-modify-path",
-        pinned_opencode_version()
+        pinned_auro_version()
     )
 }
 
@@ -91,11 +91,11 @@ struct OutputState {
 }
 
 fn generate_managed_opencode_secret() -> String {
-    let mut value = String::with_capacity(MANAGED_OPENCODE_CREDENTIAL_LENGTH);
-    while value.len() < MANAGED_OPENCODE_CREDENTIAL_LENGTH {
+    let mut value = String::with_capacity(MANAGED_AURO_CREDENTIAL_LENGTH);
+    while value.len() < MANAGED_AURO_CREDENTIAL_LENGTH {
         value.push_str(&Uuid::new_v4().simple().to_string());
     }
-    value.truncate(MANAGED_OPENCODE_CREDENTIAL_LENGTH);
+    value.truncate(MANAGED_AURO_CREDENTIAL_LENGTH);
     value
 }
 
@@ -130,7 +130,7 @@ pub fn engine_info(
             .ok()
             .and_then(|state| state.last_stderr.clone());
         let status = orchestrator::resolve_orchestrator_status(&data_dir, last_stderr.clone());
-        let opencode = status.opencode.clone();
+        let opencode = status.auro.clone();
         let base_url = opencode
             .as_ref()
             .map(|entry| format!("http://127.0.0.1:{}", entry.port));
@@ -142,18 +142,18 @@ pub fn engine_info(
             .or_else(|| state.project_dir.clone());
 
         // The orchestrator can keep running across app relaunches. In that case, the in-memory
-        // EngineManager state (including opencode basic auth) is lost. Persist a small
+        // EngineManager state (including Auro basic auth) is lost. Persist a small
         // auth snapshot next to aurowork-orchestrator-state.json so the UI can reconnect.
         let auth_snapshot = orchestrator::read_orchestrator_auth(&data_dir);
-        let opencode_username = state.opencode_username.clone().or_else(|| {
+        let auro_username = state.auro_username.clone().or_else(|| {
             auth_snapshot
                 .as_ref()
-                .and_then(|auth| auth.opencode_username.clone())
+                .and_then(|auth| auth.auro_username.clone())
         });
-        let opencode_password = state.opencode_password.clone().or_else(|| {
+        let auro_password = state.auro_password.clone().or_else(|| {
             auth_snapshot
                 .as_ref()
-                .and_then(|auth| auth.opencode_password.clone())
+                .and_then(|auth| auth.auro_password.clone())
         });
         let project_dir = project_dir.or_else(|| auth_snapshot.and_then(|auth| auth.project_dir));
         return EngineInfo {
@@ -163,8 +163,8 @@ pub fn engine_info(
             project_dir,
             hostname: Some("127.0.0.1".to_string()),
             port: opencode.as_ref().map(|entry| entry.port),
-            opencode_username,
-            opencode_password,
+            auro_username,
+            auro_password,
             pid: opencode.as_ref().map(|entry| entry.pid),
             last_stdout,
             last_stderr,
@@ -196,7 +196,7 @@ pub fn engine_restart(
     manager: State<EngineManager>,
     orchestrator_manager: State<OrchestratorManager>,
     aurowork_manager: State<AuroworkServerManager>,
-    opencode_enable_exa: Option<bool>,
+    auro_enable_exa: Option<bool>,
     aurowork_remote_access: Option<bool>,
 ) -> Result<EngineInfo, String> {
     let (project_dir, runtime) = {
@@ -205,7 +205,7 @@ pub fn engine_restart(
             state
                 .project_dir
                 .clone()
-                .ok_or_else(|| "OpenCode is not configured for a local workspace".to_string())?,
+                .ok_or_else(|| "Auro is not configured for a local workspace".to_string())?,
             state.runtime.clone(),
         )
     };
@@ -219,7 +219,7 @@ pub fn engine_restart(
         project_dir,
         None,
         None,
-        opencode_enable_exa,
+        auro_enable_exa,
         aurowork_remote_access,
         Some(runtime),
         Some(workspace_paths),
@@ -230,7 +230,7 @@ pub fn engine_restart(
 pub fn engine_doctor(
     app: AppHandle,
     prefer_sidecar: Option<bool>,
-    opencode_bin_path: Option<String>,
+    auro_bin_path: Option<String>,
 ) -> EngineDoctorResult {
     let prefer_sidecar = prefer_sidecar.unwrap_or(false);
     let resource_dir = app.path().resource_dir().ok();
@@ -239,7 +239,7 @@ pub fn engine_doctor(
         .ok()
         .and_then(|path| path.parent().map(|parent| parent.to_path_buf()));
 
-    let _guard = EnvVarGuard::apply("OPENCODE_BIN_PATH", opencode_bin_path.as_deref());
+    let _guard = EnvVarGuard::apply("AURO_BIN_PATH", auro_bin_path.as_deref());
 
     let (resolved, in_path, notes) = resolve_engine_path(
         prefer_sidecar,
@@ -250,14 +250,8 @@ pub fn engine_doctor(
     let (version, supports_serve, serve_help_status, serve_help_stdout, serve_help_stderr) =
         match resolved.as_ref() {
             Some(path) => {
-                let (ok, status, stdout, stderr) = opencode_serve_help(path.as_os_str());
-                (
-                    opencode_version(path.as_os_str()),
-                    ok,
-                    status,
-                    stdout,
-                    stderr,
-                )
+                let (ok, status, stdout, stderr) = auro_serve_help(path.as_os_str());
+                (auro_version(path.as_os_str()), ok, status, stdout, stderr)
             }
             None => (None, false, None, None, None),
         };
@@ -296,7 +290,7 @@ pub fn engine_install() -> Result<ExecResult, String> {
 
         let output = std::process::Command::new("bash")
             .arg("-lc")
-            .arg(pinned_opencode_install_command())
+            .arg(pinned_auro_install_command())
             .env("OPENCODE_INSTALL_DIR", install_dir)
             .output()
             .map_err(|e| format!("Failed to run installer: {e}"))?;
@@ -312,6 +306,7 @@ pub fn engine_install() -> Result<ExecResult, String> {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn engine_start(
     app: AppHandle,
     manager: State<EngineManager>,
@@ -319,8 +314,8 @@ pub fn engine_start(
     aurowork_manager: State<AuroworkServerManager>,
     project_dir: String,
     prefer_sidecar: Option<bool>,
-    opencode_bin_path: Option<String>,
-    opencode_enable_exa: Option<bool>,
+    auro_bin_path: Option<String>,
+    auro_enable_exa: Option<bool>,
     aurowork_remote_access: Option<bool>,
     runtime: Option<EngineRuntime>,
     workspace_paths: Option<Vec<String>>,
@@ -336,13 +331,13 @@ pub fn engine_start(
     std::fs::create_dir_all(&project_dir)
         .map_err(|e| format!("Failed to create projectDir directory: {e}"))?;
 
-    let config = read_opencode_config("project", &project_dir)?;
+    let config = read_auro_config("project", &project_dir)?;
     if !config.exists {
         let content = serde_json::to_string_pretty(&json!({
             "$schema": "https://opencode.ai/config.json",
         }))
         .map_err(|e| format!("Failed to serialize opencode config: {e}"))?;
-        let write_result = write_opencode_config("project", &project_dir, &format!("{content}\n"))?;
+        let write_result = write_auro_config("project", &project_dir, &format!("{content}\n"))?;
         if !write_result.ok {
             return Err(write_result.stderr);
         }
@@ -362,8 +357,8 @@ pub fn engine_start(
     let aurowork_remote_access_enabled = aurowork_remote_access.unwrap_or(false);
     let (managed_opencode_username, managed_opencode_password) =
         generate_managed_opencode_credentials();
-    let opencode_username = Some(managed_opencode_username);
-    let opencode_password = Some(managed_opencode_password);
+    let auro_username = Some(managed_opencode_username);
+    let auro_password = Some(managed_opencode_password);
 
     let mut state = manager.inner.lock().expect("engine mutex poisoned");
     EngineManager::stop_locked(&mut state);
@@ -377,7 +372,7 @@ pub fn engine_start(
         .ok()
         .and_then(|path| path.parent().map(|parent| parent.to_path_buf()));
     let prefer_sidecar = prefer_sidecar.unwrap_or(false);
-    let _guard = EnvVarGuard::apply("OPENCODE_BIN_PATH", opencode_bin_path.as_deref());
+    let _guard = EnvVarGuard::apply("AURO_BIN_PATH", auro_bin_path.as_deref());
     let (program, _in_path, notes) = resolve_engine_path(
         prefer_sidecar,
         resource_dir.as_deref(),
@@ -385,7 +380,7 @@ pub fn engine_start(
     );
     let Some(program) = program else {
         let notes_text = notes.join("\n");
-        let install_command = pinned_opencode_install_command();
+        let install_command = pinned_auro_install_command();
         return Err(format!(
             "OpenCode CLI not found.\n\nInstall with:\n- {install_command}\n\nNotes:\n{notes_text}"
         ));
@@ -416,9 +411,9 @@ pub fn engine_start(
             opencode_host: bind_host.clone(),
             opencode_workdir: project_dir.clone(),
             opencode_port: Some(port),
-            opencode_username: opencode_username.clone(),
-            opencode_password: opencode_password.clone(),
-            opencode_enable_exa: opencode_enable_exa.unwrap_or(false),
+            opencode_username: auro_username.clone(),
+            opencode_password: auro_password.clone(),
+            opencode_enable_exa: auro_enable_exa.unwrap_or(false),
             cors: Some("*".to_string()),
         };
 
@@ -427,8 +422,8 @@ pub fn engine_start(
         // Persist basic auth (and project dir) so relaunches can attach.
         let _ = orchestrator::write_orchestrator_auth(
             &data_dir,
-            opencode_username.as_deref(),
-            opencode_password.as_deref(),
+            auro_username.as_deref(),
+            auro_password.as_deref(),
             Some(project_dir.as_str()),
         );
 
@@ -501,7 +496,7 @@ pub fn engine_start(
                 format!("Failed to start orchestrator (waited {health_timeout_ms}ms): {e}")
             })?;
         let opencode = health
-            .opencode
+            .auro
             .ok_or_else(|| "Orchestrator did not report OpenCode status".to_string())?;
         let opencode_port = opencode.port;
         let opencode_base_url = format!("http://127.0.0.1:{opencode_port}");
@@ -515,8 +510,8 @@ pub fn engine_start(
             state.hostname = Some("127.0.0.1".to_string());
             state.port = Some(opencode_port);
             state.base_url = Some(opencode_base_url.clone());
-            state.opencode_username = opencode_username.clone();
-            state.opencode_password = opencode_password.clone();
+            state.auro_username = auro_username.clone();
+            state.auro_password = auro_password.clone();
             state.last_stdout = None;
             state.last_stderr = None;
         }
@@ -526,8 +521,8 @@ pub fn engine_start(
             &aurowork_manager,
             &workspace_paths,
             Some(&opencode_connect_url),
-            opencode_username.as_deref(),
-            opencode_password.as_deref(),
+            auro_username.as_deref(),
+            auro_password.as_deref(),
             aurowork_remote_access_enabled,
         ) {
             if let Ok(mut state) = manager.inner.lock() {
@@ -543,8 +538,8 @@ pub fn engine_start(
             project_dir: Some(project_dir),
             hostname: Some("127.0.0.1".to_string()),
             port: Some(opencode_port),
-            opencode_username,
-            opencode_password,
+            auro_username,
+            auro_password,
             pid: Some(opencode.pid),
             last_stdout: None,
             last_stderr: None,
@@ -559,8 +554,8 @@ pub fn engine_start(
         &project_dir,
         use_sidecar,
         dev_mode,
-        opencode_username.as_deref(),
-        opencode_password.as_deref(),
+        auro_username.as_deref(),
+        auro_password.as_deref(),
     )?;
 
     state.last_stdout = None;
@@ -672,18 +667,18 @@ pub fn engine_start(
     state.hostname = Some(client_host.clone());
     state.port = Some(port);
     state.base_url = Some(format!("http://{client_host}:{port}"));
-    state.opencode_username = opencode_username.clone();
-    state.opencode_password = opencode_password.clone();
+    state.auro_username = auro_username.clone();
+    state.auro_password = auro_password.clone();
 
-    let opencode_connect_url = format!("http://{client_host}:{port}");
+    let auro_connect_url = format!("http://{client_host}:{port}");
 
     if let Err(error) = start_aurowork_server(
         &app,
         &aurowork_manager,
         &workspace_paths,
-        Some(&opencode_connect_url),
-        opencode_username.as_deref(),
-        opencode_password.as_deref(),
+        Some(&auro_connect_url),
+        auro_username.as_deref(),
+        auro_password.as_deref(),
         aurowork_remote_access_enabled,
     ) {
         state.last_stderr = Some(truncate_output(&format!("AuroWork server: {error}"), 8000));
