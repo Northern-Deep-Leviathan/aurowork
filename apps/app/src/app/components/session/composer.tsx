@@ -1887,7 +1887,9 @@ export default function Composer(props: ComposerProps) {
                           onClick={props.onModelClick}
                           disabled={props.busy}
                         >
-                          <span class="max-w-[120px] truncate leading-tight">{props.selectedModelLabel}</span>
+                          <span class="max-w-[160px] truncate leading-tight">
+                            {props.selectedModelLabel || "Add provider"}
+                          </span>
                           <ChevronDown size={12} class="shrink-0 ml-0.5" />
                         </button>
 

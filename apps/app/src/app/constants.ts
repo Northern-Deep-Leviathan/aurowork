@@ -1,6 +1,5 @@
 import type { ModelRef, SuggestedPlugin } from "./types";
 
-export const MODEL_PREF_KEY = "aurowork.defaultModel";
 export const SESSION_MODEL_PREF_KEY = "aurowork.sessionModels";
 export const THINKING_PREF_KEY = "aurowork.showThinking";
 export const VARIANT_PREF_KEY = "aurowork.modelVariant";

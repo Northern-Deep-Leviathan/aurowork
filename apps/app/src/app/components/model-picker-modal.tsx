@@ -14,7 +14,6 @@ export type ModelPickerModalProps = {
   filteredOptions: ModelOption[];
   query: string;
   setQuery: (value: string) => void;
-  target: "default" | "session";
   current: ModelRef;
   onSelect: (model: ModelRef) => void;
   onBehaviorChange: (model: ModelRef, value: string | null) => void;
@@ -226,17 +225,14 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
             <div class="flex items-start justify-between gap-4">
               <div>
                 <h3 class="text-lg font-semibold text-dls-text">
-                  {props.target === "default" ? "Default model" : "Chat model"}
+                  Chat model
                 </h3>
                 <p class="text-sm text-dls-secondary mt-1">
-                  {props.target === "default"
-                    ? "Choose the default model for new chats. If a model supports reasoning profiles, configure them on its card. "
-                    : "Choose the model for this chat. If a model supports reasoning profiles, configure them on its card. "}
+                  Choose the model for this chat. If a model supports reasoning profiles, configure them on its card.{" "}
                   <button
                     type="button"
                     class="text-dls-accent hover:underline cursor-pointer"
                     onClick={() => {
-                      props.onClose({ restorePromptFocus: false });
                       props.onOpenSettings();
                     }}
                   >

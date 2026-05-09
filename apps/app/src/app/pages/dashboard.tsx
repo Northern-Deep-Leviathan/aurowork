@@ -249,17 +249,12 @@ export type DashboardViewProps = {
   createSessionAndOpen: () => void;
   setPrompt: (value: string) => void;
   selectSession: (sessionId: string) => Promise<void> | void;
-  defaultModelLabel: string;
-  defaultModelRef: string;
-  openDefaultModelPicker: () => void;
   showThinking: boolean;
   toggleShowThinking: () => void;
   hideTitlebar: boolean;
   toggleHideTitlebar: () => void;
   auroEnableExa: boolean;
   toggleOpencodeEnableExa: () => void;
-  modelVariantLabel: string;
-  editModelVariant: () => void;
   language: Language;
   setLanguage: (value: Language) => void;
   updateAutoCheck: boolean;
@@ -1480,15 +1475,10 @@ export default function DashboardView(props: DashboardViewProps) {
                   auroEnableExa={props.auroEnableExa}
                   toggleOpencodeEnableExa={props.toggleOpencodeEnableExa}
                   isWindows={props.isWindows}
-                  defaultModelLabel={props.defaultModelLabel}
-                  defaultModelRef={props.defaultModelRef}
-                  openDefaultModelPicker={props.openDefaultModelPicker}
                   showThinking={props.showThinking}
                   toggleShowThinking={props.toggleShowThinking}
                   hideTitlebar={props.hideTitlebar}
                   toggleHideTitlebar={props.toggleHideTitlebar}
-                  modelVariantLabel={props.modelVariantLabel}
-                  editModelVariant={props.editModelVariant}
                   language={props.language}
                   setLanguage={props.setLanguage}
                   updateAutoCheck={props.updateAutoCheck}

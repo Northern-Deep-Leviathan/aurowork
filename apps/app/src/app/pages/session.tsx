@@ -4681,8 +4681,14 @@ export default function SessionView(props: SessionViewProps) {
               onSend={handleSendPrompt}
               onStop={cancelRun}
               onDraftChange={handleDraftChange}
-              selectedModelLabel={props.selectedSessionModelLabel || translate("session.model")}
-              onModelClick={() => props.openSessionModelPicker()}
+              selectedModelLabel={props.selectedSessionModelLabel}
+              onModelClick={() => {
+                if (!props.providerConnectedIds?.length) {
+                  void props.openProviderAuthModal({ returnFocusTarget: "composer" });
+                  return;
+                }
+                props.openSessionModelPicker();
+              }}
               modelVariantLabel={props.modelVariantLabel}
               modelVariant={props.modelVariant}
               modelBehaviorOptions={props.modelBehaviorOptions}

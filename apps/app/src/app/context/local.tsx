@@ -1,7 +1,7 @@
 import { createContext, useContext, type ParentProps } from "solid-js";
 import { createStore, type SetStoreFunction, type Store } from "solid-js/store";
 
-import type { DashboardTab, ModelRef, View } from "../types";
+import type { DashboardTab, View } from "../types";
 import { Persist, persisted } from "../utils/persist";
 
 type LocalUIState = {
@@ -12,7 +12,6 @@ type LocalUIState = {
 type LocalPreferences = {
   showThinking: boolean;
   modelVariant: string | null;
-  defaultModel: ModelRef | null;
 };
 
 type LocalContextValue = {
@@ -39,7 +38,6 @@ export function LocalProvider(props: ParentProps) {
     createStore<LocalPreferences>({
       showThinking: false,
       modelVariant: null,
-      defaultModel: null,
     }),
   );
 
