@@ -55,7 +55,7 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 | Styling | **Tailwind CSS v4** + **Radix color tokens** |
 | Code editor | **CodeMirror 6** |
 | List virtualization | **@tanstack/solid-virtual** |
-| SDK | **@opencode-ai/sdk v1.1.x** (client library; engine version pinned separately in `constants.json`) |
+| SDK | **@opencode-ai/sdk ^1.1.31** (client library; client uses the `/v2` subpath. Engine version is tracked in `constants.json`.) |
 | Bundler | **Vite 6** + `vite-plugin-solid` |
 | i18n | Custom signal-based (EN, JA, ZH, VI, PT-BR) |
 | Fuzzy search | **fuzzysort** (composer @mentions) |
@@ -76,7 +76,7 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 |---------|-----------|
 | Runtime | **Bun** (TypeScript, compiled to binary) |
 | TUI | **@opentui/core** + **@opentui/solid** (orchestrator only) |
-| Agent engine | **OpenCode v1.2.27** via `@opencode-ai/sdk` |
+| Agent engine | **Auro sidecar** (forked from OpenCode upstream; binary still named `opencode[.exe]`). Version pin lives in `constants.json` -- see note below. |
 | Config | `jsonc-parser`, `yaml`, `minimatch` |
 
 ### CI/CD and Tooling
@@ -106,7 +106,7 @@ AuroWork is an **experience layer** on top of [OpenCode](https://opencode.ai), a
 ├── scripts/                  # Build, release, dev utility scripts
 ├── .github/                  # GitHub Actions CI/CD + issue templates
 ├── .opencode/                # OpenCode agent config (skills, commands, agents)
-├── constants.json            # OpenCode version pin (v1.2.27)
+├── constants.json            # Engine version pin (currently `auroVersion: v0.1.0`)
 ├── opencode.jsonc            # OpenCode configuration
 ├── pnpm-workspace.yaml       # Monorepo workspace definition
 └── package.json              # Root workspace package
@@ -264,7 +264,7 @@ PlatformProvider          -> platform abstraction (desktop/web)
 
 #### A) Auro Engine (REST + SSE)
 
-All AI session operations via the upstream OpenCode HTTP server (default `http://127.0.0.1:4096`).
+All AI session operations via the Auro engine HTTP server (loopback `127.0.0.1`; port randomized by the orchestrator, upstream default `4096`, overridable via `--opencode-port` / `AUROWORK_OPENCODE_PORT`).
 
 - **Client creation** (`lib/auro.ts`): Wraps `@opencode-ai/sdk/v2/client`, adds `x-opencode-directory` header
 - **Key operations** (`context/session.ts`): `session.list()`, `session.messages()`, `session.promptAsync()`, `session.todo()`, `permission.list()/reply()`, `question.list()/reply()`, `global.health()`
@@ -352,7 +352,7 @@ src-tauri/src/
 
 The desktop shell manages **three independent sidecar processes**:
 
-#### A. `auro` (AI engine, upstream OpenCode binary)
+#### A. `auro` (AI engine -- Auro sidecar built from forked OpenCode source; binary file still named `opencode`)
 
 - Binary bundled at `src-tauri/sidecars/opencode[-<target-triple>]` (filename owned by upstream)
 - CLI: `opencode serve --hostname 127.0.0.1 --port <free_port> --cors *` (upstream CLI)
@@ -991,7 +991,7 @@ Auro Engine
 | `~/.config/aurowork/server.json` | User home | AuroWork server configuration |
 | `~/.config/aurowork/tokens.json` | User home | Scoped token hashes |
 | `~/.config/opencode/opencode.json` | User home | Global auro engine configuration (upstream path) |
-| `constants.json` | Repo root | Auro engine version pin (`v1.2.27`) |
+| `constants.json` | Repo root | Engine version pin. Current contents: `{ "auroVersion": "v0.1.0" }`. **Note:** several call sites (`engine.rs:70`, `orchestrator/cli.ts:618`, `scripts/release/review.mjs:25`) still read the legacy `opencodeVersion` field -- they will throw until updated. |
 | `tauri.conf.json` | `apps/desktop/src-tauri/` | Tauri build + runtime configuration |
 
 ### 11.2 Environment Variables
