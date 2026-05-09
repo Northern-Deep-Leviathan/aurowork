@@ -133,15 +133,10 @@ export type SettingsViewProps = {
   auroEnableExa: boolean;
   toggleOpencodeEnableExa: () => void;
   isWindows: boolean;
-  defaultModelLabel: string;
-  defaultModelRef: string;
-  openDefaultModelPicker: () => void;
   showThinking: boolean;
   toggleShowThinking: () => void;
   hideTitlebar: boolean;
   toggleHideTitlebar: () => void;
-  modelVariantLabel: string;
-  editModelVariant: () => void;
   language: Language;
   setLanguage: (value: Language) => void;
   themeMode: "light" | "dark" | "system";
@@ -1749,25 +1744,6 @@ export default function SettingsView(props: SettingsViewProps) {
 
               <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
                 <div class="min-w-0">
-                  <div class="text-sm text-dls-text truncate">
-                    {props.defaultModelLabel}
-                  </div>
-                  <div class="text-xs text-dls-secondary font-mono truncate">
-                    {props.defaultModelRef}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  class="text-xs h-8 py-0 px-3 shrink-0"
-                  onClick={props.openDefaultModelPicker}
-                  disabled={props.busy}
-                >
-                  {translate("settings.change")}
-                </Button>
-              </div>
-
-              <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
-                <div class="min-w-0">
                   <div class="text-sm text-dls-text">{translate("settings.show_model_reasoning")}</div>
                   <div class="text-xs text-dls-secondary">
                     {translate("settings.show_model_reasoning_hint")}
@@ -1780,26 +1756,6 @@ export default function SettingsView(props: SettingsViewProps) {
                   disabled={props.busy}
                 >
                   {props.showThinking ? translate("settings.status_on") : translate("settings.status_off")}
-                </Button>
-              </div>
-
-              <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
-                <div class="min-w-0">
-                  <div class="text-sm text-dls-text">{translate("settings.model_behavior_title")}</div>
-                  <div class="text-xs text-dls-secondary truncate">
-                    {translate("settings.model_behavior_hint")}
-                  </div>
-                  <div class="mt-1 text-xs text-dls-secondary font-medium truncate">
-                    {props.modelVariantLabel}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  class="text-xs h-8 py-0 px-3 shrink-0"
-                  onClick={props.editModelVariant}
-                  disabled={props.busy}
-                >
-                  {translate("settings.configure")}
                 </Button>
               </div>
             </div>
