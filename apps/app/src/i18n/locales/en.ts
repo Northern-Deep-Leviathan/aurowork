@@ -1019,7 +1019,7 @@ export default {
   // Settings — Advanced tab: Runtime
   "settings.runtime_title": "Runtime",
   "settings.runtime_description": "Status for your local engine and AuroWork server.",
-  "settings.opencode_engine_title": "OpenCode engine",
+  "settings.opencode_engine_title": "Auro engine",
   "settings.opencode_engine_description": "Local runtime for agents, tools, and model providers.",
   "settings.aurowork_server_title": "AuroWork server",
   "settings.aurowork_server_description": "Session control plane for app sync, workers, and remote access.",

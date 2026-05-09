@@ -941,7 +941,7 @@ export default {
   // Settings — 高级标签页：运行时
   "settings.runtime_title": "运行时",
   "settings.runtime_description": "本地引擎和 AuroWork 服务器的状态。",
-  "settings.opencode_engine_title": "OpenCode 引擎",
+  "settings.opencode_engine_title": "Auro 引擎",
   "settings.opencode_engine_description": "代理、工具和模型提供商的本地运行时。",
   "settings.aurowork_server_title": "AuroWork 服务器",
   "settings.aurowork_server_description": "应用同步、worker 和远程访问的会话控制面板。",
