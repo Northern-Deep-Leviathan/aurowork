@@ -109,12 +109,14 @@ async function buildOnce(entrypoint: string, outdir: string, filename: string, t
   try {
     const constants = JSON.parse(
       readFileSync(resolve("..", "..", "constants.json"), "utf8"),
-    ) as { opencodeVersion?: string };
+    ) as { auroVersion?: string };
     if (
-      typeof constants.opencodeVersion === "string" &&
-      constants.opencodeVersion.trim()
+      typeof constants.auroVersion === "string" &&
+      constants.auroVersion.trim()
     ) {
-      define.__AUROWORK_PINNED_OPENCODE_VERSION__ = `\"${constants.opencodeVersion
+      // NOTE: define name is left as __AUROWORK_PINNED_OPENCODE_VERSION__
+      // for backwards compatibility with any existing global references.
+      define.__AUROWORK_PINNED_OPENCODE_VERSION__ = `\"${constants.auroVersion
         .trim()
         .replace(/^v/, "")}\"`;
     }

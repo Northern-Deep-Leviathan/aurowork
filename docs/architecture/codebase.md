@@ -991,7 +991,7 @@ Auro Engine
 | `~/.config/aurowork/server.json` | User home | AuroWork server configuration |
 | `~/.config/aurowork/tokens.json` | User home | Scoped token hashes |
 | `~/.config/opencode/opencode.json` | User home | Global auro engine configuration (upstream path) |
-| `constants.json` | Repo root | Engine version pin. Current contents: `{ "auroVersion": "v0.1.0" }`. **Note:** several call sites (`engine.rs:70`, `orchestrator/cli.ts:618`, `scripts/release/review.mjs:25`) still read the legacy `opencodeVersion` field -- they will throw until updated. |
+| `constants.json` | Repo root | Engine version pin. Current contents: `{ "auroVersion": "v0.1.0" }`. Consumed by `engine.rs:pinned_auro_version()`, `orchestrator/cli.ts`, `orchestrator/script/build.ts`, `scripts/release/review.mjs`, and the README install snippets. |
 | `tauri.conf.json` | `apps/desktop/src-tauri/` | Tauri build + runtime configuration |
 
 ### 11.2 Environment Variables

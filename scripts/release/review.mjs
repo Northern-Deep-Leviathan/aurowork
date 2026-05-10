@@ -21,8 +21,8 @@ const desktopPkg = readJson(resolve(root, "apps", "desktop", "package.json"));
 const orchestratorPkg = readJson(
   resolve(root, "apps", "orchestrator", "package.json"),
 );
-const pinnedOpencodeVersion = String(
-  readJson(resolve(root, "constants.json")).opencodeVersion ?? "",
+const pinnedAuroVersion = String(
+  readJson(resolve(root, "constants.json")).auroVersion ?? "",
 )
   .trim()
   .replace(/^v/, "");
@@ -41,7 +41,7 @@ const versions = {
   cargo: cargoVersion ?? null,
   server: serverPkg.version ?? null,
   orchestrator: orchestratorPkg.version ?? null,
-  opencode: pinnedOpencodeVersion || null,
+  auro: pinnedAuroVersion || null,
   orchestratorAuroworkServerRange:
     orchestratorPkg.dependencies?.["aurowork-server"] ?? null,
 };
@@ -84,15 +84,15 @@ addCheck(
   versions.desktop && versions.cargo && versions.desktop === versions.cargo,
   `${versions.desktop ?? "?"} vs ${versions.cargo ?? "?"}`,
 );
-if (versions.opencode) {
+if (versions.auro) {
   addCheck(
-    "OpenCode version pin exists",
-    Boolean(versions.opencode),
-    String(versions.opencode),
+    "Auro engine version pin exists",
+    Boolean(versions.auro),
+    String(versions.auro),
   );
 } else {
   addWarning(
-    "OpenCode version is not pinned in constants.json.",
+    "Auro engine version is not pinned in constants.json (auroVersion field).",
   );
 }
 
