@@ -613,10 +613,10 @@ async function readPinnedOpencodeVersion(): Promise<string | undefined> {
     if (await fileExists(candidate)) {
       try {
         const raw = await readFile(candidate, "utf8");
-        const parsed = JSON.parse(raw) as { opencodeVersion?: unknown };
+        const parsed = JSON.parse(raw) as { auroVersion?: unknown };
         const value =
-          typeof parsed.opencodeVersion === "string"
-            ? parsed.opencodeVersion.trim()
+          typeof parsed.auroVersion === "string"
+            ? parsed.auroVersion.trim()
             : "";
         if (!value) continue;
         return value.startsWith("v") ? value.slice(1) : value;

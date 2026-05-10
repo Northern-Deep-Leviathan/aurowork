@@ -138,10 +138,10 @@ Scheduled execution is delegated to the **`opencode-scheduler` plugin** loaded i
         └── {automationId}.log  (per-automation logs)
 ```
 
-## 11. OpenCode Version Pin
+## 11. Auro Engine Version Pin
 
 ```json
-{ "opencodeVersion": "v1.2.27" }
+{ "auroVersion": "v0.1.0" }
 ```
 
 (`constants.json` at repo root.)
