@@ -46,7 +46,7 @@ use commands::workspace::{
 };
 use engine::manager::EngineManager;
 use orchestrator::manager::OrchestratorManager;
-use tauri::{AppHandle, Emitter, Manager, RunEvent};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent};
 use workspace::watch::WorkspaceWatchState;
 
 const NATIVE_DEEP_LINK_EVENT: &str = "aurowork:deep-link-native";

@@ -60,7 +60,6 @@ import {
   DEFAULT_MODEL,
   HIDE_TITLEBAR_PREF_KEY,
   MCP_QUICK_CONNECT,
-  MODEL_PREF_KEY,
   SESSION_MODEL_PREF_KEY,
   SUGGESTED_PLUGINS,
   THINKING_PREF_KEY,
@@ -1517,9 +1516,6 @@ export default function App() {
   >({});
   const [pendingSessionModel, setPendingSessionModel] = createSignal<ModelRef | null>(null);
   const [sessionModelOverridesReady, setSessionModelOverridesReady] = createSignal(false);
-  const [workspaceDefaultModelReady, setWorkspaceDefaultModelReady] = createSignal(false);
-  const [legacyDefaultModel, setLegacyDefaultModel] = createSignal<ModelRef>(DEFAULT_MODEL);
-  const [defaultModelExplicit, setDefaultModelExplicit] = createSignal(false);
   type PromptFocusReturnTarget = "none" | "composer";
 
   const [sessionAgentById, setSessionAgentById] = createSignal<Record<string, string>>({});
@@ -2729,18 +2725,57 @@ export default function App() {
       throw new Error("API key is required");
     }
 
+    const rollback = async () => {
+      try {
+        const authClient = c.auth as unknown as {
+          remove?: (options: { providerID: string }) => Promise<unknown>;
+          set?: (options: { providerID: string; auth: unknown }) => Promise<unknown>;
+        };
+        if (typeof authClient.remove === "function") {
+          await authClient.remove({ providerID: providerId });
+        } else if (typeof authClient.set === "function") {
+          await authClient.set({ providerID: providerId, auth: null });
+        }
+      } catch {
+        // best-effort rollback; swallow secondary errors
+      }
+    };
+
     try {
       await c.auth.set({
         providerID: providerId,
         auth: { type: "api", key: trimmed },
       });
-      await refreshProviders({ dispose: true });
-      return `Connected ${providerId}`;
     } catch (error) {
       const message = describeProviderError(error, "Failed to save API key");
       setProviderAuthError(message);
       throw error instanceof Error ? error : new Error(message);
     }
+
+    let updated;
+    try {
+      updated = await refreshProviders({ dispose: true });
+    } catch (error) {
+      await rollback();
+      const message = describeProviderError(error, "Failed to verify API key");
+      setProviderAuthError(message);
+      throw error instanceof Error ? error : new Error(message);
+    }
+
+    const connected = Array.isArray(updated?.connected) ? updated!.connected : [];
+    if (!connected.includes(providerId)) {
+      await rollback();
+      try {
+        await refreshProviders({ dispose: true });
+      } catch {
+        // ignore secondary refresh failure
+      }
+      const message = `API key was not accepted by ${providerId}. Please double-check the key and try again.`;
+      setProviderAuthError(message);
+      throw new Error(message);
+    }
+
+    return `Connected ${providerId}`;
   }
 
   async function disconnectProvider(providerId: string) {
@@ -3061,7 +3096,30 @@ export default function App() {
     );
   };
 
-  const [defaultModel, setDefaultModel] = createSignal<ModelRef>(DEFAULT_MODEL);
+  const firstConnectedProviderModel = createMemo<ModelRef>(() => {
+    const connected = providerConnectedIds();
+    if (!connected.length) return DEFAULT_MODEL;
+
+    const sortedProviders = providers()
+      .filter((p) => connected.includes(p.id))
+      .slice()
+      .sort(compareProviders);
+
+    for (const provider of sortedProviders) {
+      const models = Object.values(provider.models ?? {})
+        .filter((m) => m.status !== "deprecated")
+        .sort((a, b) => {
+          const aFree = a.cost?.input === 0 && a.cost?.output === 0;
+          const bFree = b.cost?.input === 0 && b.cost?.output === 0;
+          if (aFree !== bFree) return aFree ? -1 : 1;
+          return (a.name ?? a.id).localeCompare(b.name ?? b.id);
+        });
+      if (models.length) {
+        return { providerID: provider.id, modelID: models[0].id };
+      }
+    }
+    return DEFAULT_MODEL;
+  });
   const sessionModelOverridesKey = (workspaceId: string) =>
     `${SESSION_MODEL_PREF_KEY}.${workspaceId}`;
 
@@ -3221,9 +3279,6 @@ export default function App() {
     return Object.keys(next).length ? next : undefined;
   };
   const [modelPickerOpen, setModelPickerOpen] = createSignal(false);
-  const [modelPickerTarget, setModelPickerTarget] = createSignal<
-    "session" | "default"
-  >("session");
   const [modelPickerQuery, setModelPickerQuery] = createSignal("");
   const [modelPickerReturnFocusTarget, setModelPickerReturnFocusTarget] =
     createSignal<PromptFocusReturnTarget>("none");
@@ -3294,7 +3349,6 @@ export default function App() {
     setPendingPermissions,
     setSessionStatusById,
     setSessions,
-    defaultModel,
     modelVariant,
     refreshSkills,
     refreshPlugins,
@@ -5329,9 +5383,6 @@ export default function App() {
       setEngineSource(isTauriRuntime() ? "sidecar" : "path");
       setEngineCustomBinPath("");
       setEngineRuntime("aurowork-orchestrator");
-      setDefaultModel(DEFAULT_MODEL);
-      setLegacyDefaultModel(DEFAULT_MODEL);
-      setDefaultModelExplicit(false);
       setShowThinking(false);
       setHideTitlebar(false);
       setModelVariant(null);
@@ -5873,7 +5924,7 @@ export default function App() {
 
   const selectedSessionModel = createMemo<ModelRef>(() => {
     const id = selectedSessionId();
-    if (!id) return pendingSessionModel() ?? defaultModel();
+    if (!id) return firstConnectedProviderModel();
 
     const override = sessionModelOverrideById()[id];
     if (override) return override;
@@ -5884,7 +5935,7 @@ export default function App() {
     const fromMessages = lastUserModelFromMessages(messages());
     if (fromMessages) return fromMessages;
 
-    return defaultModel();
+    return firstConnectedProviderModel();
   });
 
   const selectedSessionAgent = createMemo(() => {
@@ -5893,9 +5944,17 @@ export default function App() {
     return sessionAgentById()[id] || "aurowork";
   });
 
-  const selectedSessionModelLabel = createMemo(() =>
-    formatModelLabel(selectedSessionModel(), providers())
-  );
+  const selectedSessionModelLabel = createMemo(() => {
+    if (!providerConnectedIds().length) {
+      const id = selectedSessionId();
+      const hasExplicit = Boolean(
+        (id && (sessionModelOverrideById()[id] || sessionModelById()[id])) ||
+        lastUserModelFromMessages(messages())
+      );
+      if (!hasExplicit) return "";
+    }
+    return formatModelLabel(selectedSessionModel(), providers());
+  });
 
   const findProviderModel = (ref: ModelRef) => {
     const provider = providers().find((entry) => entry.id === ref.providerID);
@@ -5921,9 +5980,7 @@ export default function App() {
     return getModelBehaviorSummary(ref.providerID, modelInfo, value);
   };
 
-  const modelPickerCurrent = createMemo(() =>
-    modelPickerTarget() === "default" ? defaultModel() : selectedSessionModel()
-  );
+  const modelPickerCurrent = createMemo(() => selectedSessionModel());
 
   const isHeroModel = (id: string) => {
     const check = id.toLowerCase();
@@ -5941,7 +5998,7 @@ export default function App() {
   const modelOptions = createMemo<ModelOption[]>(() => {
     const allProviders = providers();
     const defaults = providerDefaults();
-    const currentDefault = defaultModel();
+    const currentDefault = selectedSessionModel();
 
     if (!allProviders.length) {
       const behavior = getModelBehaviorCopy(DEFAULT_MODEL, getVariantFor(DEFAULT_MODEL));
@@ -6064,47 +6121,31 @@ export default function App() {
   function openSessionModelPicker(options?: {
     returnFocusTarget?: PromptFocusReturnTarget;
   }) {
-    setModelPickerTarget("session");
     setModelPickerQuery("");
     setModelPickerReturnFocusTarget(options?.returnFocusTarget ?? "composer");
     setModelPickerOpen(true);
   }
 
-  function openDefaultModelPicker() {
-    setModelPickerTarget("default");
-    setModelPickerQuery("");
-    setModelPickerReturnFocusTarget("none");
-    setModelPickerOpen(true);
-  }
-
   function applyModelSelection(next: ModelRef) {
-    const restorePromptFocus = modelPickerTarget() === "session";
-
-    if (modelPickerTarget() === "default") {
-      setDefaultModelExplicit(true);
-      setDefaultModel(next);
-      closeModelPicker({ restorePromptFocus: false });
-      return;
-    }
-
     const id = selectedSessionId();
     if (!id) {
       setPendingSessionModel(next);
-      setDefaultModelExplicit(true);
-      setDefaultModel(next);
-      closeModelPicker({ restorePromptFocus });
+      closeModelPicker({ restorePromptFocus: true });
       return;
     }
 
     setSessionModelOverrideById((current) => ({ ...current, [id]: next }));
-    setDefaultModelExplicit(true);
-    setDefaultModel(next);
-    closeModelPicker({ restorePromptFocus });
+    closeModelPicker({ restorePromptFocus: true });
   }
 
   function openSettingsFromModelPicker() {
-    setTab("settings");
-    setView("dashboard");
+    void (async () => {
+      try {
+        await openProviderAuthModal({ returnFocusTarget: "composer" });
+      } finally {
+        closeModelPicker({ restorePromptFocus: false });
+      }
+    })();
   }
 
   async function connectNotion() {
@@ -6996,24 +7037,6 @@ export default function App() {
           setOpencodeEnableExa(storedOpencodeEnableExa === "1");
         }
 
-        const storedDefaultModel = window.localStorage.getItem(MODEL_PREF_KEY);
-        const parsedDefaultModel = parseModelRef(storedDefaultModel);
-        if (parsedDefaultModel) {
-          setDefaultModel(parsedDefaultModel);
-          setLegacyDefaultModel(parsedDefaultModel);
-        } else {
-          setDefaultModel(DEFAULT_MODEL);
-          setLegacyDefaultModel(DEFAULT_MODEL);
-          try {
-            window.localStorage.setItem(
-              MODEL_PREF_KEY,
-              formatModelRef(DEFAULT_MODEL)
-            );
-          } catch {
-            // ignore
-          }
-        }
-
         const storedThinking = window.localStorage.getItem(THINKING_PREF_KEY);
         if (storedThinking != null) {
           try {
@@ -7344,144 +7367,6 @@ export default function App() {
   };
 
   createEffect(() => {
-    if (typeof window === "undefined") return;
-    const workspaceId = workspaceStore.selectedWorkspaceId();
-    if (!workspaceId) return;
-
-    setWorkspaceDefaultModelReady(false);
-    const workspaceType = workspaceStore.selectedWorkspaceDisplay().workspaceType;
-    const workspaceRoot = workspaceStore.selectedWorkspacePath().trim();
-    const activeClient = client();
-    const auroworkClient = auroworkServerClient();
-    const auroworkWorkspaceId = runtimeWorkspaceId();
-    const auroworkCapabilities = resolvedAuroworkCapabilities();
-    const canUseAuroworkServer =
-      auroworkServerStatus() === "connected" &&
-      auroworkClient &&
-      auroworkWorkspaceId &&
-      auroworkCapabilities?.config?.read;
-
-    let cancelled = false;
-
-    const applyDefault = async () => {
-      let configDefault: ModelRef | null = null;
-      let configFileContent: string | null = null;
-
-      if (workspaceType === "local" && workspaceRoot) {
-        if (canUseAuroworkServer) {
-          try {
-            const config = await auroworkClient.getConfig(auroworkWorkspaceId);
-            const model = typeof config.opencode?.model === "string" ? config.opencode.model : null;
-            configDefault = parseModelRef(model);
-          } catch {
-            // ignore
-          }
-        } else if (isTauriRuntime()) {
-          try {
-            const configFile = await readAuroConfig("project", workspaceRoot);
-            configFileContent = configFile.content;
-            configDefault = parseDefaultModelFromConfig(configFile.content);
-          } catch {
-            // ignore
-          }
-        }
-      } else if (activeClient) {
-        try {
-          const config = unwrap(
-            await activeClient.config.get({ directory: workspaceRoot || undefined })
-          );
-          if (typeof config.model === "string") {
-            configDefault = parseModelRef(config.model);
-          }
-        } catch {
-          // ignore
-        }
-      }
-
-      setDefaultModelExplicit(Boolean(configDefault));
-      const nextDefault = configDefault ?? legacyDefaultModel();
-      const currentDefault = untrack(defaultModel);
-      if (nextDefault && !modelEquals(currentDefault, nextDefault)) {
-        setDefaultModel(nextDefault);
-      }
-
-      if (workspaceType === "local" && workspaceRoot) {
-        setLastKnownConfigSnapshot(getConfigSnapshot(configFileContent));
-      }
-
-      if (!cancelled) {
-        setWorkspaceDefaultModelReady(true);
-      }
-    };
-
-    void applyDefault();
-
-    onCleanup(() => {
-      cancelled = true;
-    });
-  });
-
-  createEffect(() => {
-    if (!workspaceDefaultModelReady()) return;
-    if (!isTauriRuntime()) return;
-    if (!defaultModelExplicit()) return;
-
-    const workspace = workspaceStore.selectedWorkspaceDisplay();
-    if (workspace.workspaceType !== "local") return;
-
-    const root = workspaceStore.selectedWorkspacePath().trim();
-    if (!root) return;
-    const nextModel = defaultModel();
-    const auroworkClient = auroworkServerClient();
-    const auroworkWorkspaceId = runtimeWorkspaceId();
-    const auroworkCapabilities = resolvedAuroworkCapabilities();
-    const canUseAuroworkServer =
-      auroworkServerStatus() === "connected" &&
-      auroworkClient &&
-      auroworkWorkspaceId &&
-      auroworkCapabilities?.config?.write;
-    let cancelled = false;
-
-    const writeConfig = async () => {
-      try {
-        if (canUseAuroworkServer) {
-          const config = await auroworkClient.getConfig(auroworkWorkspaceId);
-          const currentModel = typeof config.opencode?.model === "string" ? parseModelRef(config.opencode.model) : null;
-          if (currentModel && modelEquals(currentModel, nextModel)) return;
-
-          await auroworkClient.patchConfig(auroworkWorkspaceId, {
-            opencode: { model: formatModelRef(nextModel) },
-          });
-          markReloadRequired("config", { type: "config", name: "opencode.json", action: "updated" });
-          return;
-        }
-
-        const configFile = await readAuroConfig("project", root);
-        const existingModel = parseDefaultModelFromConfig(configFile.content);
-        if (existingModel && modelEquals(existingModel, nextModel)) return;
-
-        const content = formatConfigWithDefaultModel(configFile.content, nextModel);
-        const result = await writeAuroConfig("project", root, content);
-        if (!result.ok) {
-          throw new Error(result.stderr || result.stdout || "Failed to update opencode.json");
-        }
-        setLastKnownConfigSnapshot(getConfigSnapshot(content));
-        markReloadRequired("config", { type: "config", name: "opencode.json", action: "updated" });
-      } catch (error) {
-        if (cancelled) return;
-        const message = error instanceof Error ? error.message : safeStringify(error);
-        setError(addOpencodeCacheHint(message));
-      }
-    };
-
-    void writeConfig();
-
-    onCleanup(() => {
-      cancelled = true;
-    });
-  });
-
-  createEffect(() => {
     if (!isTauriRuntime()) return;
     if (onboardingStep() !== "local") return;
     void workspaceStore.refreshEngineDoctor();
@@ -7556,18 +7441,6 @@ export default function App() {
       window.localStorage.setItem(
         "aurowork.auroEnableExa",
         auroEnableExa() ? "1" : "0"
-      );
-    } catch {
-      // ignore
-    }
-  });
-
-  createEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        MODEL_PREF_KEY,
-        formatModelRef(defaultModel())
       );
     } catch {
       // ignore
@@ -8053,15 +7926,10 @@ export default function App() {
       createSessionAndOpen,
       setPrompt,
       selectSession: selectSession,
-      defaultModelLabel: formatModelLabel(defaultModel(), providers()),
-      defaultModelRef: formatModelRef(defaultModel()),
-      openDefaultModelPicker,
       showThinking: showThinking(),
       toggleShowThinking: () => setShowThinking((v) => !v),
       hideTitlebar: hideTitlebar(),
       toggleHideTitlebar: () => setHideTitlebar((v) => !v),
-      modelVariantLabel: getModelBehaviorCopy(defaultModel(), getVariantFor(defaultModel())).label,
-      editModelVariant: openDefaultModelPicker,
       updateAutoCheck: updateAutoCheck(),
       toggleUpdateAutoCheck: () => setUpdateAutoCheck((v) => !v),
       updateAutoDownload: updateAutoDownload(),
@@ -8508,7 +8376,6 @@ export default function App() {
         filteredOptions={filteredModelOptions()}
         query={modelPickerQuery()}
         setQuery={setModelPickerQuery}
-        target={modelPickerTarget()}
         current={modelPickerCurrent()}
         onSelect={applyModelSelection}
         onBehaviorChange={(model, value) => {

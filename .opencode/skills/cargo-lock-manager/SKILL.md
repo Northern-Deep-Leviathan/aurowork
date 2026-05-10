@@ -15,19 +15,19 @@ description: |
 
 ### Check Cargo.lock status
 ```bash
-cd packages/desktop/src-tauri
+cd apps/desktop/src-tauri
 cargo check --locked 2>&1 | head -20
 ```
 
 ### Update Cargo.lock locally
 ```bash
-cd packages/desktop/src-tauri
+cd apps/desktop/src-tauri
 cargo update --workspace
 ```
 
 ### Test with --locked after update
 ```bash
-cd packages/desktop/src-tauri
+cd apps/desktop/src-tauri
 cargo test --locked
 ```
 
@@ -41,7 +41,7 @@ cargo test --locked
 
 ### Option 1: Update lock file and commit (Recommended)
 ```bash
-cd packages/desktop/src-tauri
+cd apps/desktop/src-tauri
 cargo update --workspace
 git add Cargo.lock
 git commit -m "chore: update Cargo.lock"
@@ -50,7 +50,7 @@ git push
 
 ### Option 2: Use --offline flag (for air-gapped environments)
 ```bash
-cargo test --manifest-path packages/desktop/src-tauri/Cargo.toml --offline
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --offline
 ```
 
 ## First-Time Setup (If Not Configured)
@@ -58,7 +58,7 @@ cargo test --manifest-path packages/desktop/src-tauri/Cargo.toml --offline
 No setup required. This skill assumes:
 - Rust/Cargo is installed
 - You're in the aurowork repository
-- The Tauri app is in `packages/desktop/src-tauri/`
+- The Tauri app is in `apps/desktop/src-tauri/`
 
 ## Prevention Tips
 

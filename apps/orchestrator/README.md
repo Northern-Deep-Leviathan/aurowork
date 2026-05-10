@@ -1,6 +1,6 @@
 # AuroWork Orchestrator
 
-Host orchestrator for opencode + AuroWork server + opencode-router. This is a CLI-first way to run host mode without the desktop UI.
+Host orchestrator for opencode + AuroWork server. This is a CLI-first way to run host mode without the desktop UI.
 
 Published on npm as `aurowork-orchestrator` and installs the `aurowork` command.
 
@@ -24,11 +24,11 @@ If npm skips the optional platform package, `postinstall` falls back to download
 binary from the `aurowork-orchestrator-v<version>` GitHub release. Override the download host with
 `AUROWORK_ORCHESTRATOR_DOWNLOAD_BASE_URL` when you need to use a mirror.
 
-`aurowork` downloads and caches the `aurowork-server`, `opencode-router`, and `opencode` sidecars on
+`aurowork` downloads and caches the `aurowork-server` and `opencode` sidecars on
 first run using a SHA-256 manifest. Use `--sidecar-dir` or `AUROWORK_SIDECAR_DIR` to control the
 cache location, and `--sidecar-base-url` / `--sidecar-manifest` to point at a custom host.
 
-Use `--sidecar-source` to control where `aurowork-server` and `opencode-router` are resolved
+Use `--sidecar-source` to control where `aurowork-server` is resolved
 (`auto` | `bundled` | `downloaded` | `external`), and `--opencode-source` to control
 `opencode` resolution. Set `AUROWORK_SIDECAR_SOURCE` / `AUROWORK_OPENCODE_SOURCE` to
 apply the same policies via env vars.
@@ -36,11 +36,8 @@ apply the same policies via env vars.
 By default the manifest is fetched from
 `https://github.com/Northern-Deep-Leviathan/aurowork/releases/download/aurowork-orchestrator-v<version>/aurowork-orchestrator-sidecars.json`.
 
-OpenCode Router is optional. If it exits, `aurowork` continues running unless you pass
-`--opencode-router-required` or set `AUROWORK_OPENCODE_ROUTER_REQUIRED=1`.
-
 For development overrides only, set `AUROWORK_ALLOW_EXTERNAL=1` or pass `--allow-external` to use
-locally installed `aurowork-server` or `opencode-router` binaries.
+locally installed `aurowork-server` binaries.
 
 Add `--verbose` (or `AUROWORK_VERBOSE=1`) to print extra diagnostics about resolved binaries.
 
@@ -115,7 +112,7 @@ Override with `AUROWORK_SANDBOX_MOUNT_ALLOWLIST`.
 
 ## Logging
 
-`aurowork` emits a unified log stream from OpenCode, AuroWork server, and opencode-router. Use JSON format for
+`aurowork` emits a unified log stream from OpenCode and AuroWork server. Use JSON format for
 structured, OpenTelemetry-friendly logs and a stable run id for correlation.
 
 ```bash
@@ -223,6 +220,5 @@ Point to source CLIs for fast iteration:
 aurowork start \
   --workspace /path/to/workspace \
   --allow-external \
-  --aurowork-server-bin apps/server/src/cli.ts \
-  --opencode-router-bin apps/opencode-router/dist/cli.js
+  --aurowork-server-bin apps/server/src/cli.ts
 ```

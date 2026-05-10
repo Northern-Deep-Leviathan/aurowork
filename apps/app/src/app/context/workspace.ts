@@ -156,7 +156,6 @@ export function createWorkspaceStore(options: {
   setPendingPermissions: (value: any[]) => void;
   setSessionStatusById: (value: Record<string, string>) => void;
   setSessions: (value: any[]) => void;
-  defaultModel: () => any;
   modelVariant: () => string | null;
   refreshSkills: (options?: { force?: boolean }) => Promise<void>;
   refreshPlugins: () => Promise<void>;

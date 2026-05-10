@@ -6,7 +6,7 @@ description: Core context and guardrails for AuroWork native app
 ## Quick Usage (Already Configured)
 
 ### Orientation
-- Read `AGENTS.md`, `VISION.md`, `PRINCIPLES.md`, `PRODUCT.md`, and `ARCHITECTURE.md` before changing behavior.
+- Read `docs/architecture/agents.md`, `docs/product/vision.md`, `docs/product/principles.md`, `docs/product/product.md`, and `docs/architecture/overview.md` before changing behavior.
 - Ensure `vendor/opencode` exists for self-reference.
 - Use the `tauri-solidjs` skill for stack-specific guidance.
 
@@ -22,7 +22,7 @@ pnpm tauri ios dev      # iOS development
 pnpm tauri android dev  # Android development
 
 # Or run directly in the desktop package:
-pnpm -C packages/desktop tauri dev
+pnpm -C apps/desktop tauri dev
 ```
 
 ## OpenCode Integration

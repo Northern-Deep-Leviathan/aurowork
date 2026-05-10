@@ -17,6 +17,6 @@ Do the following, in order, and stop on any failure:
 5. Tag and push: `git tag vX.Y.Z` and `git push origin vX.Y.Z`, then `git push origin dev`.
 6. Watch the Release App GitHub Actions workflow to completion.
 7. If releasing aurowork-orchestrator sidecars, build deterministically with `SOURCE_DATE_EPOCH`, upload assets to `aurowork-orchestrator-vX.Y.Z`, and publish `aurowork-orchestrator`.
-8. If `aurowork-server` or `opencode-router` versions changed, publish those packages.
+8. If `aurowork-server` version changed, publish that package.
 
 Report what you changed, the tag created, and the GHA status.

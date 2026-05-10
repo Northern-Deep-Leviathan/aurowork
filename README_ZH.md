@@ -94,7 +94,7 @@ AuroWork 的设计目标是：
 pnpm install
 ```
 
-AuroWork 现在位于 `packages/app`（UI）和 `packages/desktop`（桌面外壳）中。
+AuroWork 现在位于 `apps/app`（UI）和 `apps/desktop`（桌面外壳）中。
 
 ### 运行（桌面版）
 
@@ -111,7 +111,7 @@ pnpm dev:ui
 ### Arch 用户：
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash -s -- --version "$(node -e "const fs=require('fs'); const parsed=JSON.parse(fs.readFileSync('constants.json','utf8')); process.stdout.write(String(parsed.opencodeVersion||'').trim().replace(/^v/,''));")" --no-modify-path
+curl -fsSL https://opencode.ai/install | bash -s -- --version "$(node -e "const fs=require('fs'); const parsed=JSON.parse(fs.readFileSync('constants.json','utf8')); process.stdout.write(String(parsed.auroVersion||'').trim().replace(/^v/,''));")" --no-modify-path
 ```
 
 ## 架构（高级）
@@ -136,7 +136,7 @@ curl -fsSL https://opencode.ai/install | bash -s -- --version "$(node -e "const 
 
 文件夹选择器使用 Tauri 对话框插件。
 功能权限在以下文件中定义：
-- `packages/desktop/src-tauri/capabilities/default.json`
+- `apps/desktop/src-tauri/capabilities/default.json`
 
 ## OpenPackage 说明
 
@@ -197,7 +197,7 @@ WEBKIT_DISABLE_COMPOSITING_MODE=1 aurowork
 - 在进行更改之前，请查看 `AGENTS.md` 以及 `VISION.md`、`PRINCIPLES.md`、`PRODUCT.md` 和 `ARCHITECTURE.md` 以了解产品目标。
 - 在仓库内工作之前，确保已安装 Node.js、`pnpm`、Rust 工具链和 `opencode`。
 - 每次检出后运行一次 `pnpm install`，然后在打开 PR 之前使用 `pnpm typecheck` 加上 `pnpm test:e2e`（或目标脚本子集）验证您的更改。
-- 按照 `AGENTS.md` 中描述的 `.opencode/skills/prd-conventions/SKILL.md` 约定，将新的 PRD 添加到 `packages/app/pr/<name>.md`。
+- 按照 `AGENTS.md` 中描述的 `.opencode/skills/prd-conventions/SKILL.md` 约定，将新的 PRD 添加到 `apps/app/pr/<name>.md`。
 
 ## 面向团队和企业
 

@@ -21,15 +21,12 @@ const desktopPkg = readJson(resolve(root, "apps", "desktop", "package.json"));
 const orchestratorPkg = readJson(
   resolve(root, "apps", "orchestrator", "package.json"),
 );
-const pinnedOpencodeVersion = String(
-  readJson(resolve(root, "constants.json")).opencodeVersion ?? "",
+const pinnedAuroVersion = String(
+  readJson(resolve(root, "constants.json")).auroVersion ?? "",
 )
   .trim()
   .replace(/^v/, "");
 const serverPkg = readJson(resolve(root, "apps", "server", "package.json"));
-const opencodeRouterPkg = readJson(
-  resolve(root, "apps", "opencode-router", "package.json"),
-);
 const tauriConfig = readJson(
   resolve(root, "apps", "desktop", "src-tauri", "tauri.conf.json"),
 );
@@ -44,9 +41,7 @@ const versions = {
   cargo: cargoVersion ?? null,
   server: serverPkg.version ?? null,
   orchestrator: orchestratorPkg.version ?? null,
-  opencodeRouter: opencodeRouterPkg.version ?? null,
-  opencode: pinnedOpencodeVersion || null,
-  opencodeRouterVersionPinned: desktopPkg.opencodeRouterVersion ?? null,
+  auro: pinnedAuroVersion || null,
   orchestratorAuroworkServerRange:
     orchestratorPkg.dependencies?.["aurowork-server"] ?? null,
 };
@@ -80,13 +75,6 @@ addCheck(
   `${versions.app ?? "?"} vs ${versions.server ?? "?"}`,
 );
 addCheck(
-  "App/opencode-router versions match",
-  versions.app &&
-    versions.opencodeRouter &&
-    versions.app === versions.opencodeRouter,
-  `${versions.app ?? "?"} vs ${versions.opencodeRouter ?? "?"}`,
-);
-addCheck(
   "Desktop/Tauri versions match",
   versions.desktop && versions.tauri && versions.desktop === versions.tauri,
   `${versions.desktop ?? "?"} vs ${versions.tauri ?? "?"}`,
@@ -96,22 +84,15 @@ addCheck(
   versions.desktop && versions.cargo && versions.desktop === versions.cargo,
   `${versions.desktop ?? "?"} vs ${versions.cargo ?? "?"}`,
 );
-addCheck(
-  "OpenCodeRouter version pinned in desktop",
-  versions.opencodeRouter &&
-    versions.opencodeRouterVersionPinned &&
-    versions.opencodeRouter === versions.opencodeRouterVersionPinned,
-  `${versions.opencodeRouterVersionPinned ?? "?"} vs ${versions.opencodeRouter ?? "?"}`,
-);
-if (versions.opencode) {
+if (versions.auro) {
   addCheck(
-    "OpenCode version pin exists",
-    Boolean(versions.opencode),
-    String(versions.opencode),
+    "Auro engine version pin exists",
+    Boolean(versions.auro),
+    String(versions.auro),
   );
 } else {
   addWarning(
-    "OpenCode version is not pinned in constants.json.",
+    "Auro engine version is not pinned in constants.json (auroVersion field).",
   );
 }
 
@@ -147,19 +128,11 @@ if (existsSync(sidecarManifestPath)) {
     `${manifest.version ?? "?"} vs ${versions.orchestrator ?? "?"}`,
   );
   const serverEntry = manifest.entries?.["aurowork-server"]?.version;
-  const routerEntry = manifest.entries?.["opencode-router"]?.version;
   if (serverEntry) {
     addCheck(
       "Sidecar manifest aurowork-server version matches",
       versions.server && serverEntry === versions.server,
       `${serverEntry ?? "?"} vs ${versions.server ?? "?"}`,
-    );
-  }
-  if (routerEntry) {
-    addCheck(
-      "Sidecar manifest opencode-router version matches",
-      versions.opencodeRouter && routerEntry === versions.opencodeRouter,
-      `${routerEntry ?? "?"} vs ${versions.opencodeRouter ?? "?"}`,
     );
   }
 } else {

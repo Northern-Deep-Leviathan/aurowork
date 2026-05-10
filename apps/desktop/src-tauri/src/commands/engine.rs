@@ -67,9 +67,9 @@ fn pinned_auro_version() -> String {
     ));
     let parsed: serde_json::Value =
         serde_json::from_str(constants).expect("constants.json must be valid JSON");
-    parsed["opencodeVersion"]
+    parsed["auroVersion"]
         .as_str()
-        .expect("constants.json must include opencodeVersion")
+        .expect("constants.json must include auroVersion")
         .trim()
         .trim_start_matches('v')
         .to_string()
