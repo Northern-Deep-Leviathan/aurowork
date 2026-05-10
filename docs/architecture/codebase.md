@@ -193,7 +193,7 @@ View switching inside `app.tsx` with SolidJS `<Switch>/<Match>`:
 | **Onboarding** | `pages/onboarding.tsx` | First-run wizard: choose local/server, pick folder, create workspace |
 | **Session** | `pages/session.tsx` | Primary AI workspace: Composer, MessageList, Sidebar, ContextPanel, CodeEditor |
 | **Dashboard** | `pages/dashboard.tsx` | Tabbed hub: Providers, Settings, Skills, Extensions |
-| **Settings** | `pages/settings.tsx` | Model defaults, theme, API keys, authorized folders |
+| **Settings** | `pages/settings.tsx` | Theme, API keys, authorized folders (model selection moved to per-session, picked in Composer / ModelPickerModal) |
 | **Config** | `pages/config.tsx` | Live JSONC editor for `opencode.jsonc` |
 | **Skills** | `pages/skills.tsx` | Browse/install/edit skills (`.opencode/skills/`) |
 | **Extensions** | `pages/extensions.tsx` | Extension/plugin registry |
