@@ -193,7 +193,7 @@ Categories (non-exhaustive — see `server.ts` for the authoritative list):
 | `minimal` | `[]` | No plugins; hand-tuned setups |
 
 It writes:
-- `opencode.jsonc` (preferred) with default model + plugin list.
+- `opencode.jsonc` (preferred) with the preset's seed model + plugin list (model is now session-scoped at runtime; the value in `opencode.jsonc` only seeds new sessions).
 - `.opencode/aurowork.json` (workspace metadata: name, preset, blueprint, reload config).
 - Optional `.opencode/agents/`, `.opencode/skills/`, `.opencode/commands/` from the preset blueprint.
 
