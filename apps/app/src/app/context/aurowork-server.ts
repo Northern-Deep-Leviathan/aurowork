@@ -45,7 +45,6 @@ export function createAuroworkServerStore(options: {
   const [hostInfo, setHostInfo] = createSignal<AuroworkServerInfo | null>(null);
   const [diagnostics, setDiagnostics] = createSignal<AuroworkServerDiagnostics | null>(null);
   const [reconnectBusy, setReconnectBusy] = createSignal(false);
-  const [routerInfo, setRouterInfo] = createSignal<null>(null);
   const [orchStatus, setOrchStatus] = createSignal<OrchestratorStatus | null>(null);
   const [auditEntries, setAuditEntries] = createSignal<unknown[]>([]);
   const [auditStatus, setAuditStatus] = createSignal<"idle" | "loading" | "error">("idle");
@@ -260,11 +259,6 @@ export function createAuroworkServerStore(options: {
     });
   });
 
-  // OpenCode Router polling removed
-  createEffect(() => {
-    setRouterInfo(null);
-  });
-
   // Poll orchestrator status (developer mode, Tauri only)
   createEffect(() => {
     if (!isTauriRuntime()) return;
@@ -303,7 +297,6 @@ export function createAuroworkServerStore(options: {
     hostInfo,
     diagnostics,
     reconnectBusy,
-    routerInfo,
     orchestratorStatus: orchStatus,
     auditEntries,
     auditStatus,
@@ -326,7 +319,6 @@ export function createAuroworkServerStore(options: {
     setHostInfo,
     setDiagnostics,
     setReconnectBusy,
-    setRouterInfo,
     setOrchestratorStatus: setOrchStatus,
     setAuditEntries,
     setAuditStatus,

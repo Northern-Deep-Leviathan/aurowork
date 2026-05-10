@@ -28,7 +28,7 @@ Manual recovery path (sidecars + npm) below.
 
 ```bash
 pnpm --filter aurowork-orchestrator build:sidecars
-gh release create aurowork-orchestrator-vX.Y.Z packages/orchestrator/dist/sidecars/* \
+gh release create aurowork-orchestrator-vX.Y.Z apps/orchestrator/dist/sidecars/* \
   --repo Northern-Deep-Leviathan/aurowork \
   --title "aurowork-orchestrator vX.Y.Z sidecars" \
   --notes "Sidecar binaries and manifest for aurowork-orchestrator vX.Y.Z"
@@ -43,7 +43,7 @@ pnpm --filter aurowork-orchestrator build:bin:all
 6. Publish `aurowork-orchestrator` as a meta package + platform packages (optionalDependencies).
 
 ```bash
-node packages/orchestrator/scripts/publish-npm.mjs
+node apps/orchestrator/scripts/publish-npm.mjs
 ```
 
 7. Verify the published version.
