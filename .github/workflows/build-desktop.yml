@@ -3,15 +3,14 @@ name: Build Desktop
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Release tag (e.g. v0.12.0). Leave empty to build artifacts only."
-        required: false
-        type: string
-      draft:
-        description: "Create GitHub Release as draft"
-        required: false
-        type: boolean
-        default: false
+      bump:
+        description: "Version bump type (required). CI will bump, commit, tag, push, then build."
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
       prerelease:
         description: "Mark GitHub Release as prerelease"
         required: false
@@ -27,45 +26,134 @@ concurrency:
 
 jobs:
   # ──────────────────────────────────────────────────────────────
-  # Job 1: Parse inputs and expose them as outputs for downstream jobs
+  # Job 1: Bump version, commit, tag, push.
+  #         Outputs the new tag/version for downstream jobs.
   # ──────────────────────────────────────────────────────────────
   prepare:
-    name: Prepare
+    name: Bump & Tag
     runs-on: ubuntu-latest
     outputs:
-      has_tag: ${{ steps.meta.outputs.has_tag }}
-      release_tag: ${{ steps.meta.outputs.release_tag }}
-      release_name: ${{ steps.meta.outputs.release_name }}
-      draft: ${{ steps.meta.outputs.draft }}
+      release_tag: ${{ steps.bump.outputs.release_tag }}
+      release_version: ${{ steps.bump.outputs.release_version }}
+      release_name: ${{ steps.bump.outputs.release_name }}
+      release_sha: ${{ steps.bump.outputs.release_sha }}
       prerelease: ${{ steps.meta.outputs.prerelease }}
     steps:
-      - name: Resolve build metadata
-        id: meta
+      - name: Checkout (full history + tags)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Configure git identity
         shell: bash
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump, commit, tag, push
+        id: bump
+        shell: bash
+        env:
+          BUMP_TYPE: ${{ inputs.bump }}
         run: |
           set -euo pipefail
 
-          tag="${{ inputs.tag }}"
-          if [ -n "$tag" ]; then
-            echo "has_tag=true"           >> "$GITHUB_OUTPUT"
-            echo "release_tag=$tag"       >> "$GITHUB_OUTPUT"
-            echo "release_name=AuroWork $tag" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_tag=false"          >> "$GITHUB_OUTPUT"
-            echo "release_tag="           >> "$GITHUB_OUTPUT"
-            echo "release_name="          >> "$GITHUB_OUTPUT"
+          # Sanity: must be on a branch (refs/heads/*) — refuse to run on a tag/PR.
+          if [[ "${GITHUB_REF}" != refs/heads/* ]]; then
+            echo "::error::This workflow must be dispatched from a branch (got: ${GITHUB_REF})."
+            exit 1
+          fi
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          echo "Branch: $BRANCH"
+
+          # Make sure pnpm install runs (bump-version.mjs needs no deps, but
+          # pnpm filter resolution does). Use --prefer-offline to keep it fast.
+          pnpm install --frozen-lockfile --prefer-offline
+
+          # Read current version BEFORE bumping.
+          CUR_VER="$(node -p "require('./apps/app/package.json').version")"
+          echo "Current version: $CUR_VER"
+
+          # Run the bump script. It mutates 7 files in-place.
+          pnpm bump:"$BUMP_TYPE"
+
+          NEW_VER="$(node -p "require('./apps/app/package.json').version")"
+          NEW_TAG="v${NEW_VER}"
+          echo "New version: $NEW_VER"
+          echo "New tag:     $NEW_TAG"
+
+          # Guard 1: new version must differ from old.
+          if [ "$CUR_VER" = "$NEW_VER" ]; then
+            echo "::error::Bump produced the same version ($CUR_VER). Aborting."
+            exit 1
           fi
 
-          echo "draft=${{ inputs.draft }}"           >> "$GITHUB_OUTPUT"
-          echo "prerelease=${{ inputs.prerelease }}"  >> "$GITHUB_OUTPUT"
+          # Guard 2: new tag must not already exist on remote.
+          if git ls-remote --tags origin "refs/tags/${NEW_TAG}" | grep -q .; then
+            echo "::error::Tag ${NEW_TAG} already exists on origin. Aborting."
+            exit 1
+          fi
+
+          # Guard 3: new version must be strictly greater than the largest existing v* tag.
+          LARGEST="$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)"
+          if [ -n "$LARGEST" ]; then
+            # `sort -V` puts the smaller version first; if NEW_TAG ends up first
+            # or equal to LARGEST, that means NEW_TAG <= LARGEST.
+            HIGHEST="$(printf '%s\n%s\n' "$LARGEST" "$NEW_TAG" | sort -V | tail -n1)"
+            if [ "$HIGHEST" != "$NEW_TAG" ] || [ "$LARGEST" = "$NEW_TAG" ]; then
+              echo "::error::New tag ${NEW_TAG} is not strictly greater than existing ${LARGEST}."
+              exit 1
+            fi
+          fi
+
+          # Stage everything bump-version.mjs touched.
+          git add -A
+          if git diff --cached --quiet; then
+            echo "::error::No changes to commit after bump — bump-version.mjs did nothing."
+            exit 1
+          fi
+
+          git commit -m "chore: bump version to ${NEW_VER} [skip ci]"
+          git tag "$NEW_TAG"
+
+          # Push branch first, tag second. If branch push is rejected
+          # (branch protection, etc.) we never publish a dangling tag.
+          git push origin "HEAD:${BRANCH}"
+          git push origin "$NEW_TAG"
+
+          NEW_SHA="$(git rev-parse HEAD)"
+
+          {
+            echo "release_tag=${NEW_TAG}"
+            echo "release_version=${NEW_VER}"
+            echo "release_name=AuroWork ${NEW_TAG}"
+            echo "release_sha=${NEW_SHA}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Forward prerelease flag
+        id: meta
+        shell: bash
+        run: |
+          echo "prerelease=${{ inputs.prerelease }}" >> "$GITHUB_OUTPUT"
 
   # ──────────────────────────────────────────────────────────────
-  # Job 2: Create GitHub Release (only when tag is provided)
+  # Job 2: Create GitHub Release for the freshly-pushed tag.
   # ──────────────────────────────────────────────────────────────
   create-release:
     name: Create Release
     needs: prepare
-    if: needs.prepare.outputs.has_tag == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Create GitHub Release
@@ -77,20 +165,19 @@ jobs:
 
           TAG="${{ needs.prepare.outputs.release_tag }}"
           NAME="${{ needs.prepare.outputs.release_name }}"
+          TARGET_SHA="${{ needs.prepare.outputs.release_sha }}"
 
-          echo "Release tag: $TAG"
-          echo "Release name: $NAME"
+          echo "Release tag:    $TAG"
+          echo "Release name:   $NAME"
+          echo "Target commit:  $TARGET_SHA"
 
-          # Check if release already exists
+          # Check if release already exists (e.g. previous run partially succeeded)
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG already exists — skipping."
             exit 0
           fi
 
           flags=()
-          if [ "${{ needs.prepare.outputs.draft }}" = "true" ]; then
-            flags+=( --draft )
-          fi
           if [ "${{ needs.prepare.outputs.prerelease }}" = "true" ]; then
             flags+=( --prerelease )
           fi
@@ -99,7 +186,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --title "$NAME" \
             --notes "Desktop build for $TAG" \
-            --target "${{ github.sha }}" \
+            --target "$TARGET_SHA" \
             "${flags[@]}"
 
   # ──────────────────────────────────────────────────────────────
@@ -108,15 +195,13 @@ jobs:
   build:
     name: Build (${{ matrix.target }})
     needs: [prepare, create-release]
-    # Run even when create-release is skipped (no tag)
-    if: always() && needs.prepare.result == 'success'
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 180
 
     env:
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
       RELEASE_NAME: ${{ needs.prepare.outputs.release_name }}
-      HAS_TAG: ${{ needs.prepare.outputs.has_tag }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.release_sha }}
       AURO_GITHUB_REPO: ${{ vars.AURO_GITHUB_REPO || 'Northern-Deep-Leviathan/auro' }}
 
     strategy:
@@ -130,11 +215,11 @@ jobs:
             bundles: "msi"
 
     steps:
-      # ── Checkout ──────────────────────────────────────────────
-      - name: Checkout
+      # ── Checkout the bumped commit (NOT github.sha, which is pre-bump) ──
+      - name: Checkout bumped commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.prepare.outputs.release_sha }}
 
       # ── Windows: enable long paths ───────────────────────────
       - name: Enable long paths
@@ -250,9 +335,8 @@ jobs:
           cp "$bin_path" "apps/desktop/src-tauri/sidecars/${target_name}"
           chmod 755 "apps/desktop/src-tauri/sidecars/${target_name}"
 
-      # ── Build: with release (tag provided) ───────────────────
+      # ── Build + publish to release ───────────────────────────
       - name: Build + publish to release
-        if: env.HAS_TAG == 'true'
         uses: tauri-apps/tauri-action@v0.5.17
         env:
           CI: true
@@ -264,28 +348,55 @@ jobs:
           releaseName: ${{ env.RELEASE_NAME }}
           releaseBody: "Desktop build for ${{ env.RELEASE_TAG }}"
           prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
-          releaseDraft: ${{ needs.prepare.outputs.draft == 'true' }}
           projectPath: apps/desktop
           tauriScript: pnpm exec tauri -vvv
           args: "--target ${{ matrix.target }} --bundles ${{ matrix.bundles }}"
           retryAttempts: 3
 
-      # ── Build: artifact-only (no tag) ────────────────────────
-      - name: Build desktop app (artifact-only)
-        if: env.HAS_TAG != 'true'
+      # ── Upload .sig + latest.json for updater ────────────────
+      # tauri-action@v0.5.17 uploads MSI but skips the standalone .sig file.
+      # We upload it manually, then generate latest.json so the updater works.
+      - name: Upload signature + latest.json
+        if: needs.prepare.outputs.prerelease != 'true'
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
         run: |
-          pnpm --filter @aurowork/desktop exec tauri build \
-            --config src-tauri/tauri.conf.ci.json \
-            --target ${{ matrix.target }} \
-            --bundles ${{ matrix.bundles }}
+          set -euo pipefail
 
-      - name: Upload artifact
-        if: env.HAS_TAG != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: aurowork-${{ matrix.target }}-${{ github.sha }}
-          path: |
-            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
-          if-no-files-found: error
-          retention-days: 14
+          BUNDLE_DIR="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/msi"
+          if [ ! -d "$BUNDLE_DIR" ]; then
+            echo "::error::Bundle directory not found: $BUNDLE_DIR"
+            exit 1
+          fi
+
+          # Find the standalone .sig (NOT the .msi.zip.sig — that's for updater zip variant)
+          SIG_FILE=""
+          for f in "$BUNDLE_DIR"/*.msi.sig; do
+            [ -f "$f" ] || continue
+            case "$f" in
+              *.msi.zip.sig) continue ;;
+            esac
+            SIG_FILE="$f"
+            break
+          done
+
+          if [ -z "$SIG_FILE" ]; then
+            echo "::error::No .msi.sig found in $BUNDLE_DIR"
+            ls -la "$BUNDLE_DIR"
+            exit 1
+          fi
+
+          echo "Uploading signature: $SIG_FILE"
+          gh release upload "$RELEASE_TAG" "$SIG_FILE" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
+          echo "Generating latest.json for tag $RELEASE_TAG ..."
+          node scripts/release/generate-latest-json.mjs \
+            --tag "$RELEASE_TAG" --output latest.json
+          cat latest.json
+
+          echo "Uploading latest.json ..."
+          gh release upload "$RELEASE_TAG" latest.json \
+            --repo "$GITHUB_REPOSITORY" --clobber
