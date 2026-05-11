@@ -78,9 +78,12 @@ jobs:
           BRANCH="${GITHUB_REF#refs/heads/}"
           echo "Branch: $BRANCH"
 
-          # Make sure pnpm install runs (bump-version.mjs needs no deps, but
-          # pnpm filter resolution does). Use --prefer-offline to keep it fast.
-          pnpm install --frozen-lockfile --prefer-offline
+          # bump-version.mjs has no runtime deps, but `pnpm bump:<type>` resolves
+          # the script through pnpm's workspace filter, which needs the package
+          # graph. Do NOT use --frozen-lockfile here: this job's whole purpose
+          # is to mutate the lockfile, and main may already carry a lockfile
+          # that's out of sync (e.g. left over from a failed previous run).
+          pnpm install --no-frozen-lockfile --prefer-offline
 
           # Read current version BEFORE bumping.
           CUR_VER="$(node -p "require('./apps/app/package.json').version")"
