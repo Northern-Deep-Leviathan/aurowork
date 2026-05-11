@@ -161,6 +161,8 @@ export default {
   "session.desktop_only": "Abrir está disponível apenas no app desktop.",
   "session.open_failed": "Não foi possível abrir o artefato.",
   "session.model": "Modelo",
+  "session.model_empty_choose": "Escolher modelo",
+  "session.model_empty_no_provider": "Adicionar provedor",
   "session.ready": "Pronto",
   "session.connect_provider": "Conecte um provedor para personalizar isso.",
   "session.running": "Em execução",

@@ -161,6 +161,8 @@ export default {
   "session.desktop_only": "Open is only available in the desktop app.",
   "session.open_failed": "Could not open artifact.",
   "session.model": "Model",
+  "session.model_empty_choose": "Choose model",
+  "session.model_empty_no_provider": "Add provider",
   "session.ready": "Ready",
   "session.connect_provider": "Connect a provider to customize this.",
   "session.running": "Running",

@@ -138,6 +138,8 @@ export default {
   "session.desktop_only": "Chức năng mở chỉ khả dụng trong ứng dụng desktop.",
   "session.open_failed": "Không thể mở artifact.",
   "session.model": "Model",
+  "session.model_empty_choose": "Chọn model",
+  "session.model_empty_no_provider": "Thêm provider",
   "session.ready": "Sẵn sàng",
   "session.connect_provider": "Kết nối provider để tùy chỉnh.",
   "session.running": "Đang chạy",

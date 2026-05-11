@@ -14,7 +14,7 @@ export type ModelPickerModalProps = {
   filteredOptions: ModelOption[];
   query: string;
   setQuery: (value: string) => void;
-  current: ModelRef;
+  current: ModelRef | null;
   onSelect: (model: ModelRef) => void;
   onBehaviorChange: (model: ModelRef, value: string | null) => void;
   onOpenSettings: () => void;
@@ -37,9 +37,11 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
 
   const activeModelIndex = createMemo(() => {
     const list = renderedItems();
+    const cur = props.current;
+    if (!cur) return -1;
     return list.findIndex(
       (item) =>
-        modelEquals(props.current, {
+        modelEquals(cur, {
           providerID: item.opt.providerID,
           modelID: item.opt.modelID,
         }),
@@ -128,11 +130,14 @@ export default function ModelPickerModal(props: ModelPickerModalProps) {
   });
 
   const renderOption = (opt: ModelOption, index: number) => {
-    const active = () =>
-      modelEquals(props.current, {
+    const active = () => {
+      const cur = props.current;
+      if (!cur) return false;
+      return modelEquals(cur, {
         providerID: opt.providerID,
         modelID: opt.modelID,
       });
+    };
 
     return (
       <div
