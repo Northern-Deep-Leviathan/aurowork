@@ -138,6 +138,8 @@ export default {
   "session.desktop_only": "打开功能仅在桌面应用中可用。",
   "session.open_failed": "无法打开工件。",
   "session.model": "模型",
+  "session.model_empty_choose": "选择模型",
+  "session.model_empty_no_provider": "添加 Provider",
   "session.ready": "就绪",
   "session.connect_provider": "连接提供商以进行自定义。",
   "session.running": "运行中",

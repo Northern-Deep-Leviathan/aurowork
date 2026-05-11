@@ -160,6 +160,8 @@ export default {
   "session.desktop_only": "この機能はデスクトップアプリでのみ利用可能です。",
   "session.open_failed": "アーティファクトを開けませんでした。",
   "session.model": "モデル",
+  "session.model_empty_choose": "モデルを選択",
+  "session.model_empty_no_provider": "プロバイダーを追加",
   "session.ready": "準備完了",
   "session.connect_provider": "プロバイダーを接続するとカスタマイズできます。",
   "session.running": "実行中",
