@@ -94,6 +94,12 @@ jobs:
           echo "New version: $NEW_VER"
           echo "New tag:     $NEW_TAG"
 
+          # bump-version.mjs updates apps/orchestrator/package.json's
+          # `aurowork-server` workspace dependency to the new version, which
+          # invalidates pnpm-lock.yaml. Refresh the lockfile so the downstream
+          # `pnpm install --frozen-lockfile` in the build job succeeds.
+          pnpm install --lockfile-only
+
           # Guard 1: new version must differ from old.
           if [ "$CUR_VER" = "$NEW_VER" ]; then
             echo "::error::Bump produced the same version ($CUR_VER). Aborting."
