@@ -46,6 +46,28 @@ function parseArgs(argv) {
 }
 
 function updaterPlatformKeys(assetName) {
+  // Tauri default Windows MSI name: AuroWork_<ver>_<arch>_<locale>.msi
+  // e.g. AuroWork_0.12.0_x64_en-US.msi  → windows-x86_64
+  {
+    const match = assetName.match(/^AuroWork_[^_]+_([^_]+)_[^.]+\.msi$/);
+    if (match) {
+      const arch = normalizeArch(match[1]);
+      const base = `windows-${arch}`;
+      return [base, `${base}-msi`];
+    }
+  }
+
+  // Tauri default Windows NSIS name: AuroWork_<ver>_<arch>-setup.exe
+  {
+    const match = assetName.match(/^AuroWork_[^_]+_([^-]+)-setup\.exe$/);
+    if (match) {
+      const arch = normalizeArch(match[1]);
+      const base = `windows-${arch}`;
+      return [base, `${base}-nsis`];
+    }
+  }
+
+  // Legacy custom naming: aurowork-desktop-<platform>-<arch>.<ext>
   if (!assetName.startsWith("aurowork-desktop-")) return [];
 
   const stem = assetName.slice("aurowork-desktop-".length);
