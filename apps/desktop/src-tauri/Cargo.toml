@@ -1,6 +1,6 @@
 [package]
 name = "aurowork"
-version = "0.11.193"
+version = "0.12.0"
 description = "AuroWork"
 authors = ["NLD"]
 edition = "2021"
