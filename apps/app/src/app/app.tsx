@@ -58,6 +58,7 @@ import { deepLinkBridgeEvent, drainPendingDeepLinks, type DeepLinkBridgeDetail }
 import {
   CHROME_DEVTOOLS_MCP_ID,
   DEFAULT_MODEL,
+  GLOBAL_MODEL_PREF_KEY,
   HIDE_TITLEBAR_PREF_KEY,
   MCP_QUICK_CONNECT,
   SESSION_MODEL_PREF_KEY,
@@ -1516,6 +1517,81 @@ export default function App() {
   >({});
   const [pendingSessionModel, setPendingSessionModel] = createSignal<ModelRef | null>(null);
   const [sessionModelOverridesReady, setSessionModelOverridesReady] = createSignal(false);
+
+  // Global shared model — single source of truth across all sessions and workspaces.
+  // Persisted in localStorage under GLOBAL_MODEL_PREF_KEY as "providerID/modelID".
+  const readGlobalModelFromStorage = (): ModelRef | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.localStorage.getItem(GLOBAL_MODEL_PREF_KEY);
+      const parsed = parseModelRef(raw);
+      if (parsed) return parsed;
+      // One-shot migration: seed globalModel from legacy per-workspace session
+      // model overrides ("aurowork.sessionModels.<workspaceId>"). Pick the first
+      // non-empty entry we find. After migration, drop the legacy keys so we
+      // never run this branch again on future startups.
+      const migrated = migrateLegacySessionModelsLocked();
+      return migrated;
+    } catch {
+      return null;
+    }
+  };
+
+  const migrateLegacySessionModelsLocked = (): ModelRef | null => {
+    if (typeof window === "undefined") return null;
+    let chosen: ModelRef | null = null;
+    const legacyKeys: string[] = [];
+    try {
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (!key) continue;
+        if (!key.startsWith(`${SESSION_MODEL_PREF_KEY}.`)) continue;
+        legacyKeys.push(key);
+        if (chosen) continue;
+        const raw = window.localStorage.getItem(key);
+        if (!raw) continue;
+        try {
+          const parsed = JSON.parse(raw) as Record<string, unknown>;
+          for (const value of Object.values(parsed ?? {})) {
+            if (typeof value === "string") {
+              const ref = parseModelRef(value);
+              if (ref) {
+                chosen = ref;
+                break;
+              }
+            } else if (value && typeof value === "object") {
+              const rec = value as Record<string, unknown>;
+              if (typeof rec.providerID === "string" && typeof rec.modelID === "string") {
+                chosen = { providerID: rec.providerID, modelID: rec.modelID };
+                break;
+              }
+            }
+          }
+        } catch {
+          // ignore malformed entry
+        }
+      }
+    } catch {
+      return chosen;
+    }
+    // Always purge legacy keys after one pass so the migration never runs again.
+    for (const key of legacyKeys) {
+      try {
+        window.localStorage.removeItem(key);
+      } catch {
+        // ignore
+      }
+    }
+    if (chosen) {
+      try {
+        window.localStorage.setItem(GLOBAL_MODEL_PREF_KEY, formatModelRef(chosen));
+      } catch {
+        // ignore
+      }
+    }
+    return chosen;
+  };
+  const [globalModel, setGlobalModel] = createSignal<ModelRef | null>(readGlobalModelFromStorage());
   type PromptFocusReturnTarget = "none" | "composer";
 
   const [sessionAgentById, setSessionAgentById] = createSignal<Record<string, string>>({});
@@ -1916,6 +1992,9 @@ export default function App() {
       }
 
       const model = selectedSessionModel();
+      if (!model) {
+        throw new Error("Choose a model before sending a prompt.");
+      }
       const agent = selectedSessionAgent();
       const parts = await buildPromptParts(resolvedDraft);
       const selectedVariant = sanitizeModelVariantForRef(model, getVariantFor(model)) ?? undefined;
@@ -2046,6 +2125,9 @@ export default function App() {
     }
 
     const model = selectedSessionModel();
+    if (!model) {
+      throw new Error("Choose a model before compacting.");
+    }
     const startedAt = perfNow();
     const modelLabel = `${model.providerID}/${model.modelID}`;
     recordPerfLog(developerMode(), "session.compact", "start", {
@@ -3286,7 +3368,10 @@ export default function App() {
   const [showThinking, setShowThinking] = createSignal(false);
   const [hideTitlebar, setHideTitlebar] = createSignal(false);
   const [modelVariantMap, setModelVariantMap] = createSignal<Record<string, string>>({});
-  const modelVariant = () => getVariantFor(selectedSessionModel());
+  const modelVariant = () => {
+    const m = selectedSessionModel();
+    return m ? getVariantFor(m) : null;
+  };
   const getVariantFor = (ref: ModelRef) => modelVariantMap()[`${ref.providerID}/${ref.modelID}`] ?? null;
   const updateModelVariant = (ref: ModelRef, value: string | null) => {
     const key = `${ref.providerID}/${ref.modelID}`;
@@ -3297,7 +3382,10 @@ export default function App() {
       return next;
     });
   };
-  const setModelVariant = (value: string | null) => updateModelVariant(selectedSessionModel(), value);
+  const setModelVariant = (value: string | null) => {
+    const m = selectedSessionModel();
+    if (m) updateModelVariant(m, value);
+  };
   const [authorizedFolders, setAuthorizedFolders] = createSignal<string[]>([]);
   const [authorizedFolderDraft, setAuthorizedFolderDraft] = createSignal("");
   const [, setAuthorizedFolderHiddenEntries] = createSignal<Record<string, unknown>>({});
@@ -5922,20 +6010,28 @@ export default function App() {
     void workspaceStore.onConnectClient();
   });
 
-  const selectedSessionModel = createMemo<ModelRef>(() => {
-    const id = selectedSessionId();
-    if (!id) return firstConnectedProviderModel();
+  const isModelStillAvailable = (ref: ModelRef): boolean => {
+    if (!providerConnectedIds().includes(ref.providerID)) return false;
+    const provider = providers().find((p) => p.id === ref.providerID);
+    if (!provider) return false;
+    return Boolean(provider.models?.[ref.modelID]);
+  };
 
-    const override = sessionModelOverrideById()[id];
-    if (override) return override;
+  // Auto-clear globalModel if its provider/model is no longer available.
+  createEffect(() => {
+    const model = globalModel();
+    if (!model) return;
+    // Only run check once we have provider data loaded
+    if (!providers().length && !providerConnectedIds().length) return;
+    if (!isModelStillAvailable(model)) {
+      setGlobalModel(null);
+    }
+  });
 
-    const known = sessionModelById()[id];
-    if (known) return known;
-
-    const fromMessages = lastUserModelFromMessages(messages());
-    if (fromMessages) return fromMessages;
-
-    return firstConnectedProviderModel();
+  const selectedSessionModel = createMemo<ModelRef | null>(() => {
+    const g = globalModel();
+    if (g && isModelStillAvailable(g)) return g;
+    return null;
   });
 
   const selectedSessionAgent = createMemo(() => {
@@ -5946,14 +6042,13 @@ export default function App() {
 
   const selectedSessionModelLabel = createMemo(() => {
     if (!providerConnectedIds().length) {
-      const id = selectedSessionId();
-      const hasExplicit = Boolean(
-        (id && (sessionModelOverrideById()[id] || sessionModelById()[id])) ||
-        lastUserModelFromMessages(messages())
-      );
-      if (!hasExplicit) return "";
+      return t("session.model_empty_no_provider", currentLocale());
     }
-    return formatModelLabel(selectedSessionModel(), providers());
+    const model = selectedSessionModel();
+    if (!model) {
+      return t("session.model_empty_choose", currentLocale());
+    }
+    return formatModelLabel(model, providers());
   });
 
   const findProviderModel = (ref: ModelRef) => {
@@ -6040,8 +6135,11 @@ export default function App() {
 
       for (const model of models) {
         const isFree = model.cost?.input === 0 && model.cost?.output === 0;
-        const isDefault =
-          provider.id === currentDefault.providerID && model.id === currentDefault.modelID;
+        const isDefault = Boolean(
+          currentDefault &&
+            provider.id === currentDefault.providerID &&
+            model.id === currentDefault.modelID,
+        );
         const ref = { providerID: provider.id, modelID: model.id };
         const behavior = getModelBehaviorSummary(provider.id, model, getVariantFor(ref));
         const behaviorValue = sanitizeModelBehaviorValue(provider.id, model, getVariantFor(ref));
@@ -6127,15 +6225,16 @@ export default function App() {
   }
 
   function applyModelSelection(next: ModelRef) {
-    const id = selectedSessionId();
-    if (!id) {
-      setPendingSessionModel(next);
-      closeModelPicker({ restorePromptFocus: true });
+    setGlobalModel(next);
+    closeModelPicker({ restorePromptFocus: true });
+  }
+
+  function onModelChipClick(options?: { returnFocusTarget?: PromptFocusReturnTarget }) {
+    if (!providerConnectedIds().length) {
+      void openProviderAuthModal({ returnFocusTarget: options?.returnFocusTarget ?? "composer" });
       return;
     }
-
-    setSessionModelOverrideById((current) => ({ ...current, [id]: next }));
-    closeModelPicker({ restorePromptFocus: true });
+    openSessionModelPicker(options);
   }
 
   function openSettingsFromModelPicker() {
@@ -6887,6 +6986,8 @@ export default function App() {
       }
 
       const session = unwrap(rawResult);
+      // pendingSessionModel is deprecated — globalModel is the source of truth now.
+      // Keep the read so any leftover pending value gets cleared.
       const pendingModel = pendingSessionModel();
       // Immediately select and show the new session before background list refresh.
       setBusyLabel("status.loading_session");
@@ -7196,6 +7297,21 @@ export default function App() {
         window.localStorage.setItem(sessionModelOverridesKey(workspaceId), payload);
       } else {
         window.localStorage.removeItem(sessionModelOverridesKey(workspaceId));
+      }
+    } catch {
+      // ignore
+    }
+  });
+
+  // Persist globalModel to localStorage. Cross-workspace shared, no workspace key.
+  createEffect(() => {
+    if (typeof window === "undefined") return;
+    const model = globalModel();
+    try {
+      if (model) {
+        window.localStorage.setItem(GLOBAL_MODEL_PREF_KEY, formatModelRef(model));
+      } else {
+        window.localStorage.removeItem(GLOBAL_MODEL_PREF_KEY);
       }
     } catch {
       // ignore
@@ -8123,12 +8239,26 @@ export default function App() {
     anyActiveRuns: anyActiveRuns(),
     installUpdateAndRestart,
     selectedSessionModelLabel: selectedSessionModelLabel(),
-    selectedProviderID: selectedSessionModel().providerID,
-    openSessionModelPicker: openSessionModelPicker,
-    modelVariantLabel: getModelBehaviorCopy(selectedSessionModel(), getVariantFor(selectedSessionModel())).label,
-    modelVariant: getVariantFor(selectedSessionModel()),
-    modelBehaviorOptions: getModelBehaviorCopy(selectedSessionModel(), getVariantFor(selectedSessionModel())).options,
-    setModelVariant: (value: string | null) => updateModelVariant(selectedSessionModel(), value),
+    selectedProviderID: selectedSessionModel()?.providerID ?? "",
+    openSessionModelPicker: onModelChipClick,
+    modelVariantLabel: (() => {
+      const m = selectedSessionModel();
+      if (!m) return "";
+      return getModelBehaviorCopy(m, getVariantFor(m)).label;
+    })(),
+    modelVariant: (() => {
+      const m = selectedSessionModel();
+      return m ? getVariantFor(m) : null;
+    })(),
+    modelBehaviorOptions: (() => {
+      const m = selectedSessionModel();
+      if (!m) return [];
+      return getModelBehaviorCopy(m, getVariantFor(m)).options;
+    })(),
+    setModelVariant: (value: string | null) => {
+      const m = selectedSessionModel();
+      if (m) updateModelVariant(m, value);
+    },
     activePlugins: sidebarPluginList(),
     activePluginStatus: sidebarPluginStatus(),
     mcpServers: mcpServers(),
