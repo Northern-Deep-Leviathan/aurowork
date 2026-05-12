@@ -34,7 +34,9 @@
     "release:prepare:dry": "node scripts/release/prepare.mjs --dry-run",
     "release:ship": "node scripts/release/ship.mjs",
     "release:ship:watch": "node scripts/release/ship.mjs --watch",
-    "tauri": "pnpm --filter @aurowork/desktop exec tauri"
+    "tauri": "pnpm --filter @aurowork/desktop exec tauri",
+    "skills:link": "node scripts/skills/link.mjs",
+    "postinstall": "node scripts/skills/link.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
