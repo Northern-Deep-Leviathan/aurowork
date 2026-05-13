@@ -48,3 +48,6 @@ vendor/opencode/
 .vercel
 .env*.local
 .claude/*
+# But keep CLAUDE.md (project instructions) tracked
+!.claude/CLAUDE.md
+# .claude/skills is a Windows junction → ../.skills (kept out of git on purpose)
