@@ -10,15 +10,17 @@ Provide a manually-triggered GitHub Actions workflow that updates the
 `auroVersion` field in the repo-root `constants.json` to either a
 user-supplied auro release tag, or — when no input is given — GitHub's
 "latest" release (most recent non-draft, non-prerelease) on the private
-upstream repo `Northern-Deep-Leviathan/auro`. After the file is updated the workflow
-opens a pull request against the default branch for human review.
+upstream repo `Northern-Deep-Leviathan/auro`. After the file is updated
+the workflow opens a pull request against the default branch and
+immediately enables auto-merge (squash); when a PAT with bypass rights
+is available the PR is merged outright with `gh pr merge --admin`,
+skipping required checks/reviews.
 
 The reusable logic lives in a shell script under `scripts/publish/` so it
 can be invoked locally as well as from CI.
 
 ## Non-Goals
 
-- Auto-merging the PR.
 - Triggering downstream builds/releases (handled by separate workflows).
 - Scheduling or webhook-driven runs (manual dispatch only for now).
 - Modifying any file other than `constants.json`.
@@ -28,8 +30,15 @@ can be invoked locally as well as from CI.
 1. Maintainer opens the Actions tab → **Sync Auro Version** → **Run
    workflow**.
 2. They optionally type a tag (`v0.2.0`) into the `version` input.
-3. Workflow resolves the target tag, updates `constants.json`, and opens a
-   PR titled `chore: sync auro to <version>`.
+3. Workflow resolves the target tag, updates `constants.json`, opens a
+   PR titled `chore: sync auro to <version>`, then auto-merges it:
+   - If `AURO_SYNC_ADMIN_TOKEN` (a PAT with bypass rights) is set, the
+     workflow calls `gh pr merge --admin --squash --delete-branch`,
+     bypassing required reviews and status checks.
+   - Otherwise it enables native auto-merge
+     (`gh pr merge --auto --squash --delete-branch`); the PR merges as
+     soon as branch-protection requirements are satisfied (or
+     immediately, if none are configured).
 4. If `constants.json` already matches the target version, the workflow
    exits successfully with a "no-op" log line and no PR is created.
 
@@ -116,9 +125,11 @@ jobs:
         run: bash scripts/publish/sync-auro-version.sh
 
       - name: Open PR
+        id: pr
         if: steps.sync.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.AURO_SYNC_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
           branch: chore/sync-auro-${{ steps.sync.outputs.version }}
           base: ${{ github.event.repository.default_branch }}
           title: "chore: sync auro to ${{ steps.sync.outputs.version }}"
@@ -131,16 +142,39 @@ jobs:
             Triggered by @${{ github.actor }} via `workflow_dispatch`
             (input version: `${{ inputs.version || '(auto: latest release)' }}`).
           labels: auro-sync
+
+      - name: Auto-merge PR
+        if: steps.pr.outputs.pull-request-number != ''
+        env:
+          # Prefer a bypass-capable PAT; fall back to GITHUB_TOKEN (no bypass).
+          GH_TOKEN: ${{ secrets.AURO_SYNC_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
+          PR: ${{ steps.pr.outputs.pull-request-number }}
+          HAS_ADMIN: ${{ secrets.AURO_SYNC_ADMIN_TOKEN != '' }}
+        run: |
+          if [ "$HAS_ADMIN" = "true" ]; then
+            gh pr merge "$PR" --admin --squash --delete-branch
+          else
+            gh pr merge "$PR" --auto --squash --delete-branch
+          fi
 ```
 
 ## Prerequisites
 
 - **Repo secret `AURO_RELEASES_TOKEN`** — PAT with read access to
-  `Northern-Deep-Leviathan/auro` releases. Must be configured before the
-  workflow is usable; the script will exit 1 with an actionable error if
-  it's missing or unauthorized.
-- The default `GITHUB_TOKEN` is sufficient for the PR step because of the
-  `permissions:` block.
+  `Northern-Deep-Leviathan/auro` releases. Required.
+- **Repo secret `AURO_SYNC_ADMIN_TOKEN`** (optional, recommended) — PAT
+  (or GitHub App token) with `contents: write`, `pull-requests: write`,
+  AND **"Bypass branch protections"** on this repo. When present, the
+  workflow uses it to (a) create the PR so default-branch protections
+  permitting and (b) call `gh pr merge --admin`, merging immediately
+  regardless of required reviews/checks. If the secret is absent the
+  workflow falls back to `GITHUB_TOKEN` and enables native auto-merge,
+  which still requires protections to be satisfied.
+- The default `GITHUB_TOKEN` is otherwise sufficient for the PR step
+  because of the `permissions:` block.
+- Native auto-merge must be enabled at the repository level
+  (Settings → General → "Allow auto-merge") for the fallback path to
+  work. The admin-bypass path does not require this.
 
 ## Error Handling
 
@@ -162,7 +196,9 @@ jobs:
   should mutate `constants.json`; revert with `git checkout`.
 - **Negative path:** supply a bogus tag, confirm exit 1 and message.
 - **CI:** dispatch on a throwaway branch with no input; verify a PR is
-  opened against the default branch with the auto-selected tag.
+  opened against the default branch with the auto-selected tag and that
+  it auto-merges (immediately, if `AURO_SYNC_ADMIN_TOKEN` is set;
+  otherwise once protections pass).
 
 ## Open Questions
 
