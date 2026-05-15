@@ -8,9 +8,9 @@
 
 Provide a manually-triggered GitHub Actions workflow that updates the
 `auroVersion` field in the repo-root `constants.json` to either a
-user-supplied auro release tag, or — when no input is given — the
-highest-semver published release on the private upstream repo
-`Northern-Deep-Leviathan/auro`. After the file is updated the workflow
+user-supplied auro release tag, or — when no input is given — GitHub's
+"latest" release (most recent non-draft, non-prerelease) on the private
+upstream repo `Northern-Deep-Leviathan/auro`. After the file is updated the workflow
 opens a pull request against the default branch for human review.
 
 The reusable logic lives in a shell script under `scripts/publish/` so it
@@ -61,11 +61,11 @@ if any is missing.
        200 and `.draft == false`. Otherwise exit 1 with
        `tag "$VERSION" is not a published release of $AURO_REPO`.
    - If `VERSION` is empty:
-     - `gh api repos/$AURO_REPO/releases --paginate`, filter
-       `.draft == false`, extract `.tag_name` values.
-     - Pick the highest semver via `sort -V` with a deterministic
-       tiebreak (lexical) so pre-releases are included.
-     - Exit 1 with `no published releases found in $AURO_REPO` if empty.
+     - `gh api repos/$AURO_REPO/releases/latest` → read `.tag_name`.
+       GitHub's `/releases/latest` endpoint already excludes drafts and
+       pre-releases, so a single call is sufficient.
+     - Exit 1 with `no published releases found in $AURO_REPO` if the
+       endpoint returns 404 (repo has only drafts/pre-releases or none).
 3. **Read current value:** `current=$(jq -r '.auroVersion' "$CONSTANTS_FILE")`.
 4. **No-op check:** if `current == target`, log
    `auroVersion already at <tag>; nothing to do`, emit
@@ -94,7 +94,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Auro release tag (e.g. v0.2.0). Leave empty to pick the highest semver published release."
+        description: "Auro release tag (e.g. v0.2.0). Leave empty to use GitHub's latest release (excludes drafts and pre-releases)."
         required: false
         type: string
 
@@ -129,7 +129,7 @@ jobs:
             Source: https://github.com/Northern-Deep-Leviathan/auro/releases/tag/${{ steps.sync.outputs.version }}
 
             Triggered by @${{ github.actor }} via `workflow_dispatch`
-            (input version: `${{ inputs.version || '(auto: highest semver)' }}`).
+            (input version: `${{ inputs.version || '(auto: latest release)' }}`).
           labels: auro-sync
 ```
 
