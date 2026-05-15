@@ -32,7 +32,7 @@ pub fn normalize_local_workspace_path(path: &str) -> String {
         PathBuf::from(trimmed)
     };
 
-    let normalized = fs::canonicalize(&expanded).unwrap_or(expanded);
+    let normalized = dunce::canonicalize(&expanded).unwrap_or(expanded);
     normalized.to_string_lossy().to_string()
 }
 

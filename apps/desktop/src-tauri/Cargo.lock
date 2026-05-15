@@ -245,6 +245,7 @@ name = "aurowork"
 version = "0.12.0"
 dependencies = [
  "dashmap",
+ "dunce",
  "fd-lock",
  "gethostname",
  "json5",
