@@ -18,10 +18,20 @@ bypass-capable token so required reviews / status checks are skipped —
 mirroring the merge flow in `auro`'s
 [`script/publish-release-cli.ts`](../../../../auro/script/publish-release-cli.ts).
 
-The reusable file-mutation logic lives in a shell script under
-`scripts/publish/` so it can also be run locally. All PR/branch/merge
-operations live in the workflow YAML and use `gh` directly (no
-third-party actions), matching the upstream reference.
+The reusable logic lives in three shell scripts under
+`scripts/publish/`:
+
+- `sync-auro-version.sh` — resolves the target tag and updates
+  `constants.json`. Side-effect-free w.r.t. git.
+- `open-merge-auro-pr.sh` — branches, commits, pushes, opens the PR,
+  waits for checks, admin-merges. Owns all happy-path git/PR side
+  effects.
+- `cleanup-auro-pr.sh` — closes the PR (if still open) and deletes the
+  remote branch. Invoked from the workflow's `failure()` step.
+
+All PR/branch/merge operations use `gh` directly (no third-party
+actions), matching the upstream reference. The workflow YAML is a thin
+orchestrator that wires env vars to these scripts.
 
 ## Non-Goals
 
@@ -151,59 +161,13 @@ jobs:
           VERSION: ${{ steps.sync.outputs.version }}
           ACTOR: ${{ github.actor }}
           INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
-          branch="chore/sync-auro-${VERSION}"
-
-          # Branch + commit + push (protection rules forbid direct main commits)
-          git checkout -b "$branch"
-          git commit -am "chore: sync auro to ${VERSION}"
-
-          # Rebase on latest main to surface conflicts before opening the PR
-          git fetch origin "${GITHUB_BASE:-main}" || git fetch origin main
-          if ! git rebase origin/main; then
-            git rebase --abort || true
-            echo "branch conflicts with origin/main — resolve manually and retry" >&2
-            exit 1
-          fi
-
-          git push origin "$branch" --force-with-lease --no-verify
-
-          # Open the PR
-          gh pr create --base main --head "$branch" \
-            --title "chore: sync auro to ${VERSION}" \
-            --body "$(printf 'Bumps `constants.json#auroVersion` to **%s**.\n\nSource: https://github.com/Northern-Deep-Leviathan/auro/releases/tag/%s\n\nTriggered by @%s via workflow_dispatch (input: `%s`).' \
-                "$VERSION" "$VERSION" "$ACTOR" "${INPUT_VERSION:-(auto: latest)}")" \
-            --label auro-sync
-
-          # Wait for required status checks (tolerate "no checks reported")
-          echo "waiting for PR checks..."
-          if ! gh pr checks "$branch" --watch 2> /tmp/pr-checks.err; then
-            if grep -q "no checks reported" /tmp/pr-checks.err; then
-              echo "no checks configured, proceeding"
-            else
-              cat /tmp/pr-checks.err >&2
-              exit 1
-            fi
-          fi
-
-          # Merge via bypass; --admin invokes the ruleset bypass path
-          gh pr merge "$branch" --squash --admin --delete-branch
+        run: bash scripts/publish/open-merge-auro-pr.sh
 
       - name: Cleanup on failure
         if: failure() && steps.sync.outputs.changed == 'true'
         env:
           VERSION: ${{ steps.sync.outputs.version }}
-        run: |
-          set +e
-          branch="chore/sync-auro-${VERSION}"
-          state=$(gh pr view "$branch" --json state -q .state 2>/dev/null)
-          if [ "$state" = "OPEN" ]; then
-            gh pr close "$branch" --comment "Sync failed, auto-closing."
-          fi
-          if git ls-remote --heads origin "$branch" | grep -q .; then
-            git push origin --delete "$branch" --no-verify || true
-          fi
+        run: bash scripts/publish/cleanup-auro-pr.sh
 ```
 
 Key parallels with `auro/script/publish-release-cli.ts`:
@@ -216,6 +180,66 @@ Key parallels with `auro/script/publish-release-cli.ts`:
 - `force-with-lease --no-verify` push of the release branch.
 - `failure()` cleanup step mirrors the `catch` block: close the PR if
   open, delete the remote branch.
+
+### 3. `scripts/publish/open-merge-auro-pr.sh`
+
+POSIX bash script that owns the happy-path PR/merge sequence.
+Invoked from the workflow; also runnable locally for end-to-end
+testing on a fork.
+
+**Inputs (env):**
+
+| Var | Notes |
+|-----|-------|
+| `VERSION` | Required. Target auro tag (e.g. `v0.2.0`). Used in branch name, commit, PR title/body. |
+| `ACTOR` | Optional. GitHub login that dispatched the workflow. Defaults to `$(git config user.name)` locally. |
+| `INPUT_VERSION` | Optional. The raw `inputs.version` value; empty means "auto-selected". |
+| `GH_TOKEN` | Required. Bypass-capable token (provided by the workflow `env:` block). |
+| `BASE_BRANCH` | Defaults to `main`. |
+
+**Flow:**
+
+1. `set -euo pipefail`; assert `VERSION` and `GH_TOKEN` are set.
+2. Compute `branch="chore/sync-auro-${VERSION}"`.
+3. `git checkout -b "$branch"` and `git commit -am "chore: sync auro to ${VERSION}"`.
+4. `git fetch origin "$BASE_BRANCH"` then `git rebase origin/$BASE_BRANCH`.
+   On conflict, `git rebase --abort` and exit 1 with
+   `branch conflicts with origin/$BASE_BRANCH — resolve manually and retry`.
+5. `git push origin "$branch" --force-with-lease --no-verify`.
+6. `gh pr create --base "$BASE_BRANCH" --head "$branch" --title ... --body ... --label auro-sync`.
+   The body is built with `printf` and includes the auro release URL,
+   the dispatching actor, and whether the version was user-supplied or
+   auto-selected (`(auto: latest)` when `INPUT_VERSION` is empty).
+7. `gh pr checks "$branch" --watch`, capturing stderr; if it exits
+   non-zero and stderr contains `no checks reported`, log and proceed;
+   otherwise re-emit stderr and exit 1.
+8. `gh pr merge "$branch" --squash --admin --delete-branch`.
+
+Exit codes: 0 on success; 1 on any failure (validation, rebase
+conflict, push, PR creation, real check failure, merge failure).
+
+### 4. `scripts/publish/cleanup-auro-pr.sh`
+
+Best-effort cleanup invoked from the workflow's `failure()` step.
+Mirrors the `catch` block in `publish-release-cli.ts`.
+
+**Inputs (env):**
+
+| Var | Notes |
+|-----|-------|
+| `VERSION` | Required. Target tag, used to derive the branch name. |
+| `GH_TOKEN` | Required. Same bypass-capable token. |
+
+**Flow:**
+
+1. `set +e` (best-effort; never let cleanup itself fail the workflow).
+2. Compute `branch="chore/sync-auro-${VERSION}"`.
+3. `state=$(gh pr view "$branch" --json state -q .state 2>/dev/null)`.
+4. If `state == "OPEN"`, run
+   `gh pr close "$branch" --comment "Sync failed, auto-closing."`.
+5. If `git ls-remote --heads origin "$branch"` returns a ref, run
+   `git push origin --delete "$branch" --no-verify`.
+6. Exit 0 unconditionally.
 
 ## Prerequisites
 
