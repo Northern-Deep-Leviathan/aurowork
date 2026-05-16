@@ -10,14 +10,18 @@ Provide a manually-triggered GitHub Actions workflow that updates the
 `auroVersion` field in the repo-root `constants.json` to either a
 user-supplied auro release tag, or — when no input is given — GitHub's
 "latest" release (most recent non-draft, non-prerelease) on the private
-upstream repo `Northern-Deep-Leviathan/auro`. After the file is updated
-the workflow opens a pull request against the default branch and
-immediately enables auto-merge (squash); when a PAT with bypass rights
-is available the PR is merged outright with `gh pr merge --admin`,
-skipping required checks/reviews.
+upstream repo `Northern-Deep-Leviathan/auro`.
 
-The reusable logic lives in a shell script under `scripts/publish/` so it
-can be invoked locally as well as from CI.
+The workflow then opens a release-style PR against the default branch
+and immediately squash-merges it with `gh pr merge --admin`, using a
+bypass-capable token so required reviews / status checks are skipped —
+mirroring the merge flow in `auro`'s
+[`script/publish-release-cli.ts`](../../../../auro/script/publish-release-cli.ts).
+
+The reusable file-mutation logic lives in a shell script under
+`scripts/publish/` so it can also be run locally. All PR/branch/merge
+operations live in the workflow YAML and use `gh` directly (no
+third-party actions), matching the upstream reference.
 
 ## Non-Goals
 
@@ -30,24 +34,24 @@ can be invoked locally as well as from CI.
 1. Maintainer opens the Actions tab → **Sync Auro Version** → **Run
    workflow**.
 2. They optionally type a tag (`v0.2.0`) into the `version` input.
-3. Workflow resolves the target tag, updates `constants.json`, opens a
-   PR titled `chore: sync auro to <version>`, then auto-merges it:
-   - If `AURO_SYNC_ADMIN_TOKEN` (a PAT with bypass rights) is set, the
-     workflow calls `gh pr merge --admin --squash --delete-branch`,
-     bypassing required reviews and status checks.
-   - Otherwise it enables native auto-merge
-     (`gh pr merge --auto --squash --delete-branch`); the PR merges as
-     soon as branch-protection requirements are satisfied (or
-     immediately, if none are configured).
+3. Workflow resolves the target tag, mutates `constants.json` on a
+   `chore/sync-auro-<version>` branch, pushes it, opens a PR via
+   `gh pr create`, waits for required checks (tolerating "no checks
+   reported"), then merges with `gh pr merge --squash --admin` and
+   deletes the branch.
 4. If `constants.json` already matches the target version, the workflow
-   exits successfully with a "no-op" log line and no PR is created.
+   logs "already at <tag>; nothing to do" and exits 0 with no PR.
+5. On any failure after the branch was pushed, the workflow closes the
+   PR (if open) and deletes the remote branch, mirroring the cleanup in
+   `publish-release-cli.ts`.
 
 ## Components
 
 ### 1. `scripts/publish/sync-auro-version.sh`
 
-POSIX shell script (bash) that owns all logic. Designed to be safely
-runnable on a developer's machine and inside CI.
+POSIX shell script (bash) that owns version resolution and file
+mutation **only**. It is purposely free of git / PR side effects so it
+can be run locally without surprises.
 
 **Inputs (environment variables):**
 
@@ -56,7 +60,7 @@ runnable on a developer's machine and inside CI.
 | `VERSION` | empty | Optional auro release tag, e.g. `v0.2.0`. |
 | `AURO_REPO` | `Northern-Deep-Leviathan/auro` | Override for testing. |
 | `CONSTANTS_FILE` | `constants.json` | Path relative to repo root. |
-| `GH_TOKEN` | _required_ | PAT with `repo` (or fine-grained Contents:read) scope on `AURO_REPO`. |
+| `GH_TOKEN` | _required_ | PAT with read access to `AURO_REPO` releases. |
 
 **Dependencies:** `bash`, `gh`, `jq`. Script aborts with a clear message
 if any is missing.
@@ -71,30 +75,34 @@ if any is missing.
        `tag "$VERSION" is not a published release of $AURO_REPO`.
    - If `VERSION` is empty:
      - `gh api repos/$AURO_REPO/releases/latest` → read `.tag_name`.
-       GitHub's `/releases/latest` endpoint already excludes drafts and
-       pre-releases, so a single call is sufficient.
-     - Exit 1 with `no published releases found in $AURO_REPO` if the
-       endpoint returns 404 (repo has only drafts/pre-releases or none).
+       GitHub's `/releases/latest` already excludes drafts and
+       pre-releases.
+     - Exit 1 with `no published releases found in $AURO_REPO` on 404.
 3. **Read current value:** `current=$(jq -r '.auroVersion' "$CONSTANTS_FILE")`.
 4. **No-op check:** if `current == target`, log
    `auroVersion already at <tag>; nothing to do`, emit
    `changed=false`, `version=<tag>`, exit 0.
 5. **Write update:**
    `jq --arg v "$target" '.auroVersion = $v' "$CONSTANTS_FILE" > "$tmp"`
-   then `mv "$tmp" "$CONSTANTS_FILE"`. Preserve the existing trailing
-   newline and 2-space indent (jq's defaults match the current file).
+   then `mv "$tmp" "$CONSTANTS_FILE"`. Preserves the existing trailing
+   newline and 2-space indent.
 6. **Emit outputs:** when `$GITHUB_OUTPUT` is set, append
-   `version=<tag>` and `changed=true`; otherwise print them to stdout so
-   the script is informative when run locally.
+   `version=<tag>` and `changed=true|false`; otherwise print to stdout.
 
 **Exit codes:**
 
 | Code | Meaning |
 |------|---------|
 | 0 | Success (changed or no-op). |
-| 1 | Validation failure (missing deps, missing token, tag not found, no releases, jq/IO error). |
+| 1 | Validation/IO failure. |
 
 ### 2. `.github/workflows/sync-auro-version.yml`
+
+The workflow uses a single bypass-capable token (`AURO_SYNC_TOKEN`) for
+all git, PR, and merge operations — exactly like
+`publish-release-cli.ts` uses one `GH_TOKEN`. Read access to the
+upstream private auro repo is handled by a second token
+(`AURO_RELEASES_TOKEN`) scoped only to the resolution step.
 
 ```yaml
 name: Sync Auro Version
@@ -103,7 +111,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Auro release tag (e.g. v0.2.0). Leave empty to use GitHub's latest release (excludes drafts and pre-releases)."
+        description: "Auro release tag (e.g. v0.2.0). Leave empty to use GitHub's latest release."
         required: false
         type: string
 
@@ -114,93 +122,141 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:
+      # Single bypass-capable token for every git/PR/merge call in this job.
+      GH_TOKEN: ${{ secrets.AURO_SYNC_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AURO_SYNC_TOKEN }}
+          fetch-depth: 0
 
-      - name: Sync auroVersion
+      - name: Configure git identity
+        run: |
+          git config user.name  "aurowork-bot"
+          git config user.email "aurowork-bot@users.noreply.github.com"
+
+      - name: Resolve & update auroVersion
         id: sync
         env:
+          # Use the read-only token for upstream release lookup so the
+          # bypass token isn't sent to a foreign repo.
           GH_TOKEN: ${{ secrets.AURO_RELEASES_TOKEN }}
           VERSION: ${{ inputs.version }}
         run: bash scripts/publish/sync-auro-version.sh
 
-      - name: Open PR
-        id: pr
+      - name: Open & merge PR
         if: steps.sync.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.AURO_SYNC_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
-          branch: chore/sync-auro-${{ steps.sync.outputs.version }}
-          base: ${{ github.event.repository.default_branch }}
-          title: "chore: sync auro to ${{ steps.sync.outputs.version }}"
-          commit-message: "chore: sync auro to ${{ steps.sync.outputs.version }}"
-          body: |
-            Bumps `constants.json#auroVersion` to **${{ steps.sync.outputs.version }}**.
-
-            Source: https://github.com/Northern-Deep-Leviathan/auro/releases/tag/${{ steps.sync.outputs.version }}
-
-            Triggered by @${{ github.actor }} via `workflow_dispatch`
-            (input version: `${{ inputs.version || '(auto: latest release)' }}`).
-          labels: auro-sync
-
-      - name: Auto-merge PR
-        if: steps.pr.outputs.pull-request-number != ''
         env:
-          # Prefer a bypass-capable PAT; fall back to GITHUB_TOKEN (no bypass).
-          GH_TOKEN: ${{ secrets.AURO_SYNC_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
-          PR: ${{ steps.pr.outputs.pull-request-number }}
-          HAS_ADMIN: ${{ secrets.AURO_SYNC_ADMIN_TOKEN != '' }}
+          VERSION: ${{ steps.sync.outputs.version }}
+          ACTOR: ${{ github.actor }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "$HAS_ADMIN" = "true" ]; then
-            gh pr merge "$PR" --admin --squash --delete-branch
-          else
-            gh pr merge "$PR" --auto --squash --delete-branch
+          set -euo pipefail
+          branch="chore/sync-auro-${VERSION}"
+
+          # Branch + commit + push (protection rules forbid direct main commits)
+          git checkout -b "$branch"
+          git commit -am "chore: sync auro to ${VERSION}"
+
+          # Rebase on latest main to surface conflicts before opening the PR
+          git fetch origin "${GITHUB_BASE:-main}" || git fetch origin main
+          if ! git rebase origin/main; then
+            git rebase --abort || true
+            echo "branch conflicts with origin/main — resolve manually and retry" >&2
+            exit 1
+          fi
+
+          git push origin "$branch" --force-with-lease --no-verify
+
+          # Open the PR
+          gh pr create --base main --head "$branch" \
+            --title "chore: sync auro to ${VERSION}" \
+            --body "$(printf 'Bumps `constants.json#auroVersion` to **%s**.\n\nSource: https://github.com/Northern-Deep-Leviathan/auro/releases/tag/%s\n\nTriggered by @%s via workflow_dispatch (input: `%s`).' \
+                "$VERSION" "$VERSION" "$ACTOR" "${INPUT_VERSION:-(auto: latest)}")" \
+            --label auro-sync
+
+          # Wait for required status checks (tolerate "no checks reported")
+          echo "waiting for PR checks..."
+          if ! gh pr checks "$branch" --watch 2> /tmp/pr-checks.err; then
+            if grep -q "no checks reported" /tmp/pr-checks.err; then
+              echo "no checks configured, proceeding"
+            else
+              cat /tmp/pr-checks.err >&2
+              exit 1
+            fi
+          fi
+
+          # Merge via bypass; --admin invokes the ruleset bypass path
+          gh pr merge "$branch" --squash --admin --delete-branch
+
+      - name: Cleanup on failure
+        if: failure() && steps.sync.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.sync.outputs.version }}
+        run: |
+          set +e
+          branch="chore/sync-auro-${VERSION}"
+          state=$(gh pr view "$branch" --json state -q .state 2>/dev/null)
+          if [ "$state" = "OPEN" ]; then
+            gh pr close "$branch" --comment "Sync failed, auto-closing."
+          fi
+          if git ls-remote --heads origin "$branch" | grep -q .; then
+            git push origin --delete "$branch" --no-verify || true
           fi
 ```
 
+Key parallels with `auro/script/publish-release-cli.ts`:
+
+- Single env-level `GH_TOKEN` (bypass-capable) instead of mixing tokens
+  per call.
+- `gh pr create` → `gh pr checks --watch` (tolerating "no checks
+  reported") → `gh pr merge --squash --admin --delete-branch` is the
+  exact merge sequence.
+- `force-with-lease --no-verify` push of the release branch.
+- `failure()` cleanup step mirrors the `catch` block: close the PR if
+  open, delete the remote branch.
+
 ## Prerequisites
 
+- **Repo secret `AURO_SYNC_TOKEN`** — PAT or GitHub App installation
+  token configured as a **ruleset bypass actor** on this repo. Must
+  hold `contents: write` and `pull-requests: write`. This is the
+  equivalent of the "release App" referenced by
+  `publish-release-cli.ts`. Required.
 - **Repo secret `AURO_RELEASES_TOKEN`** — PAT with read access to
-  `Northern-Deep-Leviathan/auro` releases. Required.
-- **Repo secret `AURO_SYNC_ADMIN_TOKEN`** (optional, recommended) — PAT
-  (or GitHub App token) with `contents: write`, `pull-requests: write`,
-  AND **"Bypass branch protections"** on this repo. When present, the
-  workflow uses it to (a) create the PR so default-branch protections
-  permitting and (b) call `gh pr merge --admin`, merging immediately
-  regardless of required reviews/checks. If the secret is absent the
-  workflow falls back to `GITHUB_TOKEN` and enables native auto-merge,
-  which still requires protections to be satisfied.
-- The default `GITHUB_TOKEN` is otherwise sufficient for the PR step
-  because of the `permissions:` block.
-- Native auto-merge must be enabled at the repository level
-  (Settings → General → "Allow auto-merge") for the fallback path to
-  work. The admin-bypass path does not require this.
+  releases on the private `Northern-Deep-Leviathan/auro`. Required.
+- "Allow squash merging" enabled in repo settings (it already is, but
+  noted for completeness). Native "Allow auto-merge" is **not**
+  required because we use `--admin`.
 
 ## Error Handling
 
 | Failure | Behavior |
 |---------|----------|
-| `AURO_RELEASES_TOKEN` missing/unauthorized | `gh` returns non-zero; script exits 1, workflow fails. |
-| User-supplied tag not found or `draft=true` | Script exits 1 with `tag "<v>" is not a published release of <repo>`. |
-| Zero published releases in upstream | Script exits 1 with `no published releases found in <repo>`. |
-| `jq` or `gh` missing locally | Script exits 1 with install hint. |
-| `constants.json` already at target | Script exits 0, `changed=false`, no PR step runs. |
+| `AURO_RELEASES_TOKEN` missing/unauthorized | Script exits 1; workflow fails before any branch is pushed. |
+| User-supplied tag missing or `draft=true` | Script exits 1: `tag "<v>" is not a published release of <repo>`. |
+| Zero published releases in upstream | Script exits 1: `no published releases found in <repo>`. |
+| `constants.json` already at target | Script exits 0, `changed=false`, no PR work runs. |
+| Rebase conflict against `origin/main` | Step exits 1 with a "resolve manually and retry" message; cleanup step closes/deletes the branch. |
+| PR checks fail (real failure, not "none reported") | Step exits 1; cleanup step closes the PR and deletes the branch. |
+| `gh pr merge --admin` fails (token lacks bypass) | Step exits 1; cleanup step closes the PR and deletes the branch. |
 
 ## Testing
 
-- **Local dry run:**
+- **Local dry run (script only):**
   `GH_TOKEN=$(gh auth token) VERSION=v0.1.0 bash scripts/publish/sync-auro-version.sh`
-  on a clean checkout should print `already at v0.1.0; nothing to do`.
-- **Local update:**
-  `GH_TOKEN=$(gh auth token) VERSION=<existing-tag> bash scripts/publish/sync-auro-version.sh`
-  should mutate `constants.json`; revert with `git checkout`.
-- **Negative path:** supply a bogus tag, confirm exit 1 and message.
-- **CI:** dispatch on a throwaway branch with no input; verify a PR is
-  opened against the default branch with the auto-selected tag and that
-  it auto-merges (immediately, if `AURO_SYNC_ADMIN_TOKEN` is set;
-  otherwise once protections pass).
+  → prints `already at v0.1.0; nothing to do`.
+- **Local update:** same with `VERSION=<existing-tag>`, revert with
+  `git checkout`.
+- **Negative path:** supply a bogus tag → exit 1 with clear message.
+- **CI happy path:** dispatch with no input on a throwaway base branch;
+  verify the PR is created, watched, admin-merged, and the branch
+  deleted.
+- **CI failure path:** temporarily revoke `AURO_SYNC_TOKEN`'s bypass
+  and confirm the cleanup step closes the PR and deletes the branch.
 
 ## Open Questions
 
-None at design time. The PAT must be provisioned by a maintainer before
-first run.
+None at design time. The two secrets must be provisioned by a
+maintainer before the first dispatch.
