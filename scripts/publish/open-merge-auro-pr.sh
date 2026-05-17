@@ -10,7 +10,10 @@
 #   BASE_BRANCH     default: main
 set -euo pipefail
 
-die() { echo "error: $*" >&2; exit 1; }
+# Shared helpers: die, rebase_on_base, push_branch, watch_pr_checks, admin_squash_merge.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../common/open-merge-pr-common.sh
+. "${SCRIPT_DIR}/../common/open-merge-pr-common.sh"
 
 [ -n "${VERSION:-}" ] || die "VERSION is required"
 [ -n "${GH_TOKEN:-}" ] || die "GH_TOKEN is required (bypass-capable token)"
@@ -25,14 +28,10 @@ git checkout -b "$branch"
 git commit -am "chore: sync auro to ${VERSION}"
 
 # 2. Rebase on latest base to surface conflicts BEFORE opening the PR.
-git fetch origin "$BASE_BRANCH"
-if ! git rebase "origin/${BASE_BRANCH}"; then
-  git rebase --abort || true
-  die "branch conflicts with origin/${BASE_BRANCH} — resolve manually and retry"
-fi
+rebase_on_base "$BASE_BRANCH"
 
 # 3. Push with force-with-lease, skip hooks (matches upstream release script).
-git push origin "$branch" --force-with-lease --no-verify
+push_branch "$branch"
 
 # 4. Open the PR.
 body=$(printf 'Bumps `constants.json#auroVersion` to **%s**.\n\nSource: https://github.com/Northern-Deep-Leviathan/auro/releases/tag/%s\n\nTriggered by @%s via workflow_dispatch (input: `%s`).' \
@@ -45,17 +44,7 @@ gh pr create \
   --label "auro-sync"
 
 # 5. Watch required checks, tolerate "no checks reported".
-echo "waiting for PR checks..."
-err_file=$(mktemp)
-trap 'rm -f "$err_file"' EXIT
-if ! gh pr checks "$branch" --watch 2> "$err_file"; then
-  if grep -q "no checks reported" "$err_file"; then
-    echo "no checks configured, proceeding"
-  else
-    cat "$err_file" >&2
-    die "PR checks failed"
-  fi
-fi
+watch_pr_checks "$branch"
 
 # 6. Merge via ruleset bypass.
-gh pr merge "$branch" --squash --admin --delete-branch
+admin_squash_merge "$branch"
