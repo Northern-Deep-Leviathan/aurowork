@@ -22,6 +22,7 @@ import {
 } from "../utils";
 import { unwrap } from "../lib/auro";
 import { describeDirectoryScope, resolveScopedClientDirectory } from "../lib/session-scope";
+import { decideWorkspaceLanding } from "../lib/workspace-draft";
 import {
   buildAuroworkWorkspaceBaseUrl,
   createAuroworkServerClient,
@@ -555,16 +556,36 @@ export function createWorkspaceStore(options: {
     if (!id) return false;
     const workspace = workspaces().find((entry) => entry.id === id) ?? null;
     if (!workspace) return false;
-    const changed = selectedWorkspaceId() !== id;
 
-    await applySelectedWorkspacePresentation(workspace);
-
-    if (changed) {
+    // Draft-session model: every workspace click unconditionally enters the
+    // draft state for the target workspace. No "changed" guard — the user
+    // intent is "I clicked this workspace, take me there with a clean slate".
+    //
+    // Clearing must happen BEFORE applySelectedWorkspacePresentation flips
+    // selectedWorkspaceId, otherwise reactive consumers (route, sidebar)
+    // briefly see the new workspace paired with stale session state from
+    // the previous workspace and may pre-emptively redirect / select.
+    const landing = decideWorkspaceLanding({
+      workspaceRoot: workspace.path,
+      workspaceType: workspace.workspaceType,
+    });
+    if (landing.clearSessionState) {
       options.setSelectedSessionId(null);
       options.setMessages([]);
       options.setTodos([]);
       options.setPendingPermissions([]);
       options.setSessionStatusById({});
+    }
+
+    await applySelectedWorkspacePresentation(workspace);
+
+    // Eagerly refresh the session list for the new workspace so the sidebar
+    // and route guards see an up-to-date list scoped to this root. Without
+    // this, loadedSessionScopeRoot stays pinned to the previous workspace's
+    // root and downstream guards (route redirect, session resolution) keep
+    // refusing to redirect to the draft state.
+    if (landing.loadSessionsRoot) {
+      void options.loadSessions(landing.loadSessionsRoot);
     }
 
     if (isTauriRuntime()) {
