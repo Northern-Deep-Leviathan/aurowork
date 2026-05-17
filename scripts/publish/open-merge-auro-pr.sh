@@ -47,16 +47,15 @@ gh pr create \
 # 5. Watch required checks, tolerate "no checks reported".
 echo "waiting for PR checks..."
 err_file=$(mktemp)
+trap 'rm -f "$err_file"' EXIT
 if ! gh pr checks "$branch" --watch 2> "$err_file"; then
   if grep -q "no checks reported" "$err_file"; then
     echo "no checks configured, proceeding"
   else
     cat "$err_file" >&2
-    rm -f "$err_file"
     die "PR checks failed"
   fi
 fi
-rm -f "$err_file"
 
 # 6. Merge via ruleset bypass.
 gh pr merge "$branch" --squash --admin --delete-branch

@@ -75,9 +75,14 @@ tmp=$(mktemp -d); log="$tmp/calls.log"; : > "$log"
 make_shims "$tmp" "$log" checks_fail
 PATH="$tmp:$PATH" VERSION=v1.2.3 GH_TOKEN=x bash "$SCRIPT" >/dev/null 2>&1; rc=$?
 seq=$(tr '\n' '|' < "$log")
+# Must have actually invoked `gh pr checks --watch` AND must NOT have reached merge.
 case "$seq" in
-  *"gh pr merge "*) fail "checks_fail: merge should NOT run";;
-  *) [ "$rc" -ne 0 ] && pass "real check failure aborts" || fail "checks_fail rc=$rc";;
+  *"gh pr checks chore/sync-auro-v1.2.3 --watch"*)
+    case "$seq" in
+      *"gh pr merge "*) fail "checks_fail: merge should NOT run";;
+      *) [ "$rc" -ne 0 ] && pass "real check failure aborts" || fail "checks_fail rc=$rc";;
+    esac;;
+  *) fail "checks_fail: gh pr checks --watch was not invoked";;
 esac
 rm -rf "$tmp"
 
@@ -86,9 +91,14 @@ tmp=$(mktemp -d); log="$tmp/calls.log"; : > "$log"
 make_shims "$tmp" "$log" rebase_conflict
 PATH="$tmp:$PATH" VERSION=v1.2.3 GH_TOKEN=x bash "$SCRIPT" >/dev/null 2>&1; rc=$?
 seq=$(tr '\n' '|' < "$log")
+# Must have actually invoked `git rebase origin/main` AND must NOT have reached push.
 case "$seq" in
-  *"git push origin"*) fail "rebase_conflict: push should NOT run";;
-  *) [ "$rc" -ne 0 ] && pass "rebase conflict aborts" || fail "rebase_conflict rc=$rc";;
+  *"git rebase origin/main"*)
+    case "$seq" in
+      *"git push origin"*) fail "rebase_conflict: push should NOT run";;
+      *) [ "$rc" -ne 0 ] && pass "rebase conflict aborts" || fail "rebase_conflict rc=$rc";;
+    esac;;
+  *) fail "rebase_conflict: git rebase origin/main was not invoked";;
 esac
 rm -rf "$tmp"
 
