@@ -24,7 +24,7 @@ jobs:
         id: gitsetup
         uses: ./.github/actions/setup-auro-git
         with:
-          auro-app-id: ${{ secrets.AURO_APP_ID }}
+          auro-app-id: ${{ vars.AURO_APP_ID }}
           auro-app-key: ${{ secrets.AURO_APP_KEY }}
 
       - name: Resolve & update auroVersion
