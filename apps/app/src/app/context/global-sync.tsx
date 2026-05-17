@@ -19,7 +19,7 @@ import type {
 import type { McpStatusMap, TodoItem } from "../types";
 import { unwrap } from "../lib/auro";
 import { safeStringify } from "../utils";
-import { filterProviderList, mapConfigProvidersToList } from "../utils/providers";
+import { filterProviderList, mapConfigProvidersToList, resolveRefreshedConnectedIds } from "../utils/providers";
 import { useGlobalSDK } from "./global-sdk";
 
 export type WorkspaceState = {
@@ -122,20 +122,31 @@ export function GlobalSyncProvider(props: ParentProps) {
     } catch {
       // ignore config read failures and continue with current store state
     }
+    const previousConnected = globalStore.provider.connected ?? [];
     try {
+      const raw = unwrap(await globalSDK.client().provider.list());
+      // Guard against transient empty `connected` arrays during reload: if the
+      // server hasn't finished probing providers yet, preserve the previously
+      // known connected ids (filtered to providers still present) so that the
+      // downstream auto-clear effect doesn't wipe the user's selected model.
+      const connected = resolveRefreshedConnectedIds(raw.connected, previousConnected, raw.all);
       const result = filterProviderList(
-        unwrap(await globalSDK.client().provider.list()),
+        { ...raw, connected },
         disabledProviders,
       );
       setGlobalStore("provider", result);
     } catch {
       const fallback = unwrap(await globalSDK.client().config.providers()) as ConfigProvidersResponse;
+      const mapped = mapConfigProvidersToList(fallback.providers);
       setGlobalStore(
         "provider",
         filterProviderList(
           {
-            all: mapConfigProvidersToList(fallback.providers),
-            connected: [],
+            all: mapped,
+            // Preserve previously-known connected providers across a fallback
+            // refresh so the model selection is not wiped when the primary
+            // provider.list() call fails transiently.
+            connected: resolveRefreshedConnectedIds(undefined, previousConnected, mapped),
             default: fallback.default,
           },
           disabledProviders,

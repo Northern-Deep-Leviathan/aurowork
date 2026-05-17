@@ -6021,6 +6021,10 @@ export default function App() {
   createEffect(() => {
     const model = globalModel();
     if (!model) return;
+    // Skip while a global refresh is in flight: provider state is updated in
+    // multiple steps (all → connected → auth) and can briefly look empty during
+    // reload, which would otherwise wipe the user's selected model.
+    if (!globalSync.data.ready) return;
     // Only run check once we have provider data loaded
     if (!providers().length && !providerConnectedIds().length) return;
     if (!isModelStillAvailable(model)) {
