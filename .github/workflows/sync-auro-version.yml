@@ -1,0 +1,56 @@
+name: Sync Auro Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Auro release tag (e.g. v0.2.0). Leave empty to use GitHub's latest release."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Auro Git
+        id: gitsetup
+        uses: ./.github/actions/setup-auro-git
+        with:
+          auro-app-id: ${{ vars.AURO_APP_ID }}
+          auro-app-key: ${{ secrets.AURO_APP_KEY }}
+
+      - name: Resolve & update auroVersion
+        id: sync
+        env:
+          # App token has read access to both auro and aurowork
+          # (scoped by the App's installation).
+          GH_TOKEN: ${{ steps.gitsetup.outputs.token }}
+          VERSION: ${{ inputs.version }}
+        run: bash scripts/publish/sync-auro-version.sh
+
+      - name: Open & merge PR
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.gitsetup.outputs.token }}
+          VERSION: ${{ steps.sync.outputs.version }}
+          ACTOR: ${{ github.actor }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          # Ensure the auro-sync label exists; gh pr create fails otherwise.
+          gh label create auro-sync --color ededed --description "Auro version sync PRs" --force >/dev/null
+          bash scripts/publish/open-merge-auro-pr.sh
+
+      - name: Cleanup on failure
+        if: failure() && steps.sync.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.gitsetup.outputs.token }}
+          VERSION: ${{ steps.sync.outputs.version }}
+        run: bash scripts/publish/cleanup-auro-pr.sh
