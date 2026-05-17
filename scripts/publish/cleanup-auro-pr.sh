@@ -17,11 +17,13 @@ branch="chore/sync-auro-${VERSION}"
 
 state=$(gh pr view "$branch" --json state -q .state 2>/dev/null)
 if [ "$state" = "OPEN" ]; then
-  gh pr close "$branch" --comment "Sync failed, auto-closing." >/dev/null 2>&1
+  echo "cleanup: closing PR for $branch" >&2
+  gh pr close "$branch" --comment "Sync failed, auto-closing." >/dev/null
 fi
 
 if git ls-remote --heads origin "$branch" | grep -q .; then
-  git push origin --delete "$branch" --no-verify >/dev/null 2>&1
+  echo "cleanup: deleting remote branch $branch" >&2
+  git push origin --delete "$branch" --no-verify >/dev/null
 fi
 
 exit 0
