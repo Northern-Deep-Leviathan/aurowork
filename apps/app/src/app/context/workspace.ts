@@ -1247,15 +1247,21 @@ export function createWorkspaceStore(options: {
     const wasLocalConnection = options.startupPreference() === "local" && options.client();
     options.setStartupPreference("local");
     const nextRoot = isRemote ? next.directory?.trim() ?? "" : next.path;
-    const oldWorkspacePath = projectDir();
-    const workspaceChanged = oldWorkspacePath !== nextRoot;
+    // IMPORTANT: compare against the *actual* connected directory (clientDirectory),
+    // not projectDir(). selectWorkspace eagerly calls setProjectDir(next.path) via
+    // applySelectedWorkspacePresentation, so by the time we reach here projectDir()
+    // already equals nextRoot and workspaceChanged would falsely read `false`, causing
+    // the engine restart/reconnect below to be silently skipped. clientDirectory()
+    // is only mutated inside connectToServer, so it reflects the real runtime state.
+    const connectedDirectory = options.clientDirectory().trim();
+    const workspaceChanged = connectedDirectory !== nextRoot;
 
     wsDebug("activate:local:prep", {
       id,
       nextRoot,
       workspaceChanged,
       wasLocalConnection: Boolean(wasLocalConnection),
-      prevProjectDir: oldWorkspacePath,
+      connectedDirectory,
     });
 
     syncSelectedWorkspaceId(id);
