@@ -44,7 +44,10 @@ jobs:
           VERSION: ${{ steps.sync.outputs.version }}
           ACTOR: ${{ github.actor }}
           INPUT_VERSION: ${{ inputs.version }}
-        run: bash scripts/publish/open-merge-auro-pr.sh
+        run: |
+          # Ensure the auro-sync label exists; gh pr create fails otherwise.
+          gh label create auro-sync --color ededed --description "Auro version sync PRs" --force >/dev/null
+          bash scripts/publish/open-merge-auro-pr.sh
 
       - name: Cleanup on failure
         if: failure() && steps.sync.outputs.changed == 'true'
