@@ -15,32 +15,31 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    env:
-      # Single bypass-capable token for every git/PR/merge call in this job.
-      GH_TOKEN: ${{ secrets.AURO_SYNC_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.AURO_SYNC_TOKEN }}
           fetch-depth: 0
 
-      - name: Configure git identity
-        run: |
-          git config user.name  "aurowork-bot"
-          git config user.email "aurowork-bot@users.noreply.github.com"
+      - name: Setup Auro Git
+        id: gitsetup
+        uses: ./.github/actions/setup-auro-git
+        with:
+          auro-app-id: ${{ secrets.AURO_APP_ID }}
+          auro-app-key: ${{ secrets.AURO_APP_KEY }}
 
       - name: Resolve & update auroVersion
         id: sync
         env:
-          # Read-only token for upstream release lookup so the bypass
-          # token isn't sent to a foreign repo.
-          GH_TOKEN: ${{ secrets.AURO_RELEASES_TOKEN }}
+          # App token has read access to both auro and aurowork
+          # (scoped by the App's installation).
+          GH_TOKEN: ${{ steps.gitsetup.outputs.token }}
           VERSION: ${{ inputs.version }}
         run: bash scripts/publish/sync-auro-version.sh
 
       - name: Open & merge PR
         if: steps.sync.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ steps.gitsetup.outputs.token }}
           VERSION: ${{ steps.sync.outputs.version }}
           ACTOR: ${{ github.actor }}
           INPUT_VERSION: ${{ inputs.version }}
@@ -52,5 +51,6 @@ jobs:
       - name: Cleanup on failure
         if: failure() && steps.sync.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ steps.gitsetup.outputs.token }}
           VERSION: ${{ steps.sync.outputs.version }}
         run: bash scripts/publish/cleanup-auro-pr.sh
