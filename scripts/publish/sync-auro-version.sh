@@ -47,7 +47,11 @@ else
   [ -n "$target" ] && [ "$target" != "null" ] || die "no published releases found in $AURO_REPO"
 fi
 
-# --- file mutation added in Task 3 ---
+# --- read current value ---
+[ -f "$CONSTANTS_FILE" ] || die "$CONSTANTS_FILE not found"
+current=$(jq -r '.auroVersion' "$CONSTANTS_FILE")
+[ -n "$current" ] && [ "$current" != "null" ] || die "$CONSTANTS_FILE has no .auroVersion field"
+
 emit() {
   if [ -n "${GITHUB_OUTPUT:-}" ]; then
     printf '%s\n' "$1" >> "$GITHUB_OUTPUT"
@@ -55,5 +59,19 @@ emit() {
     printf '%s\n' "$1"
   fi
 }
+
+if [ "$current" = "$target" ]; then
+  echo "auroVersion already at $target; nothing to do"
+  emit "version=$target"
+  emit "changed=false"
+  exit 0
+fi
+
+# --- write update (preserves 2-space indent + trailing newline) ---
+tmp_file=$(mktemp)
+jq --indent 2 --arg v "$target" '.auroVersion = $v' "$CONSTANTS_FILE" > "$tmp_file"
+mv "$tmp_file" "$CONSTANTS_FILE"
+
+echo "auroVersion updated: $current -> $target"
 emit "version=$target"
-emit "changed=false"   # placeholder; Task 3 computes the real value
+emit "changed=true"

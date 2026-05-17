@@ -99,4 +99,38 @@ else
 fi
 rm -rf "$tmp"
 
+# --- T8: no-op when current == target ---
+tmp=$(mktemp -d); make_gh_shim "$tmp" latest_ok
+echo '{"auroVersion":"v9.9.9"}' > "$tmp/constants.json"
+out=$(PATH="$tmp:$PATH" GH_TOKEN=x VERSION= CONSTANTS_FILE="$tmp/constants.json" bash "$SCRIPT" 2>&1); rc=$?
+after=$(cat "$tmp/constants.json")
+if [ "$rc" -eq 0 ] \
+   && echo "$out" | grep -q "changed=false" \
+   && echo "$out" | grep -q "version=v9.9.9" \
+   && [ "$after" = '{"auroVersion":"v9.9.9"}' ]; then
+  pass "no-op: file untouched, changed=false"
+else
+  fail "no-op: rc=$rc out=$out file=$after"
+fi
+rm -rf "$tmp"
+
+# --- T9: write update when current != target ---
+tmp=$(mktemp -d); make_gh_shim "$tmp" latest_ok
+printf '{\n  "auroVersion": "v0.0.0"\n}\n' > "$tmp/constants.json"
+out=$(PATH="$tmp:$PATH" GH_TOKEN=x VERSION= CONSTANTS_FILE="$tmp/constants.json" bash "$SCRIPT" 2>&1); rc=$?
+new_ver=$(jq -r '.auroVersion' "$tmp/constants.json")
+if [ "$rc" -eq 0 ] \
+   && echo "$out" | grep -q "changed=true" \
+   && echo "$out" | grep -q "version=v9.9.9" \
+   && [ "$new_ver" = "v9.9.9" ]; then
+  pass "update: file rewritten, changed=true"
+else
+  fail "update: rc=$rc out=$out new_ver=$new_ver"
+fi
+# trailing newline preserved
+tail -c1 "$tmp/constants.json" | od -An -c | grep -q '\\n' \
+  && pass "update: trailing newline preserved" \
+  || fail "update: trailing newline missing"
+rm -rf "$tmp"
+
 exit $FAIL
