@@ -27,5 +27,33 @@ for bin in gh jq; do
   command -v "$bin" >/dev/null 2>&1 || die "$bin is required (install with your package manager)"
 done
 
-# --- (tag resolution + file mutation added in later tasks) ---
-die "not yet implemented"
+# --- resolve target tag ---
+if [ -n "$VERSION" ]; then
+  # Validate the supplied tag is a published (non-draft) release.
+  if ! payload=$(gh api "repos/$AURO_REPO/releases/tags/$VERSION" 2>/dev/null); then
+    die "tag \"$VERSION\" is not a published release of $AURO_REPO"
+  fi
+  is_draft=$(printf '%s' "$payload" | jq -r '.draft')
+  if [ "$is_draft" != "false" ]; then
+    die "tag \"$VERSION\" is not a published release of $AURO_REPO"
+  fi
+  target="$VERSION"
+else
+  # /releases/latest already excludes drafts and pre-releases.
+  if ! payload=$(gh api "repos/$AURO_REPO/releases/latest" 2>/dev/null); then
+    die "no published releases found in $AURO_REPO"
+  fi
+  target=$(printf '%s' "$payload" | jq -r '.tag_name')
+  [ -n "$target" ] && [ "$target" != "null" ] || die "no published releases found in $AURO_REPO"
+fi
+
+# --- file mutation added in Task 3 ---
+emit() {
+  if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    printf '%s\n' "$1" >> "$GITHUB_OUTPUT"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+emit "version=$target"
+emit "changed=false"   # placeholder; Task 3 computes the real value
