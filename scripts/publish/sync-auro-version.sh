@@ -68,9 +68,11 @@ if [ "$current" = "$target" ]; then
 fi
 
 # --- write update (preserves 2-space indent + trailing newline) ---
-tmp_file=$(mktemp)
+tmp_file=$(mktemp -- "${CONSTANTS_FILE}.XXXXXX")
+trap 'rm -f "$tmp_file"' EXIT
 jq --indent 2 --arg v "$target" '.auroVersion = $v' "$CONSTANTS_FILE" > "$tmp_file"
 mv "$tmp_file" "$CONSTANTS_FILE"
+trap - EXIT
 
 echo "auroVersion updated: $current -> $target"
 emit "version=$target"
