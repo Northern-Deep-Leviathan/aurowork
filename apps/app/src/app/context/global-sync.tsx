@@ -19,7 +19,7 @@ import type {
 import type { McpStatusMap, TodoItem } from "../types";
 import { unwrap } from "../lib/auro";
 import { safeStringify } from "../utils";
-import { filterProviderList, mapConfigProvidersToList } from "../utils/providers";
+import { filterProviderList, mapConfigProvidersToList, resolveRefreshedConnectedIds } from "../utils/providers";
 import { useGlobalSDK } from "./global-sdk";
 
 export type WorkspaceState = {
@@ -129,10 +129,7 @@ export function GlobalSyncProvider(props: ParentProps) {
       // server hasn't finished probing providers yet, preserve the previously
       // known connected ids (filtered to providers still present) so that the
       // downstream auto-clear effect doesn't wipe the user's selected model.
-      const connected =
-        Array.isArray(raw.connected) && raw.connected.length > 0
-          ? raw.connected
-          : previousConnected.filter((id) => raw.all?.some((p) => p.id === id));
+      const connected = resolveRefreshedConnectedIds(raw.connected, previousConnected, raw.all);
       const result = filterProviderList(
         { ...raw, connected },
         disabledProviders,
@@ -149,7 +146,7 @@ export function GlobalSyncProvider(props: ParentProps) {
             // Preserve previously-known connected providers across a fallback
             // refresh so the model selection is not wiped when the primary
             // provider.list() call fails transiently.
-            connected: previousConnected.filter((id) => mapped.some((provider) => provider.id === id)),
+            connected: resolveRefreshedConnectedIds(undefined, previousConnected, mapped),
             default: fallback.default,
           },
           disabledProviders,

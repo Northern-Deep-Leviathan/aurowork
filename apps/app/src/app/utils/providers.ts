@@ -111,3 +111,29 @@ export const filterProviderList = (
     ),
   };
 };
+
+/**
+ * Resolve the `connected` provider list when refreshing the provider state.
+ *
+ * The opencode backend probes providers asynchronously, so during a workspace
+ * reload the `provider.list()` call can briefly return an empty `connected`
+ * array, and the `config.providers()` fallback always returns an empty one.
+ * Naively overwriting the store with the empty array causes the auto-clear
+ * effect to wipe the user's selected global model.
+ *
+ * Strategy:
+ * - If the incoming list is non-empty, trust it as the source of truth.
+ * - Otherwise reuse the previously known connected ids, filtered against the
+ *   new `all` list so providers that disappeared do not linger.
+ */
+export const resolveRefreshedConnectedIds = (
+  incoming: string[] | undefined | null,
+  previous: string[] | undefined | null,
+  all: Array<{ id: string }> | undefined | null,
+): string[] => {
+  if (Array.isArray(incoming) && incoming.length > 0) return incoming;
+  const previousList = Array.isArray(previous) ? previous : [];
+  if (previousList.length === 0) return [];
+  const allIds = new Set((all ?? []).map((p) => p.id));
+  return previousList.filter((id) => allIds.has(id));
+};
