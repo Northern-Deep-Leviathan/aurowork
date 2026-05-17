@@ -1,0 +1,53 @@
+name: Sync Auro Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Auro release tag (e.g. v0.2.0). Leave empty to use GitHub's latest release."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      # Single bypass-capable token for every git/PR/merge call in this job.
+      GH_TOKEN: ${{ secrets.AURO_SYNC_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AURO_SYNC_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "aurowork-bot"
+          git config user.email "aurowork-bot@users.noreply.github.com"
+
+      - name: Resolve & update auroVersion
+        id: sync
+        env:
+          # Read-only token for upstream release lookup so the bypass
+          # token isn't sent to a foreign repo.
+          GH_TOKEN: ${{ secrets.AURO_RELEASES_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: bash scripts/publish/sync-auro-version.sh
+
+      - name: Open & merge PR
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.sync.outputs.version }}
+          ACTOR: ${{ github.actor }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: bash scripts/publish/open-merge-auro-pr.sh
+
+      - name: Cleanup on failure
+        if: failure() && steps.sync.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.sync.outputs.version }}
+        run: bash scripts/publish/cleanup-auro-pr.sh
