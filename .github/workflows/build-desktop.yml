@@ -78,9 +78,12 @@ jobs:
           BRANCH="${GITHUB_REF#refs/heads/}"
           echo "Branch: $BRANCH"
 
-          # Make sure pnpm install runs (bump-version.mjs needs no deps, but
-          # pnpm filter resolution does). Use --prefer-offline to keep it fast.
-          pnpm install --frozen-lockfile --prefer-offline
+          # bump-version.mjs has no runtime deps, but `pnpm bump:<type>` resolves
+          # the script through pnpm's workspace filter, which needs the package
+          # graph. Do NOT use --frozen-lockfile here: this job's whole purpose
+          # is to mutate the lockfile, and main may already carry a lockfile
+          # that's out of sync (e.g. left over from a failed previous run).
+          pnpm install --no-frozen-lockfile --prefer-offline
 
           # Read current version BEFORE bumping.
           CUR_VER="$(node -p "require('./apps/app/package.json').version")"
@@ -341,6 +344,23 @@ jobs:
           cp "$bin_path" "apps/desktop/src-tauri/sidecars/${target_name}"
           chmod 755 "apps/desktop/src-tauri/sidecars/${target_name}"
 
+      # ── Purge stale bundle artifacts ─────────────────────────
+      # Cache cargo restores apps/desktop/src-tauri/target, which may include
+      # leftover bundles (e.g. `AuroWork_<old-version>_x64_en-US.msi.sig`).
+      # If those linger, the Upload step below can pick them up via glob and
+      # publish the wrong-version signature to the new release. Keep the
+      # compile cache (target/<triple>/release/{deps,build,...}) but wipe the
+      # bundle output so each run starts from a clean slate.
+      - name: Purge stale bundle artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle_root="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
+          if [ -d "$bundle_root" ]; then
+            echo "Removing stale bundle artifacts at $bundle_root"
+            rm -rf "$bundle_root"
+          fi
+
       # ── Build + publish to release ───────────────────────────
       - name: Build + publish to release
         uses: tauri-apps/tauri-action@v0.5.17
@@ -368,6 +388,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
         run: |
           set -euo pipefail
 
@@ -377,19 +398,15 @@ jobs:
             exit 1
           fi
 
-          # Find the standalone .sig (NOT the .msi.zip.sig — that's for updater zip variant)
-          SIG_FILE=""
-          for f in "$BUNDLE_DIR"/*.msi.sig; do
-            [ -f "$f" ] || continue
-            case "$f" in
-              *.msi.zip.sig) continue ;;
-            esac
-            SIG_FILE="$f"
-            break
-          done
-
-          if [ -z "$SIG_FILE" ]; then
-            echo "::error::No .msi.sig found in $BUNDLE_DIR"
+          # IMPORTANT: pin the .sig filename to the version we just bumped.
+          # A glob like `*.msi.sig` could match a stale signature left behind
+          # by a previous run (Cache cargo restores target/, which includes
+          # bundle/). That stale sig would be uploaded under its own name and
+          # break generate-latest-json.mjs, which expects the new-version sig.
+          SIG_FILE="$BUNDLE_DIR/AuroWork_${RELEASE_VERSION}_x64_en-US.msi.sig"
+          if [ ! -f "$SIG_FILE" ]; then
+            echo "::error::Expected signature not found: $SIG_FILE"
+            echo "Bundle directory contents:"
             ls -la "$BUNDLE_DIR"
             exit 1
           fi
