@@ -2,7 +2,10 @@
 
 **Date:** 2026-05-17
 **Status:** Approved (brainstorming)
-**Scope:** `.github/workflows/build-desktop.yml`, plus one new script `scripts/release/open-merge-release-pr.sh` (+ its test).
+**Scope:** `.github/workflows/build-desktop.yml`, plus:
+- new script `scripts/release/open-merge-release-pr.sh` (+ its test)
+- new shared library `scripts/common/open-merge-pr-common.sh` (sourced by both `open-merge-*-pr.sh` scripts)
+- refactor `scripts/publish/open-merge-auro-pr.sh` to source the shared library
 
 ## Motivation
 
@@ -25,7 +28,23 @@ Wait for PR checks before admin-merging, using `gh pr checks --watch` with the "
 
 ## Script reuse (decided)
 
-Create a new sibling script `scripts/release/open-merge-release-pr.sh` modeled on `scripts/publish/open-merge-auro-pr.sh`. The two scripts share shape but diverge on:
+Create a new sibling script `scripts/release/open-merge-release-pr.sh` modeled on `scripts/publish/open-merge-auro-pr.sh`. Factor the genuinely-shared steps into `scripts/common/open-merge-pr-common.sh`, sourced by both scripts. Refactor `open-merge-auro-pr.sh` in the same change to consume the shared library — otherwise the duplication just moves.
+
+**Shared functions** (in `scripts/common/open-merge-pr-common.sh`):
+
+| Function | Behavior |
+|---|---|
+| `die MSG` | Print `::error::MSG` to stderr, `exit 1`. |
+| `rebase_on_base BASE_BRANCH` | `git fetch origin BASE_BRANCH`; `git rebase origin/BASE_BRANCH`; on conflict, abort and `die`. |
+| `push_branch BRANCH` | `git push origin BRANCH --force-with-lease --no-verify`. |
+| `watch_pr_checks BRANCH` | `gh pr checks BRANCH --watch`, tolerating `no checks reported`; `die` on any other failure. |
+| `admin_squash_merge BRANCH` | `gh pr merge BRANCH --squash --admin --delete-branch`. |
+
+The library is `set -euo pipefail`-safe when sourced (no top-level state changes; functions only).
+
+**Script-specific (stays in each `open-merge-*-pr.sh`):** env-var validation, branch name, commit message, label creation (name/color/description), PR title/body, and — for the release script — the post-merge tag-and-push step plus `$GITHUB_OUTPUT` emission.
+
+The two scripts diverge as:
 
 | Aspect | `open-merge-auro-pr.sh` | `open-merge-release-pr.sh` |
 |---|---|---|
@@ -124,6 +143,58 @@ Both need the App token so they can push to release objects without relying on `
 
 The `tauri-action` step's `GITHUB_TOKEN` env also switches to the App token so it can upload to the release.
 
+## `scripts/common/open-merge-pr-common.sh`
+
+```bash
+#!/usr/bin/env bash
+# Shared helpers for open-merge-*-pr.sh scripts.
+# Source from a caller that has already `set -euo pipefail`.
+# Each function is self-contained and only depends on `git` + `gh` being on PATH.
+
+die() { echo "::error::$*" >&2; exit 1; }
+
+# rebase_on_base BASE_BRANCH
+rebase_on_base() {
+  local base="$1"
+  git fetch origin "$base"
+  if ! git rebase "origin/${base}"; then
+    git rebase --abort || true
+    die "branch conflicts with origin/${base}"
+  fi
+}
+
+# push_branch BRANCH
+push_branch() {
+  local branch="$1"
+  git push origin "$branch" --force-with-lease --no-verify
+}
+
+# watch_pr_checks BRANCH
+# Returns 0 if checks pass or none are reported; dies otherwise.
+watch_pr_checks() {
+  local branch="$1"
+  local err_file
+  err_file="$(mktemp)"
+  if ! gh pr checks "$branch" --watch 2> "$err_file"; then
+    if grep -q "no checks reported" "$err_file"; then
+      echo "no checks configured, proceeding"
+      rm -f "$err_file"
+      return 0
+    fi
+    cat "$err_file" >&2
+    rm -f "$err_file"
+    die "PR checks failed"
+  fi
+  rm -f "$err_file"
+}
+
+# admin_squash_merge BRANCH
+admin_squash_merge() {
+  local branch="$1"
+  gh pr merge "$branch" --squash --admin --delete-branch
+}
+```
+
 ## `scripts/release/open-merge-release-pr.sh`
 
 ```bash
@@ -151,7 +222,10 @@ The `tauri-action` step's `GITHUB_TOKEN` env also switches to the App token so i
 
 set -euo pipefail
 
-die() { echo "::error::$*" >&2; exit 1; }
+# Shared helpers: die, rebase_on_base, push_branch, watch_pr_checks, admin_squash_merge.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../common/open-merge-pr-common.sh
+. "${SCRIPT_DIR}/../common/open-merge-pr-common.sh"
 
 [ -n "${NEW_VER:-}" ] || die "NEW_VER required"
 [ -n "${NEW_TAG:-}" ] || die "NEW_TAG required"
@@ -166,14 +240,10 @@ git checkout -b "$branch"
 git commit -m "chore: bump version to ${NEW_VER} [skip ci]"
 
 # 2. Rebase on base to surface conflicts early.
-git fetch origin "$BASE_BRANCH"
-if ! git rebase "origin/${BASE_BRANCH}"; then
-  git rebase --abort || true
-  die "branch conflicts with origin/${BASE_BRANCH}"
-fi
+rebase_on_base "$BASE_BRANCH"
 
 # 3. Push branch.
-git push origin "$branch" --force-with-lease --no-verify
+push_branch "$branch"
 
 # 4. Ensure label, open PR.
 gh label create release --color 0e8a16 --description "Release bump PRs" --force >/dev/null
@@ -181,20 +251,11 @@ body=$(printf 'Release bump for **%s**.\n\nTriggered by @%s via workflow_dispatc
 gh pr create --base "$BASE_BRANCH" --head "$branch" \
   --title "chore: release ${NEW_TAG}" --body "$body" --label release
 
-# 5. Watch checks (tolerate "no checks reported").
-err_file=$(mktemp)
-trap 'rm -f "$err_file"' EXIT
-if ! gh pr checks "$branch" --watch 2> "$err_file"; then
-  if grep -q "no checks reported" "$err_file"; then
-    echo "no checks configured, proceeding"
-  else
-    cat "$err_file" >&2
-    die "PR checks failed"
-  fi
-fi
+# 5. Watch checks.
+watch_pr_checks "$branch"
 
 # 6. Admin squash-merge.
-gh pr merge "$branch" --squash --admin --delete-branch
+admin_squash_merge "$branch"
 
 # 7. Tag the merge commit on BASE_BRANCH.
 git fetch origin "$BASE_BRANCH"
@@ -216,9 +277,13 @@ fi
 } >> "${GITHUB_OUTPUT:-/dev/stdout}"
 ```
 
-## Test (`scripts/release/test-open-merge-release-pr.sh`)
+## `scripts/publish/open-merge-auro-pr.sh` refactor
 
-Mirrors `scripts/publish/test-open-merge-auro-pr.sh`. Stubs `git` and `gh` on `PATH`, records calls, asserts:
+Same change replaces the inline `die`, rebase block, branch-push, `gh pr checks --watch` block, and `gh pr merge` call with the corresponding helper calls; the rest (env-var checks, branch name, commit message, label, PR body) stays. Net effect: same external behavior, ~30 fewer lines, and a single source of truth for the shared sequence.
+
+## Tests
+
+**`scripts/release/test-open-merge-release-pr.sh`** — mirrors `scripts/publish/test-open-merge-auro-pr.sh`. Stubs `git` and `gh` on `PATH`, records calls, asserts:
 
 - Branch name = `chore/release-vX.Y.Z`
 - Commit message = `chore: bump version to X.Y.Z [skip ci]`
@@ -228,6 +293,10 @@ Mirrors `scripts/publish/test-open-merge-auro-pr.sh`. Stubs `git` and `gh` on `P
 - `git push origin NEW_TAG` is invoked
 - `$GITHUB_OUTPUT` receives all four `release_*` keys
 - Failure-path: simulated `gh pr checks` failure with `no checks reported` proceeds; any other failure exits non-zero before merge.
+
+**`scripts/publish/test-open-merge-auro-pr.sh`** — re-run unchanged to confirm the refactor preserves behavior. No assertion changes required.
+
+No dedicated test for `scripts/common/open-merge-pr-common.sh`; the two callers' tests exercise it end-to-end.
 
 ## Failure-mode summary
 
@@ -250,5 +319,5 @@ Mirrors `scripts/publish/test-open-merge-auro-pr.sh`. Stubs `git` and `gh` on `P
 
 - Changes to `bump-version.mjs`.
 - Changes to `tauri-action` invocation beyond the token swap.
-- Changes to `sync-auro-version.yml` or `open-merge-auro-pr.sh`.
-- Generalizing the two `open-merge-*-pr.sh` scripts into a shared base.
+- Changes to `sync-auro-version.yml`.
+- Further generalization (e.g., a single parameterized `open-merge-pr.sh`) — the shared library covers the duplication; remaining differences are intentional.
