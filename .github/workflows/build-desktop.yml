@@ -44,7 +44,6 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -56,17 +55,20 @@ jobs:
         with:
           version: 10.27.0
 
-      - name: Configure git identity
-        shell: bash
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Setup Auro Git
+        id: gitsetup
+        uses: ./.github/actions/setup-auro-git
+        with:
+          auro-app-id: ${{ vars.AURO_APP_ID }}
+          auro-app-key: ${{ secrets.AURO_APP_KEY }}
 
-      - name: Bump, commit, tag, push
+      - name: Bump on PR branch, merge, tag
         id: bump
         shell: bash
         env:
           BUMP_TYPE: ${{ inputs.bump }}
+          GH_TOKEN: ${{ steps.gitsetup.outputs.token }}
+          ACTOR: ${{ github.actor }}
         run: |
           set -euo pipefail
 
@@ -118,8 +120,6 @@ jobs:
           # Guard 3: new version must be strictly greater than the largest existing v* tag.
           LARGEST="$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)"
           if [ -n "$LARGEST" ]; then
-            # `sort -V` puts the smaller version first; if NEW_TAG ends up first
-            # or equal to LARGEST, that means NEW_TAG <= LARGEST.
             HIGHEST="$(printf '%s\n%s\n' "$LARGEST" "$NEW_TAG" | sort -V | tail -n1)"
             if [ "$HIGHEST" != "$NEW_TAG" ] || [ "$LARGEST" = "$NEW_TAG" ]; then
               echo "::error::New tag ${NEW_TAG} is not strictly greater than existing ${LARGEST}."
@@ -127,29 +127,20 @@ jobs:
             fi
           fi
 
-          # Stage everything bump-version.mjs touched.
+          # Stage everything bump-version.mjs touched. The release script will
+          # commit them on the PR branch.
           git add -A
           if git diff --cached --quiet; then
             echo "::error::No changes to commit after bump — bump-version.mjs did nothing."
             exit 1
           fi
 
-          git commit -m "chore: bump version to ${NEW_VER} [skip ci]"
-          git tag "$NEW_TAG"
-
-          # Push branch first, tag second. If branch push is rejected
-          # (branch protection, etc.) we never publish a dangling tag.
-          git push origin "HEAD:${BRANCH}"
-          git push origin "$NEW_TAG"
-
-          NEW_SHA="$(git rev-parse HEAD)"
-
-          {
-            echo "release_tag=${NEW_TAG}"
-            echo "release_version=${NEW_VER}"
-            echo "release_name=AuroWork ${NEW_TAG}"
-            echo "release_sha=${NEW_SHA}"
-          } >> "$GITHUB_OUTPUT"
+          # Hand off: branch + commit + push + open PR + watch checks +
+          # admin-squash-merge + tag merge SHA + push tag + emit outputs.
+          BASE_BRANCH="$BRANCH" \
+          NEW_VER="$NEW_VER" \
+          NEW_TAG="$NEW_TAG" \
+            bash scripts/release/open-merge-release-pr.sh
 
       - name: Forward prerelease flag
         id: meta
@@ -165,9 +156,21 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+
+      - name: Setup Auro Git
+        id: gitsetup
+        uses: ./.github/actions/setup-auro-git
+        with:
+          auro-app-id: ${{ vars.AURO_APP_ID }}
+          auro-app-key: ${{ secrets.AURO_APP_KEY }}
+
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.gitsetup.outputs.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -234,6 +237,13 @@ jobs:
       - name: Enable long paths
         shell: bash
         run: git config --global core.longpaths true
+
+      - name: Setup Auro Git
+        id: gitsetup
+        uses: ./.github/actions/setup-auro-git
+        with:
+          auro-app-id: ${{ vars.AURO_APP_ID }}
+          auro-app-key: ${{ secrets.AURO_APP_KEY }}
 
       # ── Toolchain setup ──────────────────────────────────────
       - name: Setup Node
@@ -366,7 +376,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0.5.17
         env:
           CI: true
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.gitsetup.outputs.token }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
@@ -386,7 +396,7 @@ jobs:
         if: needs.prepare.outputs.prerelease != 'true'
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.gitsetup.outputs.token }}
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
         run: |
