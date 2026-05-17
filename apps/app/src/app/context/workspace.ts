@@ -22,6 +22,7 @@ import {
 } from "../utils";
 import { unwrap } from "../lib/auro";
 import { describeDirectoryScope, resolveScopedClientDirectory } from "../lib/session-scope";
+import { decideWorkspaceLanding } from "../lib/workspace-draft";
 import {
   buildAuroworkWorkspaceBaseUrl,
   createAuroworkServerClient,
@@ -555,16 +556,36 @@ export function createWorkspaceStore(options: {
     if (!id) return false;
     const workspace = workspaces().find((entry) => entry.id === id) ?? null;
     if (!workspace) return false;
-    const changed = selectedWorkspaceId() !== id;
 
-    await applySelectedWorkspacePresentation(workspace);
-
-    if (changed) {
+    // Draft-session model: every workspace click unconditionally enters the
+    // draft state for the target workspace. No "changed" guard — the user
+    // intent is "I clicked this workspace, take me there with a clean slate".
+    //
+    // Clearing must happen BEFORE applySelectedWorkspacePresentation flips
+    // selectedWorkspaceId, otherwise reactive consumers (route, sidebar)
+    // briefly see the new workspace paired with stale session state from
+    // the previous workspace and may pre-emptively redirect / select.
+    const landing = decideWorkspaceLanding({
+      workspaceRoot: workspace.path,
+      workspaceType: workspace.workspaceType,
+    });
+    if (landing.clearSessionState) {
       options.setSelectedSessionId(null);
       options.setMessages([]);
       options.setTodos([]);
       options.setPendingPermissions([]);
       options.setSessionStatusById({});
+    }
+
+    await applySelectedWorkspacePresentation(workspace);
+
+    // Eagerly refresh the session list for the new workspace so the sidebar
+    // and route guards see an up-to-date list scoped to this root. Without
+    // this, loadedSessionScopeRoot stays pinned to the previous workspace's
+    // root and downstream guards (route redirect, session resolution) keep
+    // refusing to redirect to the draft state.
+    if (landing.loadSessionsRoot) {
+      void options.loadSessions(landing.loadSessionsRoot);
     }
 
     if (isTauriRuntime()) {
@@ -1226,15 +1247,21 @@ export function createWorkspaceStore(options: {
     const wasLocalConnection = options.startupPreference() === "local" && options.client();
     options.setStartupPreference("local");
     const nextRoot = isRemote ? next.directory?.trim() ?? "" : next.path;
-    const oldWorkspacePath = projectDir();
-    const workspaceChanged = oldWorkspacePath !== nextRoot;
+    // IMPORTANT: compare against the *actual* connected directory (clientDirectory),
+    // not projectDir(). selectWorkspace eagerly calls setProjectDir(next.path) via
+    // applySelectedWorkspacePresentation, so by the time we reach here projectDir()
+    // already equals nextRoot and workspaceChanged would falsely read `false`, causing
+    // the engine restart/reconnect below to be silently skipped. clientDirectory()
+    // is only mutated inside connectToServer, so it reflects the real runtime state.
+    const connectedDirectory = options.clientDirectory().trim();
+    const workspaceChanged = connectedDirectory !== nextRoot;
 
     wsDebug("activate:local:prep", {
       id,
       nextRoot,
       workspaceChanged,
       wasLocalConnection: Boolean(wasLocalConnection),
-      prevProjectDir: oldWorkspacePath,
+      connectedDirectory,
     });
 
     syncSelectedWorkspaceId(id);
