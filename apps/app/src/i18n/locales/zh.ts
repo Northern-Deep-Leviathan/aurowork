@@ -97,6 +97,7 @@ export default {
   "dashboard.blueprints_workspace_desc": "从适合复用技能、命令和共享流程的自动化工作区开始。",
 
   // ==================== Workspace ====================
+  "workspace.switch": "切换工作区",
   "workspace.rename_title": "编辑工作区名称",
   "workspace.rename_description": "更新侧边栏中显示的名称。",
   "workspace.rename_label": "工作区名称",

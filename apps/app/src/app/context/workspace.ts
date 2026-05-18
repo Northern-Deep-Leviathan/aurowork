@@ -1838,6 +1838,22 @@ export function createWorkspaceStore(options: {
         return true;
       }
 
+      // Single-workspace mode (transitional UX): "Open workspace" replaces
+      // the current workspace instead of stacking another one alongside it.
+      // We forget every existing workspace before creating the new one so
+      // the rest of the flow (auroworkServer.createLocalWorkspace,
+      // selection, activation) sees a clean slate.
+      //
+      // Note: forgetWorkspace already disconnects engine clients, clears
+      // session/messages/todos/permissions when the list becomes empty, and
+      // syncs the desktop mirror. We just await it for each existing entry.
+      // (existingWs is unreachable here — the matching-folder branch above
+      // returns early, so we always forget the full current list.)
+      const existingToForget = workspaces().slice();
+      for (const ws of existingToForget) {
+        await forgetWorkspace(ws.id);
+      }
+
       const name = deriveWorkspaceName(resolvedFolder, preset);
       const auroworkServer = resolveConnectedAuroworkServer();
       const ws = auroworkServer

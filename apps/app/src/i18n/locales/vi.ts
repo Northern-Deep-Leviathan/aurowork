@@ -97,6 +97,7 @@ export default {
   "dashboard.blueprints_workspace_desc": "Bắt đầu với worker sẵn sàng cho automation, skills tái sử dụng và luồng công việc chung.",
 
   // ==================== Workspace ====================
+  "workspace.switch": "Chuyển workspace",
   "workspace.rename_title": "Đổi tên worker",
   "workspace.rename_description": "Cập nhật tên hiển thị trên thanh bên.",
   "workspace.rename_label": "Tên worker",
