@@ -119,6 +119,7 @@ export default {
   "dashboard.blueprints_workspace_desc": "スキル、コマンド、共有フローをすぐ活用できる自動化向けワーカーです。",
 
   // ==================== Workspace ====================
+  "workspace.switch": "ワークスペースを切り替え",
   "workspace.rename_title": "ワーカー名を編集",
   "workspace.rename_description": "サイドバーに表示される名前を更新します。",
   "workspace.rename_label": "ワーカー名",

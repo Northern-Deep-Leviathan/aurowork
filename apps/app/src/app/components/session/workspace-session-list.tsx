@@ -12,12 +12,13 @@ import {
   ChevronRight,
   Loader2,
   MoreHorizontal,
-  Plus,
+  Repeat,
 } from "lucide-solid";
 
 import DesktopOnlyBadge from "../desktop-only-badge";
 import { getAuroWorkDeployment } from "../../lib/aurowork-deployment";
 import { DEFAULT_SESSION_TITLE, getDisplaySessionTitle } from "../../lib/session-title";
+import { t, currentLocale } from "../../../i18n";
 import type { WorkspaceInfo } from "../../lib/tauri";
 import type {
   WorkspaceConnectionState,
@@ -673,11 +674,11 @@ export default function WorkspaceSessionList(props: Props) {
             title={
               newWorkspaceDesktopOnly
                 ? "Create local workspaces in the desktop app."
-                : "Add workspace"
+                : t("workspace.switch", currentLocale())
             }
             onClick={() => props.onOpenCreateWorkspace()}
           >
-            <Plus size={14} />
+            <Repeat size={14} />
           </button>
         </div>
       </div>
@@ -1025,8 +1026,8 @@ export default function WorkspaceSessionList(props: Props) {
           }
           onClick={() => props.onOpenCreateWorkspace()}
         >
-          <Plus size={14} />
-          Add workspace
+          <Repeat size={14} />
+          {t("workspace.switch", currentLocale())}
           <Show when={newWorkspaceDesktopOnly}>
             <DesktopOnlyBadge />
           </Show>

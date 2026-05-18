@@ -120,6 +120,7 @@ export default {
   "dashboard.blueprints_workspace_desc": "Comece com um workspace pronto para automação com skills reutilizáveis, comandos e fluxos compartilhados.",
 
   // ==================== Workspace ====================
+  "workspace.switch": "Trocar workspace",
   "workspace.rename_title": "Editar nome do workspace",
   "workspace.rename_description": "Atualizar o nome exibido na barra lateral.",
   "workspace.rename_label": "Nome do workspace",
