@@ -4,6 +4,8 @@ import CodeEditorView from "./CodeEditorView";
 import MarkdownPreview from "./MarkdownPreview";
 import SheetEditorView from "./SheetEditorView";
 import UnsupportedFileView from "./UnsupportedFileView";
+import ImageViewerView from "./ImageViewerView";
+import PdfViewerView from "./PdfViewerView";
 import FileTree from "./FileTree";
 import {
   fsReadFile,
@@ -110,7 +112,7 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
       setOpenDoc(response);
       setSelectedEntry(entry);
 
-      if (response.type === "text" || response.type === "sheet") {
+      if (response.type === "text" || response.type === "sheet" || response.type === "image" || response.type === "pdf") {
         setRevision(response.revision);
       } else {
         setRevision(null);
@@ -418,6 +420,32 @@ export function FileEditorPanel(props: FileEditorPanelProps) {
                       entry={selectedEntry()!}
                       reason={doc.reason}
                     />
+                  );
+                })()}
+              </Show>
+
+              {/* Image view */}
+              <Show when={docType() === "image" && openDoc()?.type === "image"}>
+                {(() => {
+                  const doc = openDoc()!;
+                  if (doc.type !== "image") return null;
+                  return (
+                    <ImageViewerView
+                      entry={selectedEntry()!}
+                      path={doc.path}
+                      mime={doc.mime}
+                    />
+                  );
+                })()}
+              </Show>
+
+              {/* PDF view */}
+              <Show when={docType() === "pdf" && openDoc()?.type === "pdf"}>
+                {(() => {
+                  const doc = openDoc()!;
+                  if (doc.type !== "pdf") return null;
+                  return (
+                    <PdfViewerView entry={selectedEntry()!} path={doc.path} />
                   );
                 })()}
               </Show>
