@@ -55,6 +55,8 @@ export type FsReadResponse =
       capabilities: SheetCapabilities;
       revision: FileRevision;
     }
+  | { type: "image"; path: string; mime: string; revision: FileRevision }
+  | { type: "pdf"; path: string; revision: FileRevision }
   | { type: "binary"; mime?: string; reason: string };
 
 export async function fsReadFile(

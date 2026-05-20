@@ -81,6 +81,17 @@ pub enum FsReadResponse {
         capabilities: SheetCapabilities,
         revision: FileRevision,
     },
+    #[serde(rename = "image")]
+    Image {
+        path: String,
+        mime: String,
+        revision: FileRevision,
+    },
+    #[serde(rename = "pdf")]
+    Pdf {
+        path: String,
+        revision: FileRevision,
+    },
     #[serde(rename = "binary")]
     Binary {
         mime: Option<String>,
@@ -146,11 +157,32 @@ const SHEET_EXTENSIONS: &[&str] = &["xlsx", "xlsm"];
 
 const UNSUPPORTED_SHEET_EXTENSIONS: &[&str] = &["xls", "xlsb", "ods", "numbers"];
 
+const IMAGE_EXTENSIONS: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "ico",
+];
+
+const PDF_EXTENSIONS: &[&str] = &["pdf"];
+
+fn image_mime_for(ext: &str) -> &'static str {
+    match ext {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "bmp" => "image/bmp",
+        "avif" => "image/avif",
+        "ico" => "image/x-icon",
+        _ => "application/octet-stream",
+    }
+}
+
 #[derive(Debug, PartialEq)]
 enum FileType {
     Text,
     Sheet,
     UnsupportedSheet,
+    Image,
+    Pdf,
     Binary,
 }
 
@@ -175,6 +207,10 @@ fn detect_file_type(path: &Path) -> FileType {
         FileType::Sheet
     } else if UNSUPPORTED_SHEET_EXTENSIONS.contains(&ext.as_str()) {
         FileType::UnsupportedSheet
+    } else if IMAGE_EXTENSIONS.contains(&ext.as_str()) {
+        FileType::Image
+    } else if PDF_EXTENSIONS.contains(&ext.as_str()) {
+        FileType::Pdf
     } else if TEXT_EXTENSIONS.contains(&ext.as_str()) {
         FileType::Text
     } else {
@@ -427,6 +463,26 @@ pub async fn fs_read_file(
             mime: None,
             reason: "Unsupported spreadsheet format in this phase".to_string(),
         }),
+        FileType::Image => {
+            let revision = get_revision(path)?;
+            let ext = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_lowercase())
+                .unwrap_or_default();
+            Ok(FsReadResponse::Image {
+                path: req.path.clone(),
+                mime: image_mime_for(ext.as_str()).to_string(),
+                revision,
+            })
+        }
+        FileType::Pdf => {
+            let revision = get_revision(path)?;
+            Ok(FsReadResponse::Pdf {
+                path: req.path.clone(),
+                revision,
+            })
+        }
         FileType::Binary => Ok(FsReadResponse::Binary {
             mime: None,
             reason: "Binary file".to_string(),
@@ -592,6 +648,35 @@ mod tests {
         .unwrap();
         assert_eq!(fs::read_to_string(&target).unwrap(), "updated");
         assert_ne!(new_rev.size, rev.size); // "updated" != "original" in length
+    }
+
+    #[test]
+    fn detect_file_type_recognizes_images_and_pdf() {
+        let cases: [(&str, FileType); 11] = [
+            ("foo.png", FileType::Image),
+            ("foo.PNG", FileType::Image),
+            ("foo.jpg", FileType::Image),
+            ("foo.jpeg", FileType::Image),
+            ("foo.gif", FileType::Image),
+            ("foo.webp", FileType::Image),
+            ("foo.bmp", FileType::Image),
+            ("foo.avif", FileType::Image),
+            ("foo.ico", FileType::Image),
+            ("doc.pdf", FileType::Pdf),
+            ("doc.PDF", FileType::Pdf),
+        ];
+        for (name, expected) in cases {
+            assert_eq!(detect_file_type(Path::new(name)), expected, "{}", name);
+        }
+    }
+
+    #[test]
+    fn image_mime_mapping_known_and_fallback() {
+        assert_eq!(image_mime_for("png"), "image/png");
+        assert_eq!(image_mime_for("jpg"), "image/jpeg");
+        assert_eq!(image_mime_for("jpeg"), "image/jpeg");
+        assert_eq!(image_mime_for("webp"), "image/webp");
+        assert_eq!(image_mime_for("zzz"), "application/octet-stream");
     }
 
     #[test]
