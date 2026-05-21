@@ -25,6 +25,7 @@ import type { McpDirectoryInfo } from "../constants";
 import { usePlatform } from "../context/platform";
 import { buildFeedbackUrl } from "../lib/feedback";
 import { getAuroWorkDeployment } from "../lib/aurowork-deployment";
+import { initLaunchLog } from "../../lib/launch-log";
 import ExtensionsView from "./extensions";
 import SkillsView from "./skills";
 import {
@@ -1013,6 +1014,16 @@ export default function SettingsView(props: SettingsViewProps) {
     void appBuildInfo()
       .then((info) => setBuildInfo(info))
       .catch(() => setBuildInfo(null));
+  });
+
+  const [launchLogPath, setLaunchLogPath] = createSignal<string | null>(null);
+  const [launchLogEnabled, setLaunchLogEnabled] = createSignal(false);
+
+  onMount(() => {
+    void initLaunchLog().then((info) => {
+      setLaunchLogEnabled(info.enabled);
+      setLaunchLogPath(info.logFilePath);
+    });
   });
 
   const formatUptime = (uptimeMs?: number | null) => {
@@ -2114,6 +2125,45 @@ export default function SettingsView(props: SettingsViewProps) {
                     )}
                   </Show>
                 </div>
+                <Show when={launchLogEnabled()}>
+                  <div class={`${settingsPanelSoftClass} p-4 space-y-3`}>
+                    <div class="text-sm font-medium text-dls-text">
+                      Launch log (dev mode)
+                    </div>
+                    <div class="text-xs font-mono text-dls-secondary break-all">
+                      {launchLogPath() ?? "(not initialized)"}
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        class={compactOutlineActionClass}
+                        onClick={() => {
+                          const path = launchLogPath();
+                          if (path) {
+                            void navigator.clipboard
+                              .writeText(path)
+                              .catch(() => undefined);
+                          }
+                        }}
+                      >
+                        <Copy size={14} class="text-dls-secondary" />
+                        Copy path
+                      </button>
+                      <button
+                        type="button"
+                        class={compactOutlineActionClass}
+                        onClick={() => {
+                          void import("@tauri-apps/api/core").then(
+                            ({ invoke }) => invoke("open_launch_log_folder"),
+                          );
+                        }}
+                      >
+                        <FolderOpen size={14} class="text-dls-secondary" />
+                        Open log folder
+                      </button>
+                    </div>
+                  </div>
+                </Show>
               </Show>
             </div>
 
