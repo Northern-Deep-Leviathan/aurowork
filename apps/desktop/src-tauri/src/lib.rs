@@ -2,6 +2,7 @@ mod aurowork_server;
 mod bun_env;
 mod commands;
 mod config;
+mod dev_mode;
 mod engine;
 mod fs;
 mod opkg;
