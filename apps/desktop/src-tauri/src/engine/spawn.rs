@@ -85,6 +85,19 @@ pub fn spawn_engine(
 ) -> Result<(Receiver<CommandEvent>, CommandChild), String> {
     let args = build_engine_args(hostname, port);
 
+    if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+        agg.append(
+            crate::launch_log::format::Level::Info,
+            "launch:engine",
+            None,
+            &format!(
+                "spawning engine on {}:{} (use_sidecar={}, dev_mode={})",
+                hostname, port, use_sidecar, dev_mode
+            ),
+            None,
+        );
+    }
+
     let command = if use_sidecar {
         app.shell()
             .sidecar("auro")
@@ -97,6 +110,8 @@ pub fn spawn_engine(
 
     if dev_mode {
         let dev_paths = resolve_dev_mode_paths(app)?;
+        let xdg_data_home_log = dev_paths.xdg_data_home.display().to_string();
+        let xdg_cache_home_log = dev_paths.xdg_cache_home.display().to_string();
         command = command.env("AUROWORK_DEV_MODE", "1");
         command = command.env("OPENCODE_TEST_HOME", &dev_paths.home_dir);
         command = command.env("HOME", dev_paths.home_dir);
@@ -105,6 +120,15 @@ pub fn spawn_engine(
         command = command.env("XDG_CACHE_HOME", dev_paths.xdg_cache_home);
         command = command.env("XDG_STATE_HOME", dev_paths.xdg_state_home);
         command = command.env("OPENCODE_CONFIG_DIR", dev_paths.auro_config_dir);
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Debug,
+                "launch:engine",
+                None,
+                &format!("dev sandbox: XDG_DATA_HOME={xdg_data_home_log}, XDG_CACHE_HOME={xdg_cache_home_log}"),
+                None,
+            );
+        }
     } else {
         if let Some(xdg_data_home) = maybe_infer_xdg_home(
             "XDG_DATA_HOME",
@@ -149,19 +173,45 @@ pub fn spawn_engine(
         command = command.env("PATH", path_env);
     }
 
+    let mut username_len: usize = 0;
+    let mut password_len: usize = 0;
     if let Some(username) = auro_username {
         if !username.trim().is_empty() {
+            username_len = username.len();
             command = command.env("OPENCODE_SERVER_USERNAME", username);
         }
     }
 
     if let Some(password) = auro_password {
         if !password.trim().is_empty() {
+            password_len = password.len();
             command = command.env("OPENCODE_SERVER_PASSWORD", password);
         }
     }
 
-    command
+    if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+        agg.append(
+            crate::launch_log::format::Level::Debug,
+            "launch:engine",
+            None,
+            &format!("auth credentials prepared (username_len={username_len}, password_len={password_len})"),
+            None,
+        );
+    }
+
+    let result = command
         .spawn()
-        .map_err(|e| format!("Failed to start opencode: {e}"))
+        .map_err(|e| format!("Failed to start opencode: {e}"))?;
+
+    if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+        agg.append(
+            crate::launch_log::format::Level::Info,
+            "launch:engine",
+            Some(result.1.pid()),
+            "engine spawned",
+            None,
+        );
+    }
+
+    Ok(result)
 }
