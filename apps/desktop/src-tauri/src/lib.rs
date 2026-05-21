@@ -47,6 +47,8 @@ use commands::workspace::{
     workspace_update_display_name, workspace_update_remote,
 };
 use engine::manager::EngineManager;
+use launch_log::format::Level;
+use launch_log::LaunchLogAggregator;
 use orchestrator::manager::OrchestratorManager;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent};
 use workspace::watch::WorkspaceWatchState;
@@ -117,6 +119,15 @@ fn hide_main_window(app_handle: &AppHandle) {
 }
 
 fn stop_managed_services(app_handle: &tauri::AppHandle) {
+    if let Some(agg) = app_handle.try_state::<LaunchLogAggregator>() {
+        agg.append(
+            Level::Info,
+            "launch:shell",
+            Some(std::process::id()),
+            "shutdown requested, stopping managed services",
+            None,
+        );
+    }
     if let Ok(mut engine) = app_handle.state::<EngineManager>().inner.lock() {
         EngineManager::stop_locked(&mut engine);
     }
@@ -146,8 +157,28 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build());
 
     let app = builder
-        .setup(|_| {
+        .setup(|app| {
             set_dev_app_name();
+
+            let aggregator = LaunchLogAggregator::default();
+            if let Ok(log_dir) = app.path().app_log_dir() {
+                let app_version = env!("CARGO_PKG_VERSION");
+                let auro_version = option_env!("AUROWORK_AURO_VERSION").unwrap_or("unknown");
+                let platform = format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH);
+                aggregator.init(&log_dir, app_version, auro_version, &platform);
+            }
+            aggregator.append(
+                Level::Info,
+                "launch:shell",
+                Some(std::process::id()),
+                &format!(
+                    "aurowork desktop starting, version={}, dev_mode={}",
+                    env!("CARGO_PKG_VERSION"),
+                    dev_mode::is_enabled()
+                ),
+                None,
+            );
+            app.manage(aggregator);
             Ok(())
         })
         .manage(EngineManager::default())
