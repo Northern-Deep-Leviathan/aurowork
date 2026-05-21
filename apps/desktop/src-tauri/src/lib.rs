@@ -61,7 +61,7 @@ const NATIVE_DEEP_LINK_EVENT: &str = "aurowork:deep-link-native";
 
 #[cfg(target_os = "macos")]
 fn set_dev_app_name() {
-    if std::env::var("AUROWORK_DEV_MODE").ok().as_deref() != Some("1") {
+    if !crate::dev_mode::is_enabled() {
         return;
     }
 
