@@ -76,6 +76,29 @@ pub fn format_header(
     )
 }
 
+/// Walks the `source()` chain of an error and produces a multi-line
+/// stack-style string suitable for the `stack` argument of [`format_line`].
+/// Returns `None` if the chain has fewer than one source link.
+pub fn format_error_chain(err: &(dyn std::error::Error + 'static)) -> Option<String> {
+    let mut chain: Vec<String> = Vec::new();
+    let mut current = err.source();
+    while let Some(source) = current {
+        chain.push(source.to_string());
+        current = source.source();
+    }
+    if chain.is_empty() {
+        return None;
+    }
+    Some(
+        chain
+            .into_iter()
+            .enumerate()
+            .map(|(i, line)| format!("caused by [{i}]: {line}"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::{format_header, format_line, Level};
@@ -138,6 +161,40 @@ mod tests {
         for l in [Level::Trace, Level::Debug, Level::Info, Level::Warn, Level::Error] {
             assert_eq!(l.as_str().len(), 5, "{:?}", l);
         }
+    }
+
+    #[test]
+    fn format_error_chain_walks_source_links() {
+        use std::error::Error;
+        use std::fmt;
+
+        #[derive(Debug)]
+        struct Layered {
+            msg: &'static str,
+            source: Option<Box<dyn Error + 'static>>,
+        }
+        impl fmt::Display for Layered {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str(self.msg)
+            }
+        }
+        impl Error for Layered {
+            fn source(&self) -> Option<&(dyn Error + 'static)> {
+                self.source.as_deref()
+            }
+        }
+
+        let bottom = Layered { msg: "io error", source: None };
+        let mid = Layered { msg: "parse failed", source: Some(Box::new(bottom)) };
+        let top = Layered { msg: "load failed", source: Some(Box::new(mid)) };
+
+        let out = super::format_error_chain(&top).expect("chain");
+        assert!(out.contains("caused by [0]: parse failed"));
+        assert!(out.contains("caused by [1]: io error"));
+
+        // No source -> None.
+        let standalone = Layered { msg: "lonely", source: None };
+        assert!(super::format_error_chain(&standalone).is_none());
     }
 
     #[test]
