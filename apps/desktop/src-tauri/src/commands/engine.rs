@@ -633,12 +633,24 @@ pub fn engine_start(
     let output_state = std::sync::Arc::new(std::sync::Mutex::new(OutputState::default()));
     let output_state_handle = output_state.clone();
     let state_handle = manager.inner.clone();
+    let app_handle_for_engine_reader = app.clone();
 
     tauri::async_runtime::spawn(async move {
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line_bytes) => {
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
+                    if let Some(agg) = app_handle_for_engine_reader
+                        .try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        agg.append(
+                            crate::launch_log::format::Level::Debug,
+                            "launch:engine",
+                            None,
+                            line.trim_end_matches('\n'),
+                            None,
+                        );
+                    }
                     if let Ok(mut output) = output_state_handle.lock() {
                         output.stdout.push_str(&line);
                     }
@@ -650,6 +662,17 @@ pub fn engine_start(
                 }
                 CommandEvent::Stderr(line_bytes) => {
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
+                    if let Some(agg) = app_handle_for_engine_reader
+                        .try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        agg.append(
+                            crate::launch_log::format::Level::Warn,
+                            "launch:engine",
+                            None,
+                            line.trim_end_matches('\n'),
+                            None,
+                        );
+                    }
                     if let Ok(mut output) = output_state_handle.lock() {
                         output.stderr.push_str(&line);
                     }
@@ -669,6 +692,17 @@ pub fn engine_start(
                     }
                 }
                 CommandEvent::Error(message) => {
+                    if let Some(agg) = app_handle_for_engine_reader
+                        .try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        agg.append(
+                            crate::launch_log::format::Level::Error,
+                            "launch:engine",
+                            None,
+                            &format!("error: {message}"),
+                            None,
+                        );
+                    }
                     if let Ok(mut output) = output_state_handle.lock() {
                         output.exited = true;
                         output.exit_code = Some(-1);
