@@ -22,6 +22,10 @@ use commands::aurowork_server::{aurowork_server_info, aurowork_server_restart};
 use commands::command_files::{auro_command_delete, auro_command_list, auro_command_write};
 use commands::config::{read_auro_config, write_auro_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
+use commands::launch_log::{
+    dev_mode_info, launch_log_append, launch_log_append_batch, launch_log_path,
+    launch_log_summary, open_launch_log_folder,
+};
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
 };
@@ -239,7 +243,13 @@ pub fn run() {
             fs_read_dir,
             fs_read_file,
             fs_write_file,
-            fs_close_file
+            fs_close_file,
+            launch_log_append,
+            launch_log_append_batch,
+            launch_log_path,
+            launch_log_summary,
+            dev_mode_info,
+            open_launch_log_folder
         ])
         .build(tauri::generate_context!())
         .expect("error while building AuroWork");
