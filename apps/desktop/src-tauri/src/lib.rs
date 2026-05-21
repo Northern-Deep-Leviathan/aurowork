@@ -144,6 +144,14 @@ fn stop_managed_services(app_handle: &tauri::AppHandle) {
 }
 
 pub fn run() {
+    // Dev mode: ensure backtraces are captured by default + capture panics into launch log.
+    if dev_mode::is_enabled() {
+        if std::env::var_os("RUST_BACKTRACE").is_none() {
+            std::env::set_var("RUST_BACKTRACE", "1");
+        }
+    }
+    launch_log::install_panic_hook();
+
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             show_main_window(app);
@@ -182,7 +190,8 @@ pub fn run() {
                 ),
                 None,
             );
-            app.manage(aggregator);
+            app.manage(aggregator.clone());
+            launch_log::install_global(aggregator);
             Ok(())
         })
         .manage(EngineManager::default())

@@ -10,7 +10,7 @@ pub mod format;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use chrono::Local;
 
@@ -21,24 +21,29 @@ pub const KEEP_LATEST_N: usize = 10;
 const FILE_PREFIX: &str = "launch-";
 const FILE_SUFFIX: &str = ".log";
 
+static GLOBAL: OnceLock<LaunchLogAggregator> = OnceLock::new();
+
+/// Returns the process-wide aggregator if one was installed via [`install_global`].
+pub fn global() -> Option<LaunchLogAggregator> {
+    GLOBAL.get().cloned()
+}
+
+/// Registers `aggregator` as the process-wide aggregator. Idempotent.
+pub fn install_global(aggregator: LaunchLogAggregator) {
+    let _ = GLOBAL.set(aggregator);
+}
+
 /// Tauri-managed state. Always present; when dev mode is off, the inner
 /// `Option<Inner>` is `None` and all append calls are cheap no-ops.
+#[derive(Clone, Default)]
 pub struct LaunchLogAggregator {
-    inner: Mutex<Option<Inner>>,
+    inner: Arc<Mutex<Option<Inner>>>,
 }
 
 struct Inner {
     writer: BufWriter<File>,
     path: PathBuf,
     started_at: std::time::Instant,
-}
-
-impl Default for LaunchLogAggregator {
-    fn default() -> Self {
-        Self {
-            inner: Mutex::new(None),
-        }
-    }
 }
 
 impl LaunchLogAggregator {
@@ -152,6 +157,43 @@ impl LaunchLogAggregator {
         let guard = self.inner.lock().ok()?;
         guard.as_ref().map(|inner| inner.started_at.elapsed().as_millis())
     }
+}
+
+/// Install a `std::panic::set_hook` that appends panics to the global
+/// aggregator (when present) as an ERROR launch:shell entry with a
+/// captured backtrace. Idempotent — only the first call wins.
+pub fn install_panic_hook() {
+    use std::backtrace::Backtrace;
+    use std::sync::Once;
+
+    static INSTALLED: Once = Once::new();
+    INSTALLED.call_once(|| {
+        let default_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            // Always preserve the default stderr behaviour first.
+            default_hook(info);
+
+            let Some(agg) = global() else { return };
+            let payload = info
+                .payload()
+                .downcast_ref::<&'static str>()
+                .map(|s| (*s).to_string())
+                .or_else(|| info.payload().downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "(non-string panic payload)".to_string());
+            let location = info
+                .location()
+                .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+                .unwrap_or_else(|| "<unknown>".to_string());
+            let backtrace = Backtrace::force_capture().to_string();
+            agg.append(
+                Level::Error,
+                "launch:shell",
+                Some(std::process::id()),
+                &format!("panic at {location}: {payload}"),
+                Some(&backtrace),
+            );
+        }));
+    });
 }
 
 /// Delete the oldest `launch-*.log` files in `dir`, keeping the newest
