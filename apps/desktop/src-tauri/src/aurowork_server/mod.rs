@@ -389,12 +389,25 @@ pub fn start_aurowork_server(
     let _ = persist_preferred_aurowork_port(app, active_workspace, port);
 
     let state_handle = manager.inner.clone();
+    let app_handle = app.clone();
+    let child_pid = state.child.as_ref().map(|c| c.pid());
 
     tauri::async_runtime::spawn(async move {
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line_bytes) => {
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
+                    if let Some(agg) =
+                        app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        agg.append(
+                            crate::launch_log::format::Level::Debug,
+                            "launch:server",
+                            child_pid,
+                            line.trim_end(),
+                            None,
+                        );
+                    }
                     if let Ok(mut state) = state_handle.try_lock() {
                         let next =
                             state.last_stdout.as_deref().unwrap_or_default().to_string() + &line;
@@ -403,6 +416,17 @@ pub fn start_aurowork_server(
                 }
                 CommandEvent::Stderr(line_bytes) => {
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
+                    if let Some(agg) =
+                        app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        agg.append(
+                            crate::launch_log::format::Level::Warn,
+                            "launch:server",
+                            child_pid,
+                            line.trim_end(),
+                            None,
+                        );
+                    }
                     if let Ok(mut state) = state_handle.try_lock() {
                         let next =
                             state.last_stderr.as_deref().unwrap_or_default().to_string() + &line;
@@ -410,6 +434,17 @@ pub fn start_aurowork_server(
                     }
                 }
                 CommandEvent::Terminated(payload) => {
+                    if let Some(agg) =
+                        app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        agg.append(
+                            crate::launch_log::format::Level::Info,
+                            "launch:server",
+                            child_pid,
+                            &format!("aurowork-server terminated code={:?}", payload.code),
+                            None,
+                        );
+                    }
                     if let Ok(mut state) = state_handle.try_lock() {
                         state.child_exited = true;
                         if let Some(code) = payload.code {
@@ -419,6 +454,17 @@ pub fn start_aurowork_server(
                     }
                 }
                 CommandEvent::Error(message) => {
+                    if let Some(agg) =
+                        app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        agg.append(
+                            crate::launch_log::format::Level::Error,
+                            "launch:server",
+                            child_pid,
+                            &message,
+                            None,
+                        );
+                    }
                     if let Ok(mut state) = state_handle.try_lock() {
                         state.child_exited = true;
                         let next =
