@@ -441,6 +441,8 @@ pub fn engine_start(
 
         let orchestrator_state_handle = orchestrator_manager.inner.clone();
         let app_handle_for_reader = app.clone();
+        let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
+        let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
         tauri::async_runtime::spawn(async move {
             while let Some(event) = rx.recv().await {
                 match event {
@@ -449,13 +451,15 @@ pub fn engine_start(
                         if let Some(agg) = app_handle_for_reader
                             .try_state::<crate::launch_log::LaunchLogAggregator>()
                         {
-                            agg.append(
-                                crate::launch_log::format::Level::Debug,
-                                "launch:orchestr",
-                                None,
-                                line.trim_end_matches('\n'),
-                                None,
-                            );
+                            let stripped = line.trim_end_matches('\n').to_string();
+                            match clf_stdout.feed(&stripped, crate::launch_log::format::Level::Debug) {
+                                crate::launch_log::sidecar::Classified::Pending => {}
+                                crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
+                                    if !message.is_empty() || stack.is_some() {
+                                        agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                    }
+                                }
+                            }
                         }
                         if let Ok(mut state) = orchestrator_state_handle.try_lock() {
                             let next = state.last_stdout.as_deref().unwrap_or_default().to_string()
@@ -468,13 +472,15 @@ pub fn engine_start(
                         if let Some(agg) = app_handle_for_reader
                             .try_state::<crate::launch_log::LaunchLogAggregator>()
                         {
-                            agg.append(
-                                crate::launch_log::format::Level::Warn,
-                                "launch:orchestr",
-                                None,
-                                line.trim_end_matches('\n'),
-                                None,
-                            );
+                            let stripped = line.trim_end_matches('\n').to_string();
+                            match clf_stderr.feed(&stripped, crate::launch_log::format::Level::Warn) {
+                                crate::launch_log::sidecar::Classified::Pending => {}
+                                crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
+                                    if !message.is_empty() || stack.is_some() {
+                                        agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                    }
+                                }
+                            }
                         }
                         if let Ok(mut state) = orchestrator_state_handle.try_lock() {
                             let next = state.last_stderr.as_deref().unwrap_or_default().to_string()
@@ -483,6 +489,15 @@ pub fn engine_start(
                         }
                     }
                     CommandEvent::Terminated(_) => {
+                        if let Some(agg) = app_handle_for_reader
+                            .try_state::<crate::launch_log::LaunchLogAggregator>()
+                        {
+                            for clf in [&mut clf_stdout, &mut clf_stderr] {
+                                if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
+                                    agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                }
+                            }
+                        }
                         if let Ok(mut state) = orchestrator_state_handle.try_lock() {
                             state.child_exited = true;
                         }
@@ -634,6 +649,8 @@ pub fn engine_start(
     let output_state_handle = output_state.clone();
     let state_handle = manager.inner.clone();
     let app_handle_for_engine_reader = app.clone();
+    let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
+    let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
 
     tauri::async_runtime::spawn(async move {
         while let Some(event) = rx.recv().await {
@@ -643,13 +660,15 @@ pub fn engine_start(
                     if let Some(agg) = app_handle_for_engine_reader
                         .try_state::<crate::launch_log::LaunchLogAggregator>()
                     {
-                        agg.append(
-                            crate::launch_log::format::Level::Debug,
-                            "launch:engine",
-                            None,
-                            line.trim_end_matches('\n'),
-                            None,
-                        );
+                        let stripped = line.trim_end_matches('\n').to_string();
+                        match clf_stdout.feed(&stripped, crate::launch_log::format::Level::Debug) {
+                            crate::launch_log::sidecar::Classified::Pending => {}
+                            crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
+                                if !message.is_empty() || stack.is_some() {
+                                    agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                                }
+                            }
+                        }
                     }
                     if let Ok(mut output) = output_state_handle.lock() {
                         output.stdout.push_str(&line);
@@ -665,13 +684,15 @@ pub fn engine_start(
                     if let Some(agg) = app_handle_for_engine_reader
                         .try_state::<crate::launch_log::LaunchLogAggregator>()
                     {
-                        agg.append(
-                            crate::launch_log::format::Level::Warn,
-                            "launch:engine",
-                            None,
-                            line.trim_end_matches('\n'),
-                            None,
-                        );
+                        let stripped = line.trim_end_matches('\n').to_string();
+                        match clf_stderr.feed(&stripped, crate::launch_log::format::Level::Warn) {
+                            crate::launch_log::sidecar::Classified::Pending => {}
+                            crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
+                                if !message.is_empty() || stack.is_some() {
+                                    agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                                }
+                            }
+                        }
                     }
                     if let Ok(mut output) = output_state_handle.lock() {
                         output.stderr.push_str(&line);
@@ -683,6 +704,15 @@ pub fn engine_start(
                     }
                 }
                 CommandEvent::Terminated(payload) => {
+                    if let Some(agg) = app_handle_for_engine_reader
+                        .try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        for clf in [&mut clf_stdout, &mut clf_stderr] {
+                            if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
+                                agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                            }
+                        }
+                    }
                     if let Ok(mut output) = output_state_handle.lock() {
                         output.exited = true;
                         output.exit_code = payload.code;

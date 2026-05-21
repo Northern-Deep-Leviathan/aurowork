@@ -391,6 +391,8 @@ pub fn start_aurowork_server(
     let state_handle = manager.inner.clone();
     let app_handle = app.clone();
     let child_pid = state.child.as_ref().map(|c| c.pid());
+    let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
+    let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
 
     tauri::async_runtime::spawn(async move {
         while let Some(event) = rx.recv().await {
@@ -400,13 +402,15 @@ pub fn start_aurowork_server(
                     if let Some(agg) =
                         app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
                     {
-                        agg.append(
-                            crate::launch_log::format::Level::Debug,
-                            "launch:server",
-                            child_pid,
-                            line.trim_end(),
-                            None,
-                        );
+                        let stripped = line.trim_end().to_string();
+                        match clf_stdout.feed(&stripped, crate::launch_log::format::Level::Debug) {
+                            crate::launch_log::sidecar::Classified::Pending => {}
+                            crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
+                                if !message.is_empty() || stack.is_some() {
+                                    agg.append(level, "launch:server", child_pid, &message, stack.as_deref());
+                                }
+                            }
+                        }
                     }
                     if let Ok(mut state) = state_handle.try_lock() {
                         let next =
@@ -419,13 +423,15 @@ pub fn start_aurowork_server(
                     if let Some(agg) =
                         app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
                     {
-                        agg.append(
-                            crate::launch_log::format::Level::Warn,
-                            "launch:server",
-                            child_pid,
-                            line.trim_end(),
-                            None,
-                        );
+                        let stripped = line.trim_end().to_string();
+                        match clf_stderr.feed(&stripped, crate::launch_log::format::Level::Warn) {
+                            crate::launch_log::sidecar::Classified::Pending => {}
+                            crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
+                                if !message.is_empty() || stack.is_some() {
+                                    agg.append(level, "launch:server", child_pid, &message, stack.as_deref());
+                                }
+                            }
+                        }
                     }
                     if let Ok(mut state) = state_handle.try_lock() {
                         let next =
@@ -437,6 +443,11 @@ pub fn start_aurowork_server(
                     if let Some(agg) =
                         app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
                     {
+                        for clf in [&mut clf_stdout, &mut clf_stderr] {
+                            if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
+                                agg.append(level, "launch:server", child_pid, &message, stack.as_deref());
+                            }
+                        }
                         agg.append(
                             crate::launch_log::format::Level::Info,
                             "launch:server",

@@ -6,6 +6,7 @@
 //! (no file, no allocations).
 
 pub mod format;
+pub mod sidecar;
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Write};
