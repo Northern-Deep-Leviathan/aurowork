@@ -440,11 +440,23 @@ pub fn engine_start(
         }
 
         let orchestrator_state_handle = orchestrator_manager.inner.clone();
+        let app_handle_for_reader = app.clone();
         tauri::async_runtime::spawn(async move {
             while let Some(event) = rx.recv().await {
                 match event {
                     CommandEvent::Stdout(line_bytes) => {
                         let line = String::from_utf8_lossy(&line_bytes).to_string();
+                        if let Some(agg) = app_handle_for_reader
+                            .try_state::<crate::launch_log::LaunchLogAggregator>()
+                        {
+                            agg.append(
+                                crate::launch_log::format::Level::Debug,
+                                "launch:orchestr",
+                                None,
+                                line.trim_end_matches('\n'),
+                                None,
+                            );
+                        }
                         if let Ok(mut state) = orchestrator_state_handle.try_lock() {
                             let next = state.last_stdout.as_deref().unwrap_or_default().to_string()
                                 + &line;
@@ -453,6 +465,17 @@ pub fn engine_start(
                     }
                     CommandEvent::Stderr(line_bytes) => {
                         let line = String::from_utf8_lossy(&line_bytes).to_string();
+                        if let Some(agg) = app_handle_for_reader
+                            .try_state::<crate::launch_log::LaunchLogAggregator>()
+                        {
+                            agg.append(
+                                crate::launch_log::format::Level::Warn,
+                                "launch:orchestr",
+                                None,
+                                line.trim_end_matches('\n'),
+                                None,
+                            );
+                        }
                         if let Ok(mut state) = orchestrator_state_handle.try_lock() {
                             let next = state.last_stderr.as_deref().unwrap_or_default().to_string()
                                 + &line;
@@ -465,6 +488,17 @@ pub fn engine_start(
                         }
                     }
                     CommandEvent::Error(message) => {
+                        if let Some(agg) = app_handle_for_reader
+                            .try_state::<crate::launch_log::LaunchLogAggregator>()
+                        {
+                            agg.append(
+                                crate::launch_log::format::Level::Error,
+                                "launch:orchestr",
+                                None,
+                                &format!("error: {message}"),
+                                None,
+                            );
+                        }
                         if let Ok(mut state) = orchestrator_state_handle.try_lock() {
                             state.child_exited = true;
                             let next = state.last_stderr.as_deref().unwrap_or_default().to_string()
