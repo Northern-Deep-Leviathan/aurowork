@@ -1,3 +1,5 @@
+import { onMount } from "solid-js";
+
 import App from "./app";
 import { GlobalSDKProvider } from "./context/global-sdk";
 import { GlobalSyncProvider } from "./context/global-sync";
@@ -5,6 +7,7 @@ import { LocalProvider } from "./context/local";
 import { ServerProvider } from "./context/server";
 import { isWebDeployment } from "./lib/aurowork-deployment";
 import { isTauriRuntime } from "./utils";
+import { launchLog } from "../lib/launch-log";
 
 export default function AppEntry() {
   const defaultUrl = (() => {
@@ -34,6 +37,10 @@ export default function AppEntry() {
         : "";
     return envUrl || "http://127.0.0.1:4096";
   })();
+
+  onMount(() => {
+    launchLog("debug", "launch:ui", "AppEntry mounted (providers initialized)");
+  });
 
   return (
     <ServerProvider defaultUrl={defaultUrl}>
