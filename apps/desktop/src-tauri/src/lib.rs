@@ -3,6 +3,7 @@ mod bun_env;
 mod commands;
 mod config;
 mod dev_mode;
+mod launch_log;
 mod engine;
 mod fs;
 mod opkg;
