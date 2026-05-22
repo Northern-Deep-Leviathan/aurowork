@@ -4,7 +4,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use tauri::async_runtime::Receiver;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
@@ -167,9 +167,36 @@ pub fn spawn_aurowork_server(
         command = command.env(key, value);
     }
 
-    command
+    if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+        agg.append(
+            crate::launch_log::format::Level::Info,
+            "launch:server",
+            None,
+            &format!(
+                "spawning aurowork-server on {host}:{port} workspaces={} token_len={} host_token_len={}",
+                workspace_paths.len(),
+                token.len(),
+                host_token.len()
+            ),
+            None,
+        );
+    }
+
+    let result = command
         .spawn()
-        .map_err(|e| format!("Failed to start AuroWork server: {e}"))
+        .map_err(|e| format!("Failed to start AuroWork server: {e}"))?;
+
+    if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+        agg.append(
+            crate::launch_log::format::Level::Info,
+            "launch:server",
+            Some(result.1.pid()),
+            "aurowork-server spawned",
+            None,
+        );
+    }
+
+    Ok(result)
 }
 
 #[cfg(test)]

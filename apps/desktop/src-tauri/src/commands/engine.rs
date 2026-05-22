@@ -440,11 +440,27 @@ pub fn engine_start(
         }
 
         let orchestrator_state_handle = orchestrator_manager.inner.clone();
+        let app_handle_for_reader = app.clone();
+        let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
+        let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
         tauri::async_runtime::spawn(async move {
             while let Some(event) = rx.recv().await {
                 match event {
                     CommandEvent::Stdout(line_bytes) => {
                         let line = String::from_utf8_lossy(&line_bytes).to_string();
+                        if let Some(agg) = app_handle_for_reader
+                            .try_state::<crate::launch_log::LaunchLogAggregator>()
+                        {
+                            let stripped = line.trim_end_matches('\n').to_string();
+                            match clf_stdout.feed(&stripped, crate::launch_log::format::Level::Debug) {
+                                crate::launch_log::sidecar::Classified::Pending => {}
+                                crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
+                                    if !message.is_empty() || stack.is_some() {
+                                        agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                    }
+                                }
+                            }
+                        }
                         if let Ok(mut state) = orchestrator_state_handle.try_lock() {
                             let next = state.last_stdout.as_deref().unwrap_or_default().to_string()
                                 + &line;
@@ -453,6 +469,19 @@ pub fn engine_start(
                     }
                     CommandEvent::Stderr(line_bytes) => {
                         let line = String::from_utf8_lossy(&line_bytes).to_string();
+                        if let Some(agg) = app_handle_for_reader
+                            .try_state::<crate::launch_log::LaunchLogAggregator>()
+                        {
+                            let stripped = line.trim_end_matches('\n').to_string();
+                            match clf_stderr.feed(&stripped, crate::launch_log::format::Level::Warn) {
+                                crate::launch_log::sidecar::Classified::Pending => {}
+                                crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
+                                    if !message.is_empty() || stack.is_some() {
+                                        agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                    }
+                                }
+                            }
+                        }
                         if let Ok(mut state) = orchestrator_state_handle.try_lock() {
                             let next = state.last_stderr.as_deref().unwrap_or_default().to_string()
                                 + &line;
@@ -460,11 +489,31 @@ pub fn engine_start(
                         }
                     }
                     CommandEvent::Terminated(_) => {
+                        if let Some(agg) = app_handle_for_reader
+                            .try_state::<crate::launch_log::LaunchLogAggregator>()
+                        {
+                            for clf in [&mut clf_stdout, &mut clf_stderr] {
+                                if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
+                                    agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                }
+                            }
+                        }
                         if let Ok(mut state) = orchestrator_state_handle.try_lock() {
                             state.child_exited = true;
                         }
                     }
                     CommandEvent::Error(message) => {
+                        if let Some(agg) = app_handle_for_reader
+                            .try_state::<crate::launch_log::LaunchLogAggregator>()
+                        {
+                            agg.append(
+                                crate::launch_log::format::Level::Error,
+                                "launch:orchestr",
+                                None,
+                                &format!("error: {message}"),
+                                None,
+                            );
+                        }
                         if let Ok(mut state) = orchestrator_state_handle.try_lock() {
                             state.child_exited = true;
                             let next = state.last_stderr.as_deref().unwrap_or_default().to_string()
@@ -491,10 +540,44 @@ pub fn engine_start(
             .filter(|value| *value >= 1_000)
             .unwrap_or(180_000);
 
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Debug,
+                "launch:orchestr",
+                None,
+                &format!(
+                    "polling {daemon_base_url}/health, timeout={}ms",
+                    health_timeout_ms
+                ),
+                None,
+            );
+        }
+        let poll_start = std::time::Instant::now();
+
         let health = orchestrator::wait_for_orchestrator(&daemon_base_url, health_timeout_ms)
             .map_err(|e| {
+                if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+                    agg.append(
+                        crate::launch_log::format::Level::Error,
+                        "launch:orchestr",
+                        None,
+                        &format!("health timeout after {health_timeout_ms}ms: {e}"),
+                        None,
+                    );
+                }
                 format!("Failed to start orchestrator (waited {health_timeout_ms}ms): {e}")
             })?;
+
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            let elapsed = poll_start.elapsed().as_millis();
+            agg.append(
+                crate::launch_log::format::Level::Info,
+                "launch:orchestr",
+                None,
+                &format!("orchestrator ready in {elapsed}ms"),
+                None,
+            );
+        }
         let opencode = health
             .auro
             .ok_or_else(|| "Orchestrator did not report OpenCode status".to_string())?;
@@ -565,12 +648,28 @@ pub fn engine_start(
     let output_state = std::sync::Arc::new(std::sync::Mutex::new(OutputState::default()));
     let output_state_handle = output_state.clone();
     let state_handle = manager.inner.clone();
+    let app_handle_for_engine_reader = app.clone();
+    let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
+    let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
 
     tauri::async_runtime::spawn(async move {
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line_bytes) => {
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
+                    if let Some(agg) = app_handle_for_engine_reader
+                        .try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        let stripped = line.trim_end_matches('\n').to_string();
+                        match clf_stdout.feed(&stripped, crate::launch_log::format::Level::Debug) {
+                            crate::launch_log::sidecar::Classified::Pending => {}
+                            crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
+                                if !message.is_empty() || stack.is_some() {
+                                    agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                                }
+                            }
+                        }
+                    }
                     if let Ok(mut output) = output_state_handle.lock() {
                         output.stdout.push_str(&line);
                     }
@@ -582,6 +681,19 @@ pub fn engine_start(
                 }
                 CommandEvent::Stderr(line_bytes) => {
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
+                    if let Some(agg) = app_handle_for_engine_reader
+                        .try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        let stripped = line.trim_end_matches('\n').to_string();
+                        match clf_stderr.feed(&stripped, crate::launch_log::format::Level::Warn) {
+                            crate::launch_log::sidecar::Classified::Pending => {}
+                            crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
+                                if !message.is_empty() || stack.is_some() {
+                                    agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                                }
+                            }
+                        }
+                    }
                     if let Ok(mut output) = output_state_handle.lock() {
                         output.stderr.push_str(&line);
                     }
@@ -592,6 +704,15 @@ pub fn engine_start(
                     }
                 }
                 CommandEvent::Terminated(payload) => {
+                    if let Some(agg) = app_handle_for_engine_reader
+                        .try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        for clf in [&mut clf_stdout, &mut clf_stderr] {
+                            if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
+                                agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                            }
+                        }
+                    }
                     if let Ok(mut output) = output_state_handle.lock() {
                         output.exited = true;
                         output.exit_code = payload.code;
@@ -601,6 +722,17 @@ pub fn engine_start(
                     }
                 }
                 CommandEvent::Error(message) => {
+                    if let Some(agg) = app_handle_for_engine_reader
+                        .try_state::<crate::launch_log::LaunchLogAggregator>()
+                    {
+                        agg.append(
+                            crate::launch_log::format::Level::Error,
+                            "launch:engine",
+                            None,
+                            &format!("error: {message}"),
+                            None,
+                        );
+                    }
                     if let Ok(mut output) = output_state_handle.lock() {
                         output.exited = true;
                         output.exit_code = Some(-1);

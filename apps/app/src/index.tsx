@@ -10,9 +10,36 @@ import { nativeDeepLinkEvent, pushPendingDeepLinks } from "./app/lib/deep-link-b
 import { getAuroWorkDeployment } from "./app/lib/aurowork-deployment";
 import { isTauriRuntime } from "./app/utils";
 import { initLocale } from "./i18n";
+import {
+  flushLaunchLog,
+  initLaunchLog,
+  launchLog,
+} from "./lib/launch-log";
 
+const bootStart = performance.now();
+void initLaunchLog().then(() => {
+  launchLog(
+    "info",
+    "launch:ui",
+    `ui bootstrap starting (platform=${isTauriRuntime() ? "desktop" : "web"})`,
+  );
+});
+
+const themeStart = performance.now();
 bootstrapTheme();
+launchLog(
+  "debug",
+  "launch:ui",
+  `theme ready in ${Math.round(performance.now() - themeStart)}ms`,
+);
+
+const i18nStart = performance.now();
 initLocale();
+launchLog(
+  "debug",
+  "launch:ui",
+  `i18n ready in ${Math.round(performance.now() - i18nStart)}ms`,
+);
 
 const root = document.getElementById("root");
 
@@ -71,6 +98,7 @@ function startDeepLinkBridge() {
 }
 
 startDeepLinkBridge();
+launchLog("debug", "launch:ui", "deep-link bridge installed");
 
 const RouterComponent = isTauriRuntime() ? HashRouter : Router;
 
@@ -154,3 +182,28 @@ render(
   ),
   root,
 );
+
+launchLog(
+  "info",
+  "launch:ui",
+  `ui first paint in ${Math.round(performance.now() - bootStart)}ms`,
+);
+void flushLaunchLog();
+
+window.addEventListener("error", (ev) => {
+  launchLog(
+    "error",
+    "launch:ui",
+    ev.message ?? "uncaught error",
+    ev.error?.stack ?? undefined,
+  );
+  void flushLaunchLog();
+});
+window.addEventListener("unhandledrejection", (ev) => {
+  const reason: unknown = ev.reason;
+  const message =
+    reason instanceof Error ? reason.message : String(reason ?? "unhandled rejection");
+  const stack = reason instanceof Error ? reason.stack : undefined;
+  launchLog("error", "launch:ui", message, stack);
+  void flushLaunchLog();
+});

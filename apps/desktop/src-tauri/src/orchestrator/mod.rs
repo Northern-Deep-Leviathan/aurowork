@@ -289,9 +289,34 @@ pub fn spawn_orchestrator_daemon(
         command = command.env("OPENCODE_ENABLE_EXA", "1");
     }
 
-    command
+    if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+        agg.append(
+            crate::launch_log::format::Level::Info,
+            "launch:orchestr",
+            None,
+            &format!(
+                "spawning orchestrator daemon, port={}, data_dir={}",
+                options.daemon_port, options.data_dir
+            ),
+            None,
+        );
+    }
+
+    let result = command
         .spawn()
-        .map_err(|e| format!("Failed to start orchestrator: {e}"))
+        .map_err(|e| format!("Failed to start orchestrator: {e}"))?;
+
+    if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+        agg.append(
+            crate::launch_log::format::Level::Info,
+            "launch:orchestr",
+            Some(result.1.pid()),
+            "orchestrator spawned",
+            None,
+        );
+    }
+
+    Ok(result)
 }
 
 pub fn orchestrator_status_from_state(

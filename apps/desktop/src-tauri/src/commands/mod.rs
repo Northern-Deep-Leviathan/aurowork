@@ -4,6 +4,7 @@ pub mod config;
 pub mod debug_log;
 pub mod engine;
 pub mod fs;
+pub mod launch_log;
 pub mod misc;
 pub mod opkg;
 pub mod orchestrator;
