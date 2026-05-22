@@ -67,7 +67,21 @@ async function flush(): Promise<void> {
     flushTimer = null;
   }
   if (buffer.length === 0) return;
-  if (!devModeCached) {
+
+  // If init hasn't resolved yet, wait for it before deciding whether to
+  // ship or drop. Otherwise we'd clear the buffer prematurely while
+  // devModeCached is still `null` and lose every early entry that
+  // landed before `initLaunchLog()` returned.
+  if (devModeCached === null && initPromise) {
+    try {
+      await initPromise;
+    } catch {
+      // initPromise itself never rejects (loadDevModeInfo catches), but
+      // be defensive anyway.
+    }
+  }
+
+  if (devModeCached !== true) {
     buffer = [];
     return;
   }
