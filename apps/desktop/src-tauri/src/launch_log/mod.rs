@@ -15,7 +15,6 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use chrono::Local;
 
-use crate::dev_mode;
 use format::{format_header, format_line, Level};
 
 pub const KEEP_LATEST_N: usize = 10;
@@ -48,16 +47,19 @@ struct Inner {
 }
 
 impl LaunchLogAggregator {
-    /// Initialize the aggregator. Safe to call when dev mode is off — it
-    /// becomes a no-op (no file created, no allocation).
+    /// Initialize the aggregator. The caller passes the resolved enabled
+    /// flag (typically `dev_mode::is_enabled() || diagnostic_armed`).
+    /// Safe to call with `enabled = false` — becomes a no-op (no file
+    /// created, no allocation).
     pub fn init(
         &self,
         log_dir: &Path,
         app_version: &str,
         auro_version: &str,
         platform: &str,
+        enabled: bool,
     ) {
-        if !dev_mode::is_enabled() {
+        if !enabled {
             return;
         }
 
@@ -133,9 +135,6 @@ impl LaunchLogAggregator {
         message: &str,
         stack: Option<&str>,
     ) {
-        if !dev_mode::is_enabled() {
-            return;
-        }
         let Ok(mut guard) = self.inner.lock() else { return };
         let Some(inner) = guard.as_mut() else { return };
         let line = format_line(Local::now(), level, tag, pid, message, stack);
@@ -312,5 +311,17 @@ mod tests {
         assert!(dir.join("launch-bad.json").exists());
         assert!(dir.join("not-launch-20260521.log").exists());
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn init_with_enabled_false_makes_append_noop() {
+        let dir = temp_dir();
+        let agg = super::LaunchLogAggregator::default();
+        agg.init(&dir, "0.0.0", "0.0.0", "test", false);
+        agg.append(super::format::Level::Info, "launch:shell", Some(0), "should not write", None);
+        assert!(agg.path().is_none(), "path() must be None when init was disabled");
+        let entries: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).collect();
+        assert_eq!(entries.len(), 0, "no log file should exist");
+        let _ = std::fs::remove_dir_all(dir);
     }
 }
