@@ -1,4 +1,4 @@
-import { Show, createSignal, onMount } from "solid-js";
+import { Show, createSignal, onCleanup, onMount } from "solid-js";
 import { FolderOpen, X } from "lucide-solid";
 import { isTauriRuntime } from "../utils";
 import { t, currentLocale } from "../../i18n";
@@ -12,6 +12,7 @@ const TOAST_VISIBLE_MS = 8000;
 
 export function LaunchDiagnosticToast() {
   const [show, setShow] = createSignal(false);
+  let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 
   onMount(async () => {
     if (!isTauriRuntime()) return;
@@ -22,11 +23,15 @@ export function LaunchDiagnosticToast() {
       );
       if (status.armedOnStartup) {
         setShow(true);
-        setTimeout(() => setShow(false), TOAST_VISIBLE_MS);
+        dismissTimer = setTimeout(() => setShow(false), TOAST_VISIBLE_MS);
       }
     } catch {
       // Silent — command may not be registered in non-desktop runtime.
     }
+  });
+
+  onCleanup(() => {
+    if (dismissTimer !== undefined) clearTimeout(dismissTimer);
   });
 
   function viewInSettings() {
