@@ -36,6 +36,7 @@ import CreateWorkspaceModal from "./components/create-workspace-modal";
 import RenameWorkspaceModal from "./components/rename-workspace-modal";
 import McpAuthModal from "./components/mcp-auth-modal";
 import StatusToast from "./components/status-toast";
+import { LaunchDiagnosticToast } from "./components/launch-diagnostic-toast";
 import OnboardingView from "./pages/onboarding";
 import DashboardView from "./pages/dashboard";
 import SessionView from "./pages/session";
@@ -1644,6 +1645,17 @@ export default function App() {
     setSettingsTab(nextTab);
     goToDashboard("settings");
   };
+
+  if (typeof window !== "undefined") {
+    onMount(() => {
+      const handler = () => {
+        setSettingsTab("debug");
+        goToDashboard("settings");
+      };
+      window.addEventListener("aurowork:open-settings-debug", handler);
+      onCleanup(() => window.removeEventListener("aurowork:open-settings-debug", handler));
+    });
+  }
 
   let markReloadRequiredHandler: ((reason: ReloadReason, trigger?: ReloadTrigger) => void) | undefined;
   const markReloadRequired = (reason: ReloadReason, trigger?: ReloadTrigger) => {
@@ -8705,6 +8717,7 @@ export default function App() {
         subtitle={t("dashboard.edit_remote_workspace_subtitle", currentLocale())}
         confirmLabel={t("dashboard.edit_remote_workspace_confirm", currentLocale())}
       />
+      <LaunchDiagnosticToast />
     </>
   );
 }
