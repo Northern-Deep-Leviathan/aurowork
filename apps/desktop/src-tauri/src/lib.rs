@@ -178,7 +178,7 @@ pub fn run() {
                 let app_version = env!("CARGO_PKG_VERSION");
                 let auro_version = option_env!("AUROWORK_AURO_VERSION").unwrap_or("unknown");
                 let platform = format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH);
-                aggregator.init(&log_dir, app_version, auro_version, &platform);
+                aggregator.init(&log_dir, app_version, auro_version, &platform, dev_mode::is_enabled());
             }
             aggregator.append(
                 Level::Info,
