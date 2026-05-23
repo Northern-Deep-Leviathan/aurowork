@@ -117,3 +117,44 @@ pub fn open_launch_log_folder(app: AppHandle) -> Result<(), String> {
         .open_path(log_dir.to_string_lossy().to_string(), None::<&str>)
         .map_err(|e| format!("Failed to open log folder: {e}"))
 }
+
+/// Process-wide state recording whether THIS launch was triggered by an
+/// armed diagnostic flag. Captured in `lib::run().setup()` before the
+/// flag is deleted, then read by the frontend at boot time.
+pub struct LaunchDiagnosticStatus {
+    pub armed_on_startup: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LaunchDiagnosticStatusDto {
+    pub armed_on_startup: bool,
+    pub log_file_path: Option<String>,
+}
+
+/// Arm the one-shot diagnostic flag. The next launch will write a
+/// launch log file regardless of dev mode. Caller is expected to
+/// trigger an app restart immediately after.
+#[tauri::command]
+pub fn arm_launch_diagnostic(app: AppHandle) -> Result<(), String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+    crate::diagnostic_flag::set(&dir).map_err(|e| format!("Failed to arm diagnostic: {e}"))
+}
+
+/// Read whether this launch was diagnostic-triggered, and the current
+/// launch log file path (if any). Called by the frontend on boot to
+/// decide whether to show the "diagnostic captured" toast, and by the
+/// Debug-tab panel to populate the "Last diagnostic" display.
+#[tauri::command]
+pub fn launch_diagnostic_status(
+    status: State<'_, LaunchDiagnosticStatus>,
+    aggregator: State<'_, LaunchLogAggregator>,
+) -> LaunchDiagnosticStatusDto {
+    LaunchDiagnosticStatusDto {
+        armed_on_startup: status.armed_on_startup,
+        log_file_path: aggregator.path().map(|p| p.to_string_lossy().to_string()),
+    }
+}

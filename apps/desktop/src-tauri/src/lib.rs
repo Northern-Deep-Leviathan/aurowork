@@ -24,8 +24,8 @@ use commands::command_files::{auro_command_delete, auro_command_list, auro_comma
 use commands::config::{read_auro_config, write_auro_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
 use commands::launch_log::{
-    dev_mode_info, launch_log_append, launch_log_append_batch, launch_log_path,
-    launch_log_summary, open_launch_log_folder,
+    arm_launch_diagnostic, dev_mode_info, launch_diagnostic_status, launch_log_append,
+    launch_log_append_batch, launch_log_path, launch_log_summary, open_launch_log_folder,
 };
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
@@ -173,25 +173,40 @@ pub fn run() {
         .setup(|app| {
             set_dev_app_name();
 
+            // One-shot diagnostic flag: take + delete it so the NEXT launch
+            // is back to normal. The launch log is enabled if either
+            // dev mode is on, OR a diagnostic was armed before restart.
+            let diagnostic_armed = app
+                .path()
+                .app_data_dir()
+                .ok()
+                .map(|dir| crate::diagnostic_flag::take(&dir))
+                .unwrap_or(false);
+            let log_enabled = dev_mode::is_enabled() || diagnostic_armed;
+
             let aggregator = LaunchLogAggregator::default();
             if let Ok(log_dir) = app.path().app_log_dir() {
                 let app_version = env!("CARGO_PKG_VERSION");
                 let auro_version = option_env!("AUROWORK_AURO_VERSION").unwrap_or("unknown");
                 let platform = format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH);
-                aggregator.init(&log_dir, app_version, auro_version, &platform, dev_mode::is_enabled());
+                aggregator.init(&log_dir, app_version, auro_version, &platform, log_enabled);
             }
             aggregator.append(
                 Level::Info,
                 "launch:shell",
                 Some(std::process::id()),
                 &format!(
-                    "aurowork desktop starting, version={}, dev_mode={}",
+                    "aurowork desktop starting, version={}, dev_mode={}, diagnostic_armed={}",
                     env!("CARGO_PKG_VERSION"),
-                    dev_mode::is_enabled()
+                    dev_mode::is_enabled(),
+                    diagnostic_armed,
                 ),
                 None,
             );
             app.manage(aggregator.clone());
+            app.manage(commands::launch_log::LaunchDiagnosticStatus {
+                armed_on_startup: diagnostic_armed,
+            });
             launch_log::install_global(aggregator);
             Ok(())
         })
@@ -259,7 +274,9 @@ pub fn run() {
             launch_log_path,
             launch_log_summary,
             dev_mode_info,
-            open_launch_log_folder
+            open_launch_log_folder,
+            arm_launch_diagnostic,
+            launch_diagnostic_status
         ])
         .build(tauri::generate_context!())
         .expect("error while building AuroWork");
