@@ -27,6 +27,8 @@ import { buildFeedbackUrl } from "../lib/feedback";
 import { getAuroWorkDeployment } from "../lib/aurowork-deployment";
 import { initLaunchLog } from "../../lib/launch-log";
 import ExtensionsView from "./extensions";
+import { LaunchDiagnosticPanel } from "./settings/launch-diagnostic-panel";
+import { OpenDeeplinkPanel } from "./settings/open-deeplink-panel";
 import SkillsView from "./skills";
 import {
   ArrowUpRight,
@@ -2058,113 +2060,6 @@ export default function SettingsView(props: SettingsViewProps) {
                     : translate("settings.developer_panel_enable_hint")}
                 </div>
               </div>
-              <Show when={isTauriRuntime() && opencodeDevModeEnabled() && props.developerMode}>
-                <div class={`${settingsPanelSoftClass} p-4 space-y-3`}>
-                  <div class="flex items-start justify-between gap-3">
-                    <div>
-                      <div class="text-sm font-medium text-dls-text">
-                        {translate("settings.open_deeplink_title")}
-                      </div>
-                      <div class="text-xs text-dls-secondary">
-                        {translate("settings.open_deeplink_description")}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      class={compactOutlineActionClass}
-                      onClick={() => {
-                        setDebugDeepLinkOpen((value) => !value);
-                        setDebugDeepLinkStatus(null);
-                      }}
-                      disabled={props.busy || debugDeepLinkBusy()}
-                    >
-                      {debugDeepLinkOpen() ? translate("settings.open_deeplink_hide") : translate("settings.open_deeplink_open")}
-                    </button>
-                  </div>
-
-                  <Show when={debugDeepLinkOpen()}>
-                    <div class="space-y-3">
-                      <textarea
-                        value={debugDeepLinkInput()}
-                        onInput={(event) =>
-                          setDebugDeepLinkInput(event.currentTarget.value)
-                        }
-                        rows={3}
-                        placeholder="aurowork://..."
-                        class="w-full rounded-xl border border-dls-border bg-dls-surface px-3 py-2 text-xs font-mono text-dls-text outline-none transition focus:border-blue-8"
-                      />
-                      <div class="flex flex-wrap items-center gap-2">
-                        <Button
-                          variant="secondary"
-                          class="text-xs h-8 py-0 px-3"
-                          onClick={() => void submitDebugDeepLink()}
-                          disabled={
-                            props.busy ||
-                            debugDeepLinkBusy() ||
-                            !debugDeepLinkInput().trim()
-                          }
-                        >
-                          {debugDeepLinkBusy() ? translate("settings.open_deeplink_opening") : translate("settings.open_deeplink_action")}
-                        </Button>
-                        <div class="text-[11px] text-dls-secondary">
-                          Accepts <span class="font-mono">aurowork://</span>,{" "}
-                          <span class="font-mono">aurowork-dev://</span>, or a
-                          raw supported{" "}
-                          <span class="font-mono">
-                            https://share.example.com/b/...
-                          </span>{" "}
-                          URL.
-                        </div>
-                      </div>
-                    </div>
-                  </Show>
-
-                  <Show when={debugDeepLinkStatus()}>
-                    {(value) => (
-                      <div class="text-xs text-dls-secondary">{value()}</div>
-                    )}
-                  </Show>
-                </div>
-                <Show when={launchLogEnabled()}>
-                  <div class={`${settingsPanelSoftClass} p-4 space-y-3`}>
-                    <div class="text-sm font-medium text-dls-text">
-                      Launch log (dev mode)
-                    </div>
-                    <div class="text-xs font-mono text-dls-secondary break-all">
-                      {launchLogPath() ?? "(not initialized)"}
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        class={compactOutlineActionClass}
-                        onClick={() => {
-                          const path = launchLogPath();
-                          if (path) {
-                            void navigator.clipboard
-                              .writeText(path)
-                              .catch(() => undefined);
-                          }
-                        }}
-                      >
-                        <Copy size={14} class="text-dls-secondary" />
-                        Copy path
-                      </button>
-                      <button
-                        type="button"
-                        class={compactOutlineActionClass}
-                        onClick={() => {
-                          void import("@tauri-apps/api/core").then(
-                            ({ invoke }) => invoke("open_launch_log_folder"),
-                          );
-                        }}
-                      >
-                        <FolderOpen size={14} class="text-dls-secondary" />
-                        Open log folder
-                      </button>
-                    </div>
-                  </div>
-                </Show>
-              </Show>
             </div>
 
             <div class={`${settingsPanelClass} space-y-3`}>
@@ -2597,8 +2492,31 @@ export default function SettingsView(props: SettingsViewProps) {
         <Match when={activeTab() === "debug"}>
           <Show when={props.developerMode}>
             <section>
+              {/* === Diagnostics section === */}
               <h3 class="text-sm font-medium text-dls-secondary uppercase tracking-wider mb-4">
-                {translate("settings.debug_developer_title")}
+                {translate("settings.debug_section_diagnostics")}
+              </h3>
+              <div class="space-y-4 mb-8">
+                <Show when={isTauriRuntime()}>
+                  <LaunchDiagnosticPanel translate={translate} />
+                </Show>
+                <OpenDeeplinkPanel
+                  translate={translate}
+                  busy={props.busy}
+                  open={debugDeepLinkOpen}
+                  setOpen={setDebugDeepLinkOpen}
+                  input={debugDeepLinkInput}
+                  setInput={setDebugDeepLinkInput}
+                  status={debugDeepLinkStatus}
+                  setStatus={setDebugDeepLinkStatus}
+                  busyLocal={debugDeepLinkBusy}
+                  onSubmit={submitDebugDeepLink}
+                />
+              </div>
+
+              {/* === Reset & Recovery section === */}
+              <h3 class="text-sm font-medium text-dls-secondary uppercase tracking-wider mb-4">
+                {translate("settings.debug_section_recovery")}
               </h3>
 
               <div class="space-y-4">
