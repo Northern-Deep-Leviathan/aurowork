@@ -1018,14 +1018,10 @@ export default function SettingsView(props: SettingsViewProps) {
       .catch(() => setBuildInfo(null));
   });
 
-  const [launchLogPath, setLaunchLogPath] = createSignal<string | null>(null);
-  const [launchLogEnabled, setLaunchLogEnabled] = createSignal(false);
-
   onMount(() => {
-    void initLaunchLog().then((info) => {
-      setLaunchLogEnabled(info.enabled);
-      setLaunchLogPath(info.logFilePath);
-    });
+    // Side-effect only: kicks off the launch-log buffer flush.
+    // The path/enabled flags are surfaced via LaunchDiagnosticPanel now.
+    void initLaunchLog();
   });
 
   const formatUptime = (uptimeMs?: number | null) => {
