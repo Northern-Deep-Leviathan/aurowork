@@ -208,6 +208,15 @@ pub fn run() {
                 armed_on_startup: diagnostic_armed,
             });
             launch_log::install_global(aggregator);
+            if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+                agg.append(
+                    Level::Info,
+                    "launch:shell",
+                    Some(std::process::id()),
+                    "tauri setup complete, awaiting first webview event",
+                    None,
+                );
+            }
             Ok(())
         })
         .manage(EngineManager::default())

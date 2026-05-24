@@ -320,6 +320,15 @@ pub fn engine_start(
     runtime: Option<EngineRuntime>,
     workspace_paths: Option<Vec<String>>,
 ) -> Result<EngineInfo, String> {
+    if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+        agg.append(
+            crate::launch_log::format::Level::Info,
+            "launch:shell",
+            Some(std::process::id()),
+            "engine_start invoked",
+            None,
+        );
+    }
     let project_dir = project_dir.trim().to_string();
     if project_dir.is_empty() {
         return Err("projectDir is required".to_string());
