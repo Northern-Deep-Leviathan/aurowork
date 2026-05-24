@@ -4,7 +4,16 @@ import { parseCliArgs, printHelp, resolveServerConfig } from "./config.js";
 import { createServerLogger, startServer } from "./server.js";
 import pkg from "../package.json" with { type: "json" };
 
+const startedAt = Date.now();
+const phaseLog = (event: string, extras: Record<string, string | number | boolean> = {}) => {
+  const elapsed = Date.now() - startedAt;
+  const kv = Object.entries(extras).map(([k, v]) => `${k}=${v}`).join(" ");
+  console.log(`[aurowork-server] [server-phase] ${event} elapsed=${elapsed}ms${kv ? " " + kv : ""}`);
+};
+phaseLog("bun-started", { pid: process.pid });
+
 const args = parseCliArgs(process.argv.slice(2));
+phaseLog("args-parsed");
 
 if (args.help) {
   printHelp();
@@ -17,7 +26,12 @@ if (args.version) {
 }
 
 const config = await resolveServerConfig(args);
+phaseLog("config-resolved", {
+  workspaces: config.workspaces?.length ?? 0,
+  auro_base_url: config.auroBaseUrl ? "set" : "unset",
+});
 const logger = createServerLogger(config);
+phaseLog("logger-ready");
 const server = startServer(config);
 
 const url = `http://${config.host}:${server.port}`;
