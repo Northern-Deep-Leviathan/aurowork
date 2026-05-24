@@ -580,6 +580,15 @@ pub fn engine_start(
                 None,
             );
         }
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Info,
+                "launch:orchestr",
+                None,
+                "beginning /health poll",
+                None,
+            );
+        }
         let poll_start = std::time::Instant::now();
 
         let health = orchestrator::wait_for_orchestrator(&daemon_base_url, health_timeout_ms)
@@ -606,6 +615,16 @@ pub fn engine_start(
                 None,
             );
         }
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Info,
+                "launch:orchestr",
+                None,
+                "beginning workspace bootstrap (extracting opencode endpoint)",
+                None,
+            );
+        }
+        let bootstrap_start = std::time::Instant::now();
         let opencode = health
             .auro
             .ok_or_else(|| "Orchestrator did not report OpenCode status".to_string())?;
@@ -625,6 +644,19 @@ pub fn engine_start(
             state.auro_password = auro_password.clone();
             state.last_stdout = None;
             state.last_stderr = None;
+        }
+
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Info,
+                "launch:orchestr",
+                None,
+                &format!(
+                    "workspace bootstrap OK in {}ms (opencode_port={opencode_port})",
+                    bootstrap_start.elapsed().as_millis()
+                ),
+                None,
+            );
         }
 
         if let Err(error) = start_aurowork_server(
