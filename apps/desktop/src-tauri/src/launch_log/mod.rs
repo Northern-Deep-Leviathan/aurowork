@@ -7,6 +7,7 @@
 
 pub mod format;
 pub mod sidecar;
+pub mod heartbeat;
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Write};

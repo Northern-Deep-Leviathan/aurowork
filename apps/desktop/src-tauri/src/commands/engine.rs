@@ -418,6 +418,7 @@ pub fn engine_start(
         };
 
         let (mut rx, child) = orchestrator::spawn_orchestrator_daemon(&app, &spawn_options)?;
+        let orchestrator_child_pid = child.pid();
 
         // Persist basic auth (and project dir) so relaunches can attach.
         let _ = orchestrator::write_orchestrator_auth(
@@ -443,10 +444,28 @@ pub fn engine_start(
         let app_handle_for_reader = app.clone();
         let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
         let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
+        let heartbeat_cancel = app
+            .try_state::<crate::launch_log::LaunchLogAggregator>()
+            .map(|agg| {
+                crate::launch_log::heartbeat::spawn_heartbeat(
+                    (*agg).clone(),
+                    "launch:orchestr",
+                    orchestrator_child_pid,
+                    "aurowork-orchestrator",
+                )
+            });
+        let heartbeat_for_task = heartbeat_cancel.clone();
         tauri::async_runtime::spawn(async move {
+            let mut heartbeat_cancelled = false;
             while let Some(event) = rx.recv().await {
                 match event {
                     CommandEvent::Stdout(line_bytes) => {
+                        if !heartbeat_cancelled {
+                            if let Some(c) = &heartbeat_for_task {
+                                c.notify_one();
+                            }
+                            heartbeat_cancelled = true;
+                        }
                         let line = String::from_utf8_lossy(&line_bytes).to_string();
                         if let Some(agg) = app_handle_for_reader
                             .try_state::<crate::launch_log::LaunchLogAggregator>()
@@ -469,6 +488,12 @@ pub fn engine_start(
                         }
                     }
                     CommandEvent::Stderr(line_bytes) => {
+                        if !heartbeat_cancelled {
+                            if let Some(c) = &heartbeat_for_task {
+                                c.notify_one();
+                            }
+                            heartbeat_cancelled = true;
+                        }
                         let line = String::from_utf8_lossy(&line_bytes).to_string();
                         if let Some(agg) = app_handle_for_reader
                             .try_state::<crate::launch_log::LaunchLogAggregator>()
@@ -643,6 +668,7 @@ pub fn engine_start(
         auro_username.as_deref(),
         auro_password.as_deref(),
     )?;
+    let engine_child_pid = child.pid();
 
     state.last_stdout = None;
     state.last_stderr = None;
@@ -654,11 +680,29 @@ pub fn engine_start(
     let app_handle_for_engine_reader = app.clone();
     let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
     let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
+    let engine_heartbeat_cancel = app
+        .try_state::<crate::launch_log::LaunchLogAggregator>()
+        .map(|agg| {
+            crate::launch_log::heartbeat::spawn_heartbeat(
+                (*agg).clone(),
+                "launch:engine",
+                engine_child_pid,
+                "opencode",
+            )
+        });
+    let engine_heartbeat_for_task = engine_heartbeat_cancel.clone();
 
     tauri::async_runtime::spawn(async move {
+        let mut heartbeat_cancelled = false;
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line_bytes) => {
+                    if !heartbeat_cancelled {
+                        if let Some(c) = &engine_heartbeat_for_task {
+                            c.notify_one();
+                        }
+                        heartbeat_cancelled = true;
+                    }
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
                     if let Some(agg) = app_handle_for_engine_reader
                         .try_state::<crate::launch_log::LaunchLogAggregator>()
@@ -684,6 +728,12 @@ pub fn engine_start(
                     }
                 }
                 CommandEvent::Stderr(line_bytes) => {
+                    if !heartbeat_cancelled {
+                        if let Some(c) = &engine_heartbeat_for_task {
+                            c.notify_one();
+                        }
+                        heartbeat_cancelled = true;
+                    }
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
                     if let Some(agg) = app_handle_for_engine_reader
                         .try_state::<crate::launch_log::LaunchLogAggregator>()

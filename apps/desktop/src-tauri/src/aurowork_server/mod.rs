@@ -394,10 +394,31 @@ pub fn start_aurowork_server(
     let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
     let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
 
+    let heartbeat_cancel = match (
+        app.try_state::<crate::launch_log::LaunchLogAggregator>(),
+        child_pid,
+    ) {
+        (Some(agg), Some(pid)) => Some(crate::launch_log::heartbeat::spawn_heartbeat(
+            (*agg).clone(),
+            "launch:server",
+            pid,
+            "aurowork-server",
+        )),
+        _ => None,
+    };
+    let heartbeat_for_task = heartbeat_cancel.clone();
+
     tauri::async_runtime::spawn(async move {
+        let mut heartbeat_cancelled = false;
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line_bytes) => {
+                    if !heartbeat_cancelled {
+                        if let Some(c) = &heartbeat_for_task {
+                            c.notify_one();
+                        }
+                        heartbeat_cancelled = true;
+                    }
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
                     if let Some(agg) =
                         app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
@@ -420,6 +441,12 @@ pub fn start_aurowork_server(
                     }
                 }
                 CommandEvent::Stderr(line_bytes) => {
+                    if !heartbeat_cancelled {
+                        if let Some(c) = &heartbeat_for_task {
+                            c.notify_one();
+                        }
+                        heartbeat_cancelled = true;
+                    }
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
                     if let Some(agg) =
                         app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
