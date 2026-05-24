@@ -274,6 +274,7 @@ dependencies = [
  "tokio",
  "umya-spreadsheet",
  "ureq",
+ "url",
  "uuid",
  "walkdir",
  "windows-sys 0.59.0",

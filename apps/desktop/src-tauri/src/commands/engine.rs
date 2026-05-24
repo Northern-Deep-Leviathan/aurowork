@@ -819,6 +819,16 @@ pub fn engine_start(
                                 if !message.is_empty() || stack.is_some() {
                                     let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:engine");
                                     agg.append(level, tag, None, msg, stack.as_deref());
+                                    if tag == "launch:engine" {
+                                        if let Some(phase) = crate::launch_log::sidecar::classify_opencode_phase(msg) {
+                                            let marker = if phase.overseas { "[engine-phase][overseas] " } else { "[engine-phase] " };
+                                            let body = match phase.extras.as_deref() {
+                                                Some(extras) => format!("{marker}{} {}", phase.event, extras),
+                                                None => format!("{marker}{}", phase.event),
+                                            };
+                                            agg.append(phase.level, "launch:engine", None, &body, None);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -850,6 +860,16 @@ pub fn engine_start(
                                 if !message.is_empty() || stack.is_some() {
                                     let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:engine");
                                     agg.append(level, tag, None, msg, stack.as_deref());
+                                    if tag == "launch:engine" {
+                                        if let Some(phase) = crate::launch_log::sidecar::classify_opencode_phase(msg) {
+                                            let marker = if phase.overseas { "[engine-phase][overseas] " } else { "[engine-phase] " };
+                                            let body = match phase.extras.as_deref() {
+                                                Some(extras) => format!("{marker}{} {}", phase.event, extras),
+                                                None => format!("{marker}{}", phase.event),
+                                            };
+                                            agg.append(phase.level, "launch:engine", None, &body, None);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -871,6 +891,16 @@ pub fn engine_start(
                             if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
                                 let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:engine");
                                 agg.append(level, tag, None, msg, stack.as_deref());
+                                if tag == "launch:engine" {
+                                    if let Some(phase) = crate::launch_log::sidecar::classify_opencode_phase(msg) {
+                                        let marker = if phase.overseas { "[engine-phase][overseas] " } else { "[engine-phase] " };
+                                        let body = match phase.extras.as_deref() {
+                                            Some(extras) => format!("{marker}{} {}", phase.event, extras),
+                                            None => format!("{marker}{}", phase.event),
+                                        };
+                                        agg.append(phase.level, "launch:engine", None, &body, None);
+                                    }
+                                }
                             }
                         }
                     }
