@@ -456,7 +456,8 @@ pub fn engine_start(
                                 crate::launch_log::sidecar::Classified::Pending => {}
                                 crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                     if !message.is_empty() || stack.is_some() {
-                                        agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                        let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:orchestr");
+                                        agg.append(level, tag, None, msg, stack.as_deref());
                                     }
                                 }
                             }
@@ -477,7 +478,8 @@ pub fn engine_start(
                                 crate::launch_log::sidecar::Classified::Pending => {}
                                 crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                     if !message.is_empty() || stack.is_some() {
-                                        agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                        let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:orchestr");
+                                        agg.append(level, tag, None, msg, stack.as_deref());
                                     }
                                 }
                             }
@@ -494,7 +496,8 @@ pub fn engine_start(
                         {
                             for clf in [&mut clf_stdout, &mut clf_stderr] {
                                 if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
-                                    agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                    let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:orchestr");
+                                    agg.append(level, tag, None, msg, stack.as_deref());
                                 }
                             }
                         }
@@ -665,7 +668,8 @@ pub fn engine_start(
                             crate::launch_log::sidecar::Classified::Pending => {}
                             crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                 if !message.is_empty() || stack.is_some() {
-                                    agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                                    let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:engine");
+                                    agg.append(level, tag, None, msg, stack.as_deref());
                                 }
                             }
                         }
@@ -689,7 +693,8 @@ pub fn engine_start(
                             crate::launch_log::sidecar::Classified::Pending => {}
                             crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                 if !message.is_empty() || stack.is_some() {
-                                    agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                                    let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:engine");
+                                    agg.append(level, tag, None, msg, stack.as_deref());
                                 }
                             }
                         }
@@ -709,7 +714,8 @@ pub fn engine_start(
                     {
                         for clf in [&mut clf_stdout, &mut clf_stderr] {
                             if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
-                                agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                                let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:engine");
+                                agg.append(level, tag, None, msg, stack.as_deref());
                             }
                         }
                     }

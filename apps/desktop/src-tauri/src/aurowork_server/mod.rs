@@ -407,7 +407,8 @@ pub fn start_aurowork_server(
                             crate::launch_log::sidecar::Classified::Pending => {}
                             crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                 if !message.is_empty() || stack.is_some() {
-                                    agg.append(level, "launch:server", child_pid, &message, stack.as_deref());
+                                    let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:server");
+                                    agg.append(level, tag, child_pid, msg, stack.as_deref());
                                 }
                             }
                         }
@@ -428,7 +429,8 @@ pub fn start_aurowork_server(
                             crate::launch_log::sidecar::Classified::Pending => {}
                             crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                 if !message.is_empty() || stack.is_some() {
-                                    agg.append(level, "launch:server", child_pid, &message, stack.as_deref());
+                                    let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:server");
+                                    agg.append(level, tag, child_pid, msg, stack.as_deref());
                                 }
                             }
                         }
@@ -445,7 +447,8 @@ pub fn start_aurowork_server(
                     {
                         for clf in [&mut clf_stdout, &mut clf_stderr] {
                             if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
-                                agg.append(level, "launch:server", child_pid, &message, stack.as_deref());
+                                let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:server");
+                                agg.append(level, tag, child_pid, msg, stack.as_deref());
                             }
                         }
                         agg.append(
