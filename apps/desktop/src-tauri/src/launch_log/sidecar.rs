@@ -190,6 +190,29 @@ fn is_stack_continuation(line: &str) -> bool {
     line.starts_with(char::is_whitespace) && !trimmed.is_empty() && trimmed.len() < 200
 }
 
+/// Re-tag a sidecar-forwarded line based on its bracketed prefix and
+/// strip the prefix from the message. Returns `(tag, stripped_message)`.
+///
+/// The orchestrator forwards multiple child streams over its own stdout,
+/// each prefixed with `[opencode]`, `[aurowork-orchestrator]`, etc. We
+/// reroute `[opencode]` lines to `launch:engine` so the launch log
+/// reflects which subsystem the line actually came from.
+pub fn classify_sidecar_tag<'a>(
+    line: &'a str,
+    default_tag: &'static str,
+) -> (&'static str, &'a str) {
+    if let Some(rest) = line.strip_prefix("[opencode] ") {
+        return ("launch:engine", rest);
+    }
+    if let Some(rest) = line.strip_prefix("[aurowork-orchestrator-router] ") {
+        return ("launch:orchestr", rest);
+    }
+    if let Some(rest) = line.strip_prefix("[aurowork-orchestrator] ") {
+        return ("launch:orchestr", rest);
+    }
+    (default_tag, line)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,5 +274,57 @@ mod tests {
         let stack = got.2.unwrap();
         assert!(stack.contains("at fn"));
         assert!(stack.contains("at other"));
+    }
+
+    #[test]
+    fn classify_tag_opencode_prefix_routes_to_engine() {
+        let (tag, stripped) = classify_sidecar_tag(
+            "[opencode] opencode server listening on http://127.0.0.1:55779",
+            "launch:orchestr",
+        );
+        assert_eq!(tag, "launch:engine");
+        assert_eq!(stripped, "opencode server listening on http://127.0.0.1:55779");
+    }
+
+    #[test]
+    fn classify_tag_orchestrator_prefix_keeps_orchestr() {
+        let (tag, stripped) = classify_sidecar_tag(
+            "[aurowork-orchestrator] daemon running on 127.0.0.1:55782",
+            "launch:orchestr",
+        );
+        assert_eq!(tag, "launch:orchestr");
+        assert_eq!(stripped, "daemon running on 127.0.0.1:55782");
+    }
+
+    #[test]
+    fn classify_tag_orchestrator_router_prefix_keeps_orchestr() {
+        let (tag, stripped) = classify_sidecar_tag(
+            "[aurowork-orchestrator-router] GET /health",
+            "launch:orchestr",
+        );
+        assert_eq!(tag, "launch:orchestr");
+        assert_eq!(stripped, "GET /health");
+    }
+
+    #[test]
+    fn classify_tag_no_prefix_uses_default() {
+        let (tag, stripped) = classify_sidecar_tag("plain line", "launch:server");
+        assert_eq!(tag, "launch:server");
+        assert_eq!(stripped, "plain line");
+    }
+
+    #[test]
+    fn classify_tag_unknown_bracket_uses_default() {
+        let (tag, stripped) = classify_sidecar_tag("[other] hi", "launch:orchestr");
+        assert_eq!(tag, "launch:orchestr");
+        assert_eq!(stripped, "[other] hi");
+    }
+
+    #[test]
+    fn classify_tag_default_for_server() {
+        let (tag, stripped) =
+            classify_sidecar_tag("aurowork-server: listening", "launch:server");
+        assert_eq!(tag, "launch:server");
+        assert_eq!(stripped, "aurowork-server: listening");
     }
 }
