@@ -213,6 +213,123 @@ pub fn classify_sidecar_tag<'a>(
     (default_tag, line)
 }
 
+/// A recognized opencode startup/runtime phase event extracted from a
+/// stdout line. The original line is unchanged; this is a *secondary*
+/// signal used by the engine forwarder to emit normalized INFO entries
+/// (e.g. `[engine-phase] model-list-fetch [overseas]`).
+pub struct OpencodePhase {
+    pub event: &'static str,
+    pub overseas: bool,
+    pub level: Level,
+    pub extras: Option<String>,
+}
+
+/// Pattern-detect a stripped opencode stdout line. Input MUST already
+/// have the `[opencode] ` prefix removed (i.e. the second tuple element
+/// from `classify_sidecar_tag`).
+pub fn classify_opencode_phase(line: &str) -> Option<OpencodePhase> {
+    let lower = line.to_lowercase();
+
+    // 1. Server listening.
+    if lower.contains("server listening on") {
+        return Some(OpencodePhase {
+            event: "server-listening",
+            overseas: false,
+            level: Level::Info,
+            extras: None,
+        });
+    }
+
+    // 2. Model list fetch.
+    if lower.contains("models.dev")
+        || lower.contains("fetching models")
+        || lower.contains("fetching model list")
+    {
+        let host = extract_host(line);
+        let overseas = host.as_deref().map(is_overseas_host).unwrap_or(false)
+            || lower.contains("models.dev");
+        return Some(OpencodePhase {
+            event: "model-list-fetch",
+            overseas,
+            level: Level::Info,
+            extras: host.map(|h| format!("host={h}")),
+        });
+    }
+
+    // 3. Plugin loaded.
+    if lower.contains("plugin loaded") {
+        return Some(OpencodePhase {
+            event: "plugin-loaded",
+            overseas: false,
+            level: Level::Info,
+            extras: None,
+        });
+    }
+
+    // 4. MCP server spawn/start.
+    if lower.contains("mcp server")
+        && (lower.contains("spawn") || lower.contains("starting") || lower.contains("connect"))
+    {
+        return Some(OpencodePhase {
+            event: "mcp-spawn",
+            overseas: false,
+            level: Level::Info,
+            extras: None,
+        });
+    }
+
+    // 5. DB migration.
+    if lower.contains("migration")
+        && (lower.contains("sqlite") || lower.contains("database") || lower.contains("migrating"))
+    {
+        return Some(OpencodePhase {
+            event: "db-migration",
+            overseas: false,
+            level: Level::Info,
+            extras: None,
+        });
+    }
+
+    // 6. Provider fetch.
+    if lower.contains("fetching")
+        && (lower.contains("api.anthropic.com")
+            || lower.contains("api.openai.com")
+            || lower.contains("openrouter"))
+    {
+        let host = extract_host(line);
+        return Some(OpencodePhase {
+            event: "provider-fetch",
+            overseas: true,
+            level: Level::Info,
+            extras: host.map(|h| format!("host={h}")),
+        });
+    }
+
+    None
+}
+
+fn extract_host(line: &str) -> Option<String> {
+    // Find the first http(s):// substring and parse its host.
+    let idx = line.find("http://").or_else(|| line.find("https://"))?;
+    let rest = &line[idx..];
+    let end = rest.find(|c: char| c.is_whitespace() || c == ')' || c == ',').unwrap_or(rest.len());
+    let url = &rest[..end];
+    url::Url::parse(url).ok().and_then(|u| u.host_str().map(|s| s.to_string()))
+}
+
+fn is_overseas_host(host: &str) -> bool {
+    let h = host.to_lowercase();
+    if h == "localhost" || h == "127.0.0.1" || h == "::1" {
+        return false;
+    }
+    let overseas = [
+        "github.com", "githubusercontent.com", "models.dev",
+        "api.openai.com", "api.anthropic.com", "openrouter.ai",
+        "registry.npmjs.org", "npm.pkg.github.com",
+    ];
+    overseas.iter().any(|o| h == *o || h.ends_with(&format!(".{o}")))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -326,5 +443,33 @@ mod tests {
             classify_sidecar_tag("aurowork-server: listening", "launch:server");
         assert_eq!(tag, "launch:server");
         assert_eq!(stripped, "aurowork-server: listening");
+    }
+
+    #[test]
+    fn classify_opencode_phase_recognizes_known_events() {
+        use super::classify_opencode_phase;
+        let p = classify_opencode_phase("opencode server listening on http://127.0.0.1:55779").expect("phase");
+        assert_eq!(p.event, "server-listening");
+        assert!(!p.overseas);
+
+        let p = classify_opencode_phase("fetching models from https://models.dev/v1/models").expect("phase");
+        assert_eq!(p.event, "model-list-fetch");
+        assert!(p.overseas);
+        assert!(p.extras.as_deref().unwrap_or("").contains("models.dev"));
+
+        let p = classify_opencode_phase("plugin loaded: web-search").expect("phase");
+        assert_eq!(p.event, "plugin-loaded");
+
+        let p = classify_opencode_phase("mcp server starting: filesystem").expect("phase");
+        assert_eq!(p.event, "mcp-spawn");
+
+        let p = classify_opencode_phase("running migration on opencode.db sqlite").expect("phase");
+        assert_eq!(p.event, "db-migration");
+
+        let p = classify_opencode_phase("fetching from api.anthropic.com/v1/messages").expect("phase");
+        assert_eq!(p.event, "provider-fetch");
+        assert!(p.overseas);
+
+        assert!(classify_opencode_phase("just some random output").is_none());
     }
 }

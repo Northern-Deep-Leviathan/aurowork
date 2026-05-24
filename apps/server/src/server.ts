@@ -28,6 +28,13 @@ import pkg from "../package.json" with { type: "json" };
 
 const SERVER_VERSION = pkg.version;
 
+const _serverStartedAt = Date.now();
+const _serverPhaseLog = (event: string, extras: Record<string, string | number | boolean> = {}) => {
+  const elapsed = Date.now() - _serverStartedAt;
+  const kv = Object.entries(extras).map(([k, v]) => `${k}=${v}`).join(" ");
+  console.log(`[aurowork-server] [server-phase] ${event} elapsed=${elapsed}ms${kv ? " " + kv : ""}`);
+};
+
 const FILE_SESSION_DEFAULT_TTL_MS = 15 * 60 * 1000;
 const FILE_SESSION_MIN_TTL_MS = 30 * 1000;
 const FILE_SESSION_MAX_TTL_MS = 24 * 60 * 60 * 1000;
@@ -81,10 +88,10 @@ export function createServerLogger(config: ServerConfig): ServerLogger {
         attributes: merged,
         resource,
       };
-      process.stdout.write(`${JSON.stringify(record)}\n`);
+      process.stdout.write(`[aurowork-server] ${JSON.stringify(record)}\n`);
       return;
     }
-    process.stdout.write(`${message}\n`);
+    process.stdout.write(`[aurowork-server] ${message}\n`);
   };
 
   return { log: emit };
@@ -242,6 +249,7 @@ export function startServer(config: ServerConfig) {
   const tokens = new TokenService(config);
   const logger = createServerLogger(config);
   let watcherHandle = startReloadWatchers({ config, reloadEvents, logger });
+  _serverPhaseLog("watchers-installed", { count: config.workspaces?.length ?? 0 });
   const restartReloadWatchers = () => {
     watcherHandle.close();
     watcherHandle = startReloadWatchers({ config, reloadEvents, logger });
@@ -435,6 +443,7 @@ export function startServer(config: ServerConfig) {
   (serverOptions as { idleTimeout?: number }).idleTimeout = 120;
 
   const server = Bun.serve(serverOptions);
+  _serverPhaseLog("listening", { port: server.port, host: config.host });
 
   return server;
 }

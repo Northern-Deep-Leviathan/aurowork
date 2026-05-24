@@ -1434,16 +1434,40 @@ function resolveAssetName(asset?: string, url?: string): string | null {
   return null;
 }
 
+function isOverseasUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1") return false;
+    const overseasHosts = [
+      "github.com", "githubusercontent.com", "models.dev",
+      "api.openai.com", "api.anthropic.com", "openrouter.ai",
+      "registry.npmjs.org", "npm.pkg.github.com",
+    ];
+    return overseasHosts.some((h) => host === h || host.endsWith("." + h));
+  } catch {
+    return false;
+  }
+}
+
 async function downloadToPath(url: string, dest: string): Promise<void> {
+  const dlStartedAt = Date.now();
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to download ${url} (HTTP ${response.status})`);
   }
+  const expectedBytes = Number(response.headers.get("content-length") ?? 0);
+  console.log(
+    `[aurowork-orchestrator] [orchestr-phase] downloading-sidecar elapsed=${Date.now() - dlStartedAt}ms url=${url} bytes_expected=${expectedBytes}${isOverseasUrl(url) ? " [overseas]" : ""}`,
+  );
   const buffer = Buffer.from(await response.arrayBuffer());
   await mkdir(dirname(dest), { recursive: true });
   const tmpPath = `${dest}.tmp-${randomUUID()}`;
   await writeFile(tmpPath, buffer);
   await rename(tmpPath, dest);
+  console.log(
+    `[aurowork-orchestrator] [orchestr-phase] sidecar-downloaded elapsed=${Date.now() - dlStartedAt}ms bytes=${buffer.byteLength}`,
+  );
 }
 
 async function ensureExecutable(path: string): Promise<void> {
@@ -3532,6 +3556,20 @@ async function runInstanceCommand(args: ParsedArgs) {
 }
 
 async function runRouterDaemon(args: ParsedArgs) {
+  const startedAt = Date.now();
+  const phaseLog = (
+    event: string,
+    extras: Record<string, string | number | boolean> = {},
+  ) => {
+    const elapsed = Date.now() - startedAt;
+    const kv = Object.entries(extras)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(" ");
+    console.log(
+      `[aurowork-orchestrator] [orchestr-phase] ${event} elapsed=${elapsed}ms${kv ? " " + kv : ""}`,
+    );
+  };
+  phaseLog("entry", { pid: process.pid });
   const outputJson = readBool(args.flags, "json", false);
   const verbose = readBool(args.flags, "verbose", false, "AUROWORK_VERBOSE");
   const logFormat = readLogFormat(
@@ -3548,6 +3586,7 @@ async function runRouterDaemon(args: ParsedArgs) {
     process.env.AUROWORK_RUN_ID ??
     randomUUID();
   const cliVersion = await resolveCliVersion();
+  phaseLog("cli-version-resolved", { version: cliVersion });
   const logger = createLogger({
     format: logFormat,
     runId,
@@ -3578,6 +3617,7 @@ async function runRouterDaemon(args: ParsedArgs) {
   const dataDir = resolveRouterDataDir(args.flags);
   const statePath = routerStatePath(dataDir);
   let state = await loadRouterState(statePath);
+  phaseLog("router-state-loaded");
 
   const host = readFlag(args.flags, "daemon-host") ?? "127.0.0.1";
   const port = await resolvePort(
@@ -3607,6 +3647,7 @@ async function runRouterDaemon(args: ParsedArgs) {
     "127.0.0.1",
     state.auro?.port,
   );
+  phaseLog("port-resolved", { daemonPort: port, opencodePort });
   const opencodeHotReload = readOpencodeHotReload(
     args.flags,
     {
@@ -3634,6 +3675,7 @@ async function runRouterDaemon(args: ParsedArgs) {
   const opencodeWorkdir =
     opencodeWorkdirFlag ?? activeWorkspace?.path ?? process.cwd();
   const resolvedWorkdir = await ensureWorkspace(opencodeWorkdir);
+  phaseLog("workspace-ensured");
   const devMode = resolveInternalDevMode(args.flags);
   const opencodeStateLayout = resolveOpencodeStateLayout({
     dataDir,
@@ -3642,6 +3684,7 @@ async function runRouterDaemon(args: ParsedArgs) {
   });
   const opencodeConfigDir = opencodeStateLayout.configDir;
   await ensureOpencodeStateLayout(opencodeStateLayout);
+  phaseLog("xdg-layout-ready");
   await ensureOpencodeManagedTools(opencodeConfigDir);
   logger.info(
     "Daemon starting",
@@ -3657,6 +3700,7 @@ async function runRouterDaemon(args: ParsedArgs) {
     "AUROWORK_ALLOW_EXTERNAL",
   );
   const manifest = await readVersionManifest();
+  phaseLog("version-manifest-loaded", { source: manifest?.dir ?? "unknown" });
   logVerbose(`cli version: ${cliVersion}`);
   logVerbose(`sidecar target: ${sidecar.target ?? "unknown"}`);
   logVerbose(`sidecar dir: ${sidecar.dir}`);
@@ -3674,6 +3718,10 @@ async function runRouterDaemon(args: ParsedArgs) {
     allowExternal,
     sidecar,
     source: opencodeSource,
+  });
+  phaseLog("opencode-bin-resolved", {
+    source: opencodeBinary.source,
+    path: opencodeBinary.bin,
   });
   logVerbose(`opencode bin: ${opencodeBinary.bin} (${opencodeBinary.source})`);
 
@@ -3762,7 +3810,9 @@ async function runRouterDaemon(args: ParsedArgs) {
     return { baseUrl, client };
   };
 
+  phaseLog("spawning-opencode", { port: opencodePort });
   await ensureOpencode();
+  phaseLog("opencode-health-ok");
 
   const server = createHttpServer(async (req, res) => {
     const startedAt = Date.now();
@@ -4048,6 +4098,7 @@ async function runRouterDaemon(args: ParsedArgs) {
   };
 
   server.listen(port, host, async () => {
+    phaseLog("http-listening", { port });
     state.daemon = {
       pid: process.pid,
       port,
