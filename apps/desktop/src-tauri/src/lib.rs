@@ -78,6 +78,13 @@ fn set_dev_app_name() {
 #[cfg(not(target_os = "macos"))]
 fn set_dev_app_name() {}
 
+fn env_present(name: &str) -> &'static str {
+    match std::env::var(name) {
+        Ok(v) if !v.trim().is_empty() => "set",
+        _ => "unset",
+    }
+}
+
 fn forwarded_deep_links(args: &[String]) -> Vec<String> {
     args.iter()
         .skip(1)
@@ -201,6 +208,20 @@ pub fn run() {
                     env!("CARGO_PKG_VERSION"),
                     dev_mode::is_enabled(),
                     diagnostic_armed,
+                ),
+                None,
+            );
+            aggregator.append(
+                Level::Info,
+                "launch:shell",
+                Some(std::process::id()),
+                &format!(
+                    "env probe: HTTPS_PROXY={}, HTTP_PROXY={}, NO_PROXY={}, LANG={}, TZ={}",
+                    env_present("HTTPS_PROXY"),
+                    env_present("HTTP_PROXY"),
+                    env_present("NO_PROXY"),
+                    std::env::var("LANG").unwrap_or_else(|_| "<unset>".into()),
+                    std::env::var("TZ").unwrap_or_else(|_| "<system>".into()),
                 ),
                 None,
             );

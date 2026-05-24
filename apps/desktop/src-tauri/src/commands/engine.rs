@@ -429,6 +429,16 @@ pub fn engine_start(
         let (mut rx, child) = orchestrator::spawn_orchestrator_daemon(&app, &spawn_options)?;
         let orchestrator_child_pid = child.pid();
 
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Debug,
+                "launch:orchestr",
+                Some(orchestrator_child_pid),
+                "no outer retry — single-attempt spawn",
+                None,
+            );
+        }
+
         // Persist basic auth (and project dir) so relaunches can attach.
         let _ = orchestrator::write_orchestrator_auth(
             &data_dir,
@@ -600,7 +610,61 @@ pub fn engine_start(
         }
         let poll_start = std::time::Instant::now();
 
-        let health = orchestrator::wait_for_orchestrator(&daemon_base_url, health_timeout_ms)
+        let progress_app = app.clone();
+        let on_progress = move |update: crate::launch_log::poll::PollUpdate| {
+            use crate::launch_log::format::Level;
+            use crate::launch_log::poll::{PollReplyStatus, PollUpdate};
+            let Some(agg) = progress_app.try_state::<crate::launch_log::LaunchLogAggregator>()
+            else {
+                return;
+            };
+            match update {
+                PollUpdate::FirstReply { elapsed_ms, status } => match status {
+                    PollReplyStatus::HttpOk(code) => agg.append(
+                        Level::Info,
+                        "launch:orchestr",
+                        None,
+                        &format!("/health first reply after {elapsed_ms}ms, http={code}"),
+                        None,
+                    ),
+                    PollReplyStatus::HttpNonOk(code) => agg.append(
+                        Level::Warn,
+                        "launch:orchestr",
+                        None,
+                        &format!(
+                            "/health first reply after {elapsed_ms}ms, http={code} (not ok yet)"
+                        ),
+                        None,
+                    ),
+                    PollReplyStatus::Error(err) => agg.append(
+                        Level::Warn,
+                        "launch:orchestr",
+                        None,
+                        &format!("/health first reply error after {elapsed_ms}ms: {err}"),
+                        None,
+                    ),
+                },
+                PollUpdate::Heartbeat {
+                    attempts,
+                    elapsed_ms,
+                    last_error,
+                } => agg.append(
+                    Level::Debug,
+                    "launch:orchestr",
+                    None,
+                    &format!(
+                        "/health still polling, attempts={attempts}, elapsed={elapsed_ms}ms, last_error={last_error}"
+                    ),
+                    None,
+                ),
+            }
+        };
+
+        let health = orchestrator::wait_for_orchestrator(
+            &daemon_base_url,
+            health_timeout_ms,
+            Some(&on_progress),
+        )
             .map_err(|e| {
                 if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
                     agg.append(
