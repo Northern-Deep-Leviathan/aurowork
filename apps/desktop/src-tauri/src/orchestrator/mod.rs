@@ -171,14 +171,41 @@ pub fn fetch_orchestrator_workspaces(base_url: &str) -> Result<OrchestratorWorks
 pub fn wait_for_orchestrator(
     base_url: &str,
     timeout_ms: u64,
+    on_progress: Option<&dyn Fn(crate::launch_log::poll::PollUpdate)>,
 ) -> Result<OrchestratorHealth, String> {
+    use crate::launch_log::poll::{PollReplyStatus, PollUpdate};
+
     let start = std::time::Instant::now();
     let mut last_error = None;
+    let mut attempts: u32 = 0;
+    let mut first_reported = false;
     while start.elapsed().as_millis() < timeout_ms as u128 {
-        match fetch_orchestrator_health(base_url) {
+        attempts += 1;
+        let result = fetch_orchestrator_health(base_url);
+        if !first_reported {
+            first_reported = true;
+            if let Some(cb) = on_progress {
+                let elapsed_ms = start.elapsed().as_millis();
+                let status = match &result {
+                    Ok(_) => PollReplyStatus::HttpOk(200),
+                    Err(err) => PollReplyStatus::Error(err.clone()),
+                };
+                cb(PollUpdate::FirstReply { elapsed_ms, status });
+            }
+        }
+        match result {
             Ok(health) if health.ok => return Ok(health),
             Ok(_) => last_error = Some("Orchestrator reported unhealthy".to_string()),
             Err(err) => last_error = Some(err),
+        }
+        if attempts > 0 && attempts % 25 == 0 {
+            if let Some(cb) = on_progress {
+                cb(PollUpdate::Heartbeat {
+                    attempts,
+                    elapsed_ms: start.elapsed().as_millis(),
+                    last_error: last_error.clone().unwrap_or_default(),
+                });
+            }
         }
         std::thread::sleep(std::time::Duration::from_millis(200));
     }

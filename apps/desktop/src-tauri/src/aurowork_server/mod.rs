@@ -251,13 +251,42 @@ fn persist_workspace_owner_token_at_path(
     save_aurowork_server_token_store(path, &store)
 }
 
-fn wait_for_aurowork_health(base_url: &str, timeout: Duration) -> Result<(), String> {
-    let deadline = Instant::now() + timeout;
+fn wait_for_aurowork_health(
+    base_url: &str,
+    timeout: Duration,
+    on_progress: Option<&dyn Fn(crate::launch_log::poll::PollUpdate)>,
+) -> Result<(), String> {
+    use crate::launch_log::poll::{PollReplyStatus, PollUpdate};
+
+    let start = Instant::now();
+    let deadline = start + timeout;
     let health_url = format!("{}/health", base_url.trim_end_matches('/'));
     let mut last_error = "AuroWork server did not become healthy".to_string();
+    let mut attempts: u32 = 0;
+    let mut first_reported = false;
 
     while Instant::now() < deadline {
-        match ureq::get(&health_url).call() {
+        attempts += 1;
+        let result = ureq::get(&health_url).call();
+        if !first_reported {
+            first_reported = true;
+            if let Some(cb) = on_progress {
+                let elapsed_ms = start.elapsed().as_millis();
+                let status = match &result {
+                    Ok(response) => {
+                        let code = response.status();
+                        if (200..300).contains(&code) {
+                            PollReplyStatus::HttpOk(code)
+                        } else {
+                            PollReplyStatus::HttpNonOk(code)
+                        }
+                    }
+                    Err(err) => PollReplyStatus::Error(err.to_string()),
+                };
+                cb(PollUpdate::FirstReply { elapsed_ms, status });
+            }
+        }
+        match result {
             Ok(response) if response.status() >= 200 && response.status() < 300 => return Ok(()),
             Ok(response) => {
                 last_error = format!(
@@ -266,6 +295,15 @@ fn wait_for_aurowork_health(base_url: &str, timeout: Duration) -> Result<(), Str
                 )
             }
             Err(error) => last_error = error.to_string(),
+        }
+        if attempts > 0 && attempts % 25 == 0 {
+            if let Some(cb) = on_progress {
+                cb(PollUpdate::Heartbeat {
+                    attempts,
+                    elapsed_ms: start.elapsed().as_millis(),
+                    last_error: last_error.clone(),
+                });
+            }
         }
         thread::sleep(Duration::from_millis(200));
     }
@@ -355,6 +393,16 @@ pub fn start_aurowork_server(
         auro_password,
     )?;
 
+    if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+        agg.append(
+            crate::launch_log::format::Level::Debug,
+            "launch:server",
+            Some(child.pid()),
+            "no outer retry — single-attempt spawn",
+            None,
+        );
+    }
+
     state.child = Some(child);
     state.child_exited = false;
     state.remote_access_enabled = remote_access_enabled;
@@ -376,9 +424,59 @@ pub fn start_aurowork_server(
     state.client_token = Some(client_token);
     state.owner_token = workspace_tokens.owner_token.clone();
     if state.owner_token.is_none() {
-        state.owner_token = wait_for_aurowork_health(&base_url, Duration::from_secs(10))
-            .ok()
-            .and_then(|_| issue_owner_token(&base_url, &host_token).ok());
+        let progress_app = app.clone();
+        let on_progress = move |update: crate::launch_log::poll::PollUpdate| {
+            use crate::launch_log::format::Level;
+            use crate::launch_log::poll::{PollReplyStatus, PollUpdate};
+            let Some(agg) = progress_app.try_state::<crate::launch_log::LaunchLogAggregator>()
+            else {
+                return;
+            };
+            match update {
+                PollUpdate::FirstReply { elapsed_ms, status } => match status {
+                    PollReplyStatus::HttpOk(code) => agg.append(
+                        Level::Info,
+                        "launch:server",
+                        None,
+                        &format!("/health first reply after {elapsed_ms}ms, http={code}"),
+                        None,
+                    ),
+                    PollReplyStatus::HttpNonOk(code) => agg.append(
+                        Level::Warn,
+                        "launch:server",
+                        None,
+                        &format!(
+                            "/health first reply after {elapsed_ms}ms, http={code} (not ok yet)"
+                        ),
+                        None,
+                    ),
+                    PollReplyStatus::Error(err) => agg.append(
+                        Level::Warn,
+                        "launch:server",
+                        None,
+                        &format!("/health first reply error after {elapsed_ms}ms: {err}"),
+                        None,
+                    ),
+                },
+                PollUpdate::Heartbeat {
+                    attempts,
+                    elapsed_ms,
+                    last_error,
+                } => agg.append(
+                    Level::Debug,
+                    "launch:server",
+                    None,
+                    &format!(
+                        "/health still polling, attempts={attempts}, elapsed={elapsed_ms}ms, last_error={last_error}"
+                    ),
+                    None,
+                ),
+            }
+        };
+        state.owner_token =
+            wait_for_aurowork_health(&base_url, Duration::from_secs(10), Some(&on_progress))
+                .ok()
+                .and_then(|_| issue_owner_token(&base_url, &host_token).ok());
         if let Some(owner_token) = state.owner_token.as_deref() {
             let _ = persist_workspace_owner_token(app, active_workspace, owner_token);
         }
@@ -394,10 +492,31 @@ pub fn start_aurowork_server(
     let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
     let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
 
+    let heartbeat_cancel = match (
+        app.try_state::<crate::launch_log::LaunchLogAggregator>(),
+        child_pid,
+    ) {
+        (Some(agg), Some(pid)) => Some(crate::launch_log::heartbeat::spawn_heartbeat(
+            (*agg).clone(),
+            "launch:server",
+            pid,
+            "aurowork-server",
+        )),
+        _ => None,
+    };
+    let heartbeat_for_task = heartbeat_cancel.clone();
+
     tauri::async_runtime::spawn(async move {
+        let mut heartbeat_cancelled = false;
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line_bytes) => {
+                    if !heartbeat_cancelled {
+                        if let Some(c) = &heartbeat_for_task {
+                            c.notify_one();
+                        }
+                        heartbeat_cancelled = true;
+                    }
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
                     if let Some(agg) =
                         app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
@@ -407,7 +526,8 @@ pub fn start_aurowork_server(
                             crate::launch_log::sidecar::Classified::Pending => {}
                             crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                 if !message.is_empty() || stack.is_some() {
-                                    agg.append(level, "launch:server", child_pid, &message, stack.as_deref());
+                                    let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:server");
+                                    agg.append(level, tag, child_pid, msg, stack.as_deref());
                                 }
                             }
                         }
@@ -419,6 +539,12 @@ pub fn start_aurowork_server(
                     }
                 }
                 CommandEvent::Stderr(line_bytes) => {
+                    if !heartbeat_cancelled {
+                        if let Some(c) = &heartbeat_for_task {
+                            c.notify_one();
+                        }
+                        heartbeat_cancelled = true;
+                    }
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
                     if let Some(agg) =
                         app_handle.try_state::<crate::launch_log::LaunchLogAggregator>()
@@ -428,7 +554,8 @@ pub fn start_aurowork_server(
                             crate::launch_log::sidecar::Classified::Pending => {}
                             crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                 if !message.is_empty() || stack.is_some() {
-                                    agg.append(level, "launch:server", child_pid, &message, stack.as_deref());
+                                    let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:server");
+                                    agg.append(level, tag, child_pid, msg, stack.as_deref());
                                 }
                             }
                         }
@@ -445,7 +572,8 @@ pub fn start_aurowork_server(
                     {
                         for clf in [&mut clf_stdout, &mut clf_stderr] {
                             if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
-                                agg.append(level, "launch:server", child_pid, &message, stack.as_deref());
+                                let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:server");
+                                agg.append(level, tag, child_pid, msg, stack.as_deref());
                             }
                         }
                         agg.append(

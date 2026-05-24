@@ -40,6 +40,7 @@ walkdir = "2.5"
 thiserror = "2"
 fd-lock = "4"
 zip = "0.6"
+tokio = { version = "1", features = ["sync", "time", "macros"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -116,3 +116,16 @@ export function launchLog(
 export async function flushLaunchLog(): Promise<void> {
   await flush();
 }
+
+let launchComplete = false;
+
+export async function markLaunchComplete(): Promise<void> {
+  if (launchComplete) return;
+  launchComplete = true;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("launch_log_mark_complete");
+  } catch {
+    // Non-fatal: aggregator may not be enabled.
+  }
+}

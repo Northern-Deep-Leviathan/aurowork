@@ -320,6 +320,15 @@ pub fn engine_start(
     runtime: Option<EngineRuntime>,
     workspace_paths: Option<Vec<String>>,
 ) -> Result<EngineInfo, String> {
+    if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+        agg.append(
+            crate::launch_log::format::Level::Info,
+            "launch:shell",
+            Some(std::process::id()),
+            "engine_start invoked",
+            None,
+        );
+    }
     let project_dir = project_dir.trim().to_string();
     if project_dir.is_empty() {
         return Err("projectDir is required".to_string());
@@ -418,6 +427,17 @@ pub fn engine_start(
         };
 
         let (mut rx, child) = orchestrator::spawn_orchestrator_daemon(&app, &spawn_options)?;
+        let orchestrator_child_pid = child.pid();
+
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Debug,
+                "launch:orchestr",
+                Some(orchestrator_child_pid),
+                "no outer retry — single-attempt spawn",
+                None,
+            );
+        }
 
         // Persist basic auth (and project dir) so relaunches can attach.
         let _ = orchestrator::write_orchestrator_auth(
@@ -443,10 +463,28 @@ pub fn engine_start(
         let app_handle_for_reader = app.clone();
         let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
         let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
+        let heartbeat_cancel = app
+            .try_state::<crate::launch_log::LaunchLogAggregator>()
+            .map(|agg| {
+                crate::launch_log::heartbeat::spawn_heartbeat(
+                    (*agg).clone(),
+                    "launch:orchestr",
+                    orchestrator_child_pid,
+                    "aurowork-orchestrator",
+                )
+            });
+        let heartbeat_for_task = heartbeat_cancel.clone();
         tauri::async_runtime::spawn(async move {
+            let mut heartbeat_cancelled = false;
             while let Some(event) = rx.recv().await {
                 match event {
                     CommandEvent::Stdout(line_bytes) => {
+                        if !heartbeat_cancelled {
+                            if let Some(c) = &heartbeat_for_task {
+                                c.notify_one();
+                            }
+                            heartbeat_cancelled = true;
+                        }
                         let line = String::from_utf8_lossy(&line_bytes).to_string();
                         if let Some(agg) = app_handle_for_reader
                             .try_state::<crate::launch_log::LaunchLogAggregator>()
@@ -456,7 +494,8 @@ pub fn engine_start(
                                 crate::launch_log::sidecar::Classified::Pending => {}
                                 crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                     if !message.is_empty() || stack.is_some() {
-                                        agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                        let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:orchestr");
+                                        agg.append(level, tag, None, msg, stack.as_deref());
                                     }
                                 }
                             }
@@ -468,6 +507,12 @@ pub fn engine_start(
                         }
                     }
                     CommandEvent::Stderr(line_bytes) => {
+                        if !heartbeat_cancelled {
+                            if let Some(c) = &heartbeat_for_task {
+                                c.notify_one();
+                            }
+                            heartbeat_cancelled = true;
+                        }
                         let line = String::from_utf8_lossy(&line_bytes).to_string();
                         if let Some(agg) = app_handle_for_reader
                             .try_state::<crate::launch_log::LaunchLogAggregator>()
@@ -477,7 +522,8 @@ pub fn engine_start(
                                 crate::launch_log::sidecar::Classified::Pending => {}
                                 crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                     if !message.is_empty() || stack.is_some() {
-                                        agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                        let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:orchestr");
+                                        agg.append(level, tag, None, msg, stack.as_deref());
                                     }
                                 }
                             }
@@ -494,7 +540,8 @@ pub fn engine_start(
                         {
                             for clf in [&mut clf_stdout, &mut clf_stderr] {
                                 if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
-                                    agg.append(level, "launch:orchestr", None, &message, stack.as_deref());
+                                    let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:orchestr");
+                                    agg.append(level, tag, None, msg, stack.as_deref());
                                 }
                             }
                         }
@@ -552,9 +599,72 @@ pub fn engine_start(
                 None,
             );
         }
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Info,
+                "launch:orchestr",
+                None,
+                "beginning /health poll",
+                None,
+            );
+        }
         let poll_start = std::time::Instant::now();
 
-        let health = orchestrator::wait_for_orchestrator(&daemon_base_url, health_timeout_ms)
+        let progress_app = app.clone();
+        let on_progress = move |update: crate::launch_log::poll::PollUpdate| {
+            use crate::launch_log::format::Level;
+            use crate::launch_log::poll::{PollReplyStatus, PollUpdate};
+            let Some(agg) = progress_app.try_state::<crate::launch_log::LaunchLogAggregator>()
+            else {
+                return;
+            };
+            match update {
+                PollUpdate::FirstReply { elapsed_ms, status } => match status {
+                    PollReplyStatus::HttpOk(code) => agg.append(
+                        Level::Info,
+                        "launch:orchestr",
+                        None,
+                        &format!("/health first reply after {elapsed_ms}ms, http={code}"),
+                        None,
+                    ),
+                    PollReplyStatus::HttpNonOk(code) => agg.append(
+                        Level::Warn,
+                        "launch:orchestr",
+                        None,
+                        &format!(
+                            "/health first reply after {elapsed_ms}ms, http={code} (not ok yet)"
+                        ),
+                        None,
+                    ),
+                    PollReplyStatus::Error(err) => agg.append(
+                        Level::Warn,
+                        "launch:orchestr",
+                        None,
+                        &format!("/health first reply error after {elapsed_ms}ms: {err}"),
+                        None,
+                    ),
+                },
+                PollUpdate::Heartbeat {
+                    attempts,
+                    elapsed_ms,
+                    last_error,
+                } => agg.append(
+                    Level::Debug,
+                    "launch:orchestr",
+                    None,
+                    &format!(
+                        "/health still polling, attempts={attempts}, elapsed={elapsed_ms}ms, last_error={last_error}"
+                    ),
+                    None,
+                ),
+            }
+        };
+
+        let health = orchestrator::wait_for_orchestrator(
+            &daemon_base_url,
+            health_timeout_ms,
+            Some(&on_progress),
+        )
             .map_err(|e| {
                 if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
                     agg.append(
@@ -578,6 +688,16 @@ pub fn engine_start(
                 None,
             );
         }
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Info,
+                "launch:orchestr",
+                None,
+                "beginning workspace bootstrap (extracting opencode endpoint)",
+                None,
+            );
+        }
+        let bootstrap_start = std::time::Instant::now();
         let opencode = health
             .auro
             .ok_or_else(|| "Orchestrator did not report OpenCode status".to_string())?;
@@ -597,6 +717,19 @@ pub fn engine_start(
             state.auro_password = auro_password.clone();
             state.last_stdout = None;
             state.last_stderr = None;
+        }
+
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Info,
+                "launch:orchestr",
+                None,
+                &format!(
+                    "workspace bootstrap OK in {}ms (opencode_port={opencode_port})",
+                    bootstrap_start.elapsed().as_millis()
+                ),
+                None,
+            );
         }
 
         if let Err(error) = start_aurowork_server(
@@ -640,6 +773,7 @@ pub fn engine_start(
         auro_username.as_deref(),
         auro_password.as_deref(),
     )?;
+    let engine_child_pid = child.pid();
 
     state.last_stdout = None;
     state.last_stderr = None;
@@ -651,11 +785,29 @@ pub fn engine_start(
     let app_handle_for_engine_reader = app.clone();
     let mut clf_stdout = crate::launch_log::sidecar::SidecarLineClassifier::new();
     let mut clf_stderr = crate::launch_log::sidecar::SidecarLineClassifier::new();
+    let engine_heartbeat_cancel = app
+        .try_state::<crate::launch_log::LaunchLogAggregator>()
+        .map(|agg| {
+            crate::launch_log::heartbeat::spawn_heartbeat(
+                (*agg).clone(),
+                "launch:engine",
+                engine_child_pid,
+                "opencode",
+            )
+        });
+    let engine_heartbeat_for_task = engine_heartbeat_cancel.clone();
 
     tauri::async_runtime::spawn(async move {
+        let mut heartbeat_cancelled = false;
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line_bytes) => {
+                    if !heartbeat_cancelled {
+                        if let Some(c) = &engine_heartbeat_for_task {
+                            c.notify_one();
+                        }
+                        heartbeat_cancelled = true;
+                    }
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
                     if let Some(agg) = app_handle_for_engine_reader
                         .try_state::<crate::launch_log::LaunchLogAggregator>()
@@ -665,7 +817,8 @@ pub fn engine_start(
                             crate::launch_log::sidecar::Classified::Pending => {}
                             crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                 if !message.is_empty() || stack.is_some() {
-                                    agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                                    let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:engine");
+                                    agg.append(level, tag, None, msg, stack.as_deref());
                                 }
                             }
                         }
@@ -680,6 +833,12 @@ pub fn engine_start(
                     }
                 }
                 CommandEvent::Stderr(line_bytes) => {
+                    if !heartbeat_cancelled {
+                        if let Some(c) = &engine_heartbeat_for_task {
+                            c.notify_one();
+                        }
+                        heartbeat_cancelled = true;
+                    }
                     let line = String::from_utf8_lossy(&line_bytes).to_string();
                     if let Some(agg) = app_handle_for_engine_reader
                         .try_state::<crate::launch_log::LaunchLogAggregator>()
@@ -689,7 +848,8 @@ pub fn engine_start(
                             crate::launch_log::sidecar::Classified::Pending => {}
                             crate::launch_log::sidecar::Classified::Emit { level, message, stack } => {
                                 if !message.is_empty() || stack.is_some() {
-                                    agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                                    let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:engine");
+                                    agg.append(level, tag, None, msg, stack.as_deref());
                                 }
                             }
                         }
@@ -709,7 +869,8 @@ pub fn engine_start(
                     {
                         for clf in [&mut clf_stdout, &mut clf_stderr] {
                             if let Some(crate::launch_log::sidecar::Classified::Emit { level, message, stack }) = clf.flush() {
-                                agg.append(level, "launch:engine", None, &message, stack.as_deref());
+                                let (tag, msg) = crate::launch_log::sidecar::classify_sidecar_tag(&message, "launch:engine");
+                                agg.append(level, tag, None, msg, stack.as_deref());
                             }
                         }
                     }

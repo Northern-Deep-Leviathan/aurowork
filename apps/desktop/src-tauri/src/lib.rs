@@ -25,7 +25,8 @@ use commands::config::{read_auro_config, write_auro_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
 use commands::launch_log::{
     arm_launch_diagnostic, dev_mode_info, launch_diagnostic_status, launch_log_append,
-    launch_log_append_batch, launch_log_path, launch_log_summary, open_launch_log_folder,
+    launch_log_append_batch, launch_log_mark_complete, launch_log_path, launch_log_summary,
+    open_launch_log_folder,
 };
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
@@ -76,6 +77,13 @@ fn set_dev_app_name() {
 
 #[cfg(not(target_os = "macos"))]
 fn set_dev_app_name() {}
+
+fn env_present(name: &str) -> &'static str {
+    match std::env::var(name) {
+        Ok(v) if !v.trim().is_empty() => "set",
+        _ => "unset",
+    }
+}
 
 fn forwarded_deep_links(args: &[String]) -> Vec<String> {
     args.iter()
@@ -203,11 +211,34 @@ pub fn run() {
                 ),
                 None,
             );
+            aggregator.append(
+                Level::Info,
+                "launch:shell",
+                Some(std::process::id()),
+                &format!(
+                    "env probe: HTTPS_PROXY={}, HTTP_PROXY={}, NO_PROXY={}, LANG={}, TZ={}",
+                    env_present("HTTPS_PROXY"),
+                    env_present("HTTP_PROXY"),
+                    env_present("NO_PROXY"),
+                    std::env::var("LANG").unwrap_or_else(|_| "<unset>".into()),
+                    std::env::var("TZ").unwrap_or_else(|_| "<system>".into()),
+                ),
+                None,
+            );
             app.manage(aggregator.clone());
             app.manage(commands::launch_log::LaunchDiagnosticStatus {
                 armed_on_startup: diagnostic_armed,
             });
             launch_log::install_global(aggregator);
+            if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+                agg.append(
+                    Level::Info,
+                    "launch:shell",
+                    Some(std::process::id()),
+                    "tauri setup complete, awaiting first webview event",
+                    None,
+                );
+            }
             Ok(())
         })
         .manage(EngineManager::default())
@@ -271,6 +302,7 @@ pub fn run() {
             fs_close_file,
             launch_log_append,
             launch_log_append_batch,
+            launch_log_mark_complete,
             launch_log_path,
             launch_log_summary,
             dev_mode_info,

@@ -28,6 +28,8 @@ import { homeDir } from "@tauri-apps/api/path";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { parse } from "jsonc-parser";
 
+import { markLaunchComplete } from "../lib/launch-log";
+
 import ModelPickerModal from "./components/model-picker-modal";
 import ResetModal from "./components/reset-modal";
 import WorkspaceSwitchOverlay from "./components/workspace-switch-overlay";
@@ -7281,6 +7283,12 @@ export default function App() {
     }
 
     void workspaceStore.bootstrapOnboarding().finally(() => setBooting(false));
+
+    requestAnimationFrame(() => {
+      queueMicrotask(() => {
+        void markLaunchComplete();
+      });
+    });
   });
 
   createEffect(() => {

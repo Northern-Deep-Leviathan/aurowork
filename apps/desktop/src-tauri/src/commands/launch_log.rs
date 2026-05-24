@@ -99,9 +99,16 @@ pub struct DevModeInfo {
 }
 
 #[tauri::command]
-pub fn dev_mode_info(aggregator: State<'_, LaunchLogAggregator>) -> DevModeInfo {
+pub fn dev_mode_info(
+    aggregator: State<'_, LaunchLogAggregator>,
+    diagnostic_status: State<'_, LaunchDiagnosticStatus>,
+) -> DevModeInfo {
     DevModeInfo {
-        enabled: dev_mode::is_enabled(),
+        // `enabled` reports whether the launch log is recording for this
+        // session — true whenever dev mode is on OR this launch was
+        // triggered by an armed diagnostic. The frontend uses this to
+        // decide whether to ship UI entries via IPC.
+        enabled: dev_mode::is_enabled() || diagnostic_status.armed_on_startup,
         log_file_path: aggregator.path().map(|p| p.to_string_lossy().to_string()),
     }
 }
@@ -157,4 +164,10 @@ pub fn launch_diagnostic_status(
         armed_on_startup: status.armed_on_startup,
         log_file_path: aggregator.path().map(|p| p.to_string_lossy().to_string()),
     }
+}
+
+#[tauri::command]
+pub fn launch_log_mark_complete(aggregator: State<'_, LaunchLogAggregator>) -> Result<(), String> {
+    aggregator.mark_complete();
+    Ok(())
 }
