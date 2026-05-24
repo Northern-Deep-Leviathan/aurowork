@@ -165,3 +165,9 @@ pub fn launch_diagnostic_status(
         log_file_path: aggregator.path().map(|p| p.to_string_lossy().to_string()),
     }
 }
+
+#[tauri::command]
+pub fn launch_log_mark_complete(aggregator: State<'_, LaunchLogAggregator>) -> Result<(), String> {
+    aggregator.mark_complete();
+    Ok(())
+}

@@ -25,7 +25,8 @@ use commands::config::{read_auro_config, write_auro_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
 use commands::launch_log::{
     arm_launch_diagnostic, dev_mode_info, launch_diagnostic_status, launch_log_append,
-    launch_log_append_batch, launch_log_path, launch_log_summary, open_launch_log_folder,
+    launch_log_append_batch, launch_log_mark_complete, launch_log_path, launch_log_summary,
+    open_launch_log_folder,
 };
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
@@ -280,6 +281,7 @@ pub fn run() {
             fs_close_file,
             launch_log_append,
             launch_log_append_batch,
+            launch_log_mark_complete,
             launch_log_path,
             launch_log_summary,
             dev_mode_info,

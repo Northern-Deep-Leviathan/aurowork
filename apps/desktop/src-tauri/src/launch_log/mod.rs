@@ -45,6 +45,7 @@ struct Inner {
     writer: BufWriter<File>,
     path: PathBuf,
     started_at: std::time::Instant,
+    complete: bool,
 }
 
 impl LaunchLogAggregator {
@@ -123,6 +124,7 @@ impl LaunchLogAggregator {
                 writer,
                 path,
                 started_at: std::time::Instant::now(),
+                complete: false,
             });
         }
     }
@@ -138,6 +140,12 @@ impl LaunchLogAggregator {
     ) {
         let Ok(mut guard) = self.inner.lock() else { return };
         let Some(inner) = guard.as_mut() else { return };
+        if inner.complete
+            && matches!(level, Level::Debug)
+            && (tag == "launch:server" || tag == "launch:orchestr")
+        {
+            return;
+        }
         let line = format_line(Local::now(), level, tag, pid, message, stack);
         if let Err(err) = inner.writer.write_all(line.as_bytes()) {
             eprintln!("[launch_log] write failed: {err}; disabling");
@@ -145,6 +153,29 @@ impl LaunchLogAggregator {
             return;
         }
         let _ = inner.writer.flush();
+    }
+
+    /// Mark the launch phase complete. Subsequent DEBUG entries on
+    /// `launch:server` and `launch:orchestr` tags are dropped. Writes a
+    /// one-shot summary line with elapsed ms.
+    pub fn mark_complete(&self) {
+        let Ok(mut guard) = self.inner.lock() else { return };
+        let Some(inner) = guard.as_mut() else { return };
+        if inner.complete {
+            return;
+        }
+        let elapsed_ms = inner.started_at.elapsed().as_millis();
+        let line = format_line(
+            Local::now(),
+            Level::Info,
+            "launch:shell",
+            Some(std::process::id()),
+            &format!("=== launch phase complete after {elapsed_ms}ms ==="),
+            None,
+        );
+        let _ = inner.writer.write_all(line.as_bytes());
+        let _ = inner.writer.flush();
+        inner.complete = true;
     }
 
     /// Returns the current log file path, or None when dev mode is off.
@@ -323,6 +354,25 @@ mod tests {
         assert!(agg.path().is_none(), "path() must be None when init was disabled");
         let entries: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).collect();
         assert_eq!(entries.len(), 0, "no log file should exist");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn mark_complete_filters_debug_on_filtered_tags() {
+        let dir = temp_dir();
+        let agg = super::LaunchLogAggregator::default();
+        agg.init(&dir, "0.0.0", "0.0.0", "test", true);
+        agg.mark_complete();
+        agg.append(super::format::Level::Debug, "launch:server", None, "filtered debug", None);
+        agg.append(super::format::Level::Debug, "launch:orchestr", None, "filtered debug", None);
+        agg.append(super::format::Level::Info, "launch:server", None, "kept info", None);
+        agg.append(super::format::Level::Debug, "launch:shell", None, "kept shell debug", None);
+
+        let path = agg.path().expect("path");
+        let body = std::fs::read_to_string(path).expect("read");
+        assert!(!body.contains("filtered debug"), "debug on filtered tag must be dropped");
+        assert!(body.contains("kept info"));
+        assert!(body.contains("kept shell debug"));
         let _ = std::fs::remove_dir_all(dir);
     }
 }
