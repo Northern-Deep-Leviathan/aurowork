@@ -14,6 +14,12 @@ pub struct LaunchLogEntry {
     pub level: String, // "trace" | "debug" | "info" | "warn" | "error"
     pub message: String,
     pub stack: Option<String>,
+    /// Milliseconds since Unix epoch captured by the UI at the moment
+    /// `launchLog()` was called. Optional for backwards compatibility:
+    /// older callers that don't supply this fall back to the aggregator's
+    /// "stamp at write time" behavior. When set, this is the authoritative
+    /// timestamp written to the log file.
+    pub timestamp_ms: Option<i64>,
 }
 
 fn parse_level(value: &str) -> Level {
@@ -31,12 +37,13 @@ pub fn launch_log_append(
     aggregator: State<'_, LaunchLogAggregator>,
     entry: LaunchLogEntry,
 ) -> Result<(), String> {
-    aggregator.append(
+    aggregator.append_with_ts(
         parse_level(&entry.level),
         &entry.tag,
         None,
         &entry.message,
         entry.stack.as_deref(),
+        entry.timestamp_ms,
     );
     Ok(())
 }
@@ -47,12 +54,13 @@ pub fn launch_log_append_batch(
     entries: Vec<LaunchLogEntry>,
 ) -> Result<(), String> {
     for entry in entries {
-        aggregator.append(
+        aggregator.append_with_ts(
             parse_level(&entry.level),
             &entry.tag,
             None,
             &entry.message,
             entry.stack.as_deref(),
+            entry.timestamp_ms,
         );
     }
     Ok(())

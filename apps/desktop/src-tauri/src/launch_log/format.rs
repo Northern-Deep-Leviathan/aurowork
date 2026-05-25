@@ -56,12 +56,19 @@ pub fn format_line(
 }
 
 /// Render the file header written once at aggregator init.
+///
+/// `log_enabled` is the resolved enabled flag the caller used to decide
+/// whether to initialize at all (typically
+/// `dev_mode::is_enabled() || diagnostic_armed`). It is recorded in the
+/// header so a reader can tell *why* this log file was produced — dev
+/// build, or one-shot diagnostic capture in a production build.
 pub fn format_header(
     started_at: DateTime<Local>,
     app_version: &str,
     auro_version: &str,
     platform: &str,
     log_file: &str,
+    log_enabled: bool,
 ) -> String {
     let ts = started_at.format("%Y-%m-%dT%H:%M:%S%.3f%:z");
     format!(
@@ -70,7 +77,7 @@ pub fn format_header(
          app_version:   {app_version}\n\
          auro_version:  {auro_version}\n\
          platform:      {platform}\n\
-         dev_mode:      true\n\
+         log_enabled:   {log_enabled}\n\
          log_file:      {log_file}\n\
          ============================\n\n"
     )
@@ -205,13 +212,30 @@ mod tests {
             "v0.1.0",
             "macos-aarch64",
             "/tmp/launch.log",
+            true,
         );
         assert!(header.contains("=== AuroWork Launch Log ==="));
         assert!(header.contains("app_version:   0.14.1"));
         assert!(header.contains("auro_version:  v0.1.0"));
         assert!(header.contains("platform:      macos-aarch64"));
-        assert!(header.contains("dev_mode:      true"));
+        assert!(header.contains("log_enabled:   true"));
         assert!(header.contains("log_file:      /tmp/launch.log"));
         assert!(header.ends_with("\n\n"));
+    }
+
+    #[test]
+    fn header_records_disabled_flag() {
+        // Even though init wouldn't actually be called with enabled=false
+        // (it'd no-op before writing), confirm the header would render the
+        // flag accurately for any caller.
+        let header = format_header(
+            fixed_ts(),
+            "0.14.1",
+            "v0.1.0",
+            "linux-x86_64",
+            "/tmp/launch.log",
+            false,
+        );
+        assert!(header.contains("log_enabled:   false"));
     }
 }

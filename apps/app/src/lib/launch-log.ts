@@ -15,6 +15,14 @@ interface LaunchLogEntry {
   level: LaunchLogLevel;
   message: string;
   stack?: string;
+  /**
+   * Milliseconds since Unix epoch, captured at the moment `launchLog()` is
+   * called. The aggregator buffers and flushes in batches, and JS await
+   * chains can block the event loop for seconds — without this field the
+   * Rust side would stamp every entry in a batch with the flush time,
+   * making the log appear non-monotonic vs the Rust-side sync writes.
+   */
+  timestampMs: number;
 }
 
 interface DevModeInfo {
@@ -104,7 +112,7 @@ export function launchLog(
   if (devModeCached === false) {
     return;
   }
-  buffer.push({ tag, level, message, stack });
+  buffer.push({ tag, level, message, stack, timestampMs: Date.now() });
   if (!flushTimer) {
     flushTimer = setTimeout(() => {
       void flush();
