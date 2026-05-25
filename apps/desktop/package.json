@@ -1,7 +1,7 @@
 {
   "name": "@aurowork/desktop",
   "private": true,
-  "version": "0.14.4",
+  "version": "0.14.5",
   "type": "module",
   "scripts": {
     "dev": "AUROWORK_DEV_MODE=1 AUROWORK_DATA_DIR=\"$HOME/.aurowork/aurowork-orchestrator-dev\" tauri dev --config src-tauri/tauri.dev.conf.json --config \"{\\\"build\\\":{\\\"devUrl\\\":\\\"http://localhost:${PORT:-5173}\\\"}}\"",
