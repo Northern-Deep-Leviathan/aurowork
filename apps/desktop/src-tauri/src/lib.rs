@@ -195,9 +195,16 @@ pub fn run() {
             let aggregator = LaunchLogAggregator::default();
             if let Ok(log_dir) = app.path().app_log_dir() {
                 let app_version = env!("CARGO_PKG_VERSION");
-                let auro_version = option_env!("AUROWORK_AURO_VERSION").unwrap_or("unknown");
+                // Read Auro engine version from the repo-pinned constants.json
+                // at runtime so the header matches what we'll actually launch
+                // (constants.json is bundled into the build via include_str!).
+                // Falls back to "unknown" if the build-time `AUROWORK_AURO_VERSION`
+                // env var is also set, kept as an explicit override hook.
+                let auro_version = option_env!("AUROWORK_AURO_VERSION")
+                    .map(String::from)
+                    .unwrap_or_else(crate::commands::engine::pinned_auro_version);
                 let platform = format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH);
-                aggregator.init(&log_dir, app_version, auro_version, &platform, log_enabled);
+                aggregator.init(&log_dir, app_version, &auro_version, &platform, log_enabled);
             }
             aggregator.append(
                 Level::Info,

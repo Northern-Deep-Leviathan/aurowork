@@ -69,6 +69,7 @@ import { waitForHealthy, createClient, type AuroAuth } from "../lib/auro";
 import type { OpencodeConnectStatus, ProviderListItem } from "../types";
 import { t, currentLocale } from "../../i18n";
 import { filterProviderList, mapConfigProvidersToList } from "../utils/providers";
+import { launchLog } from "../../lib/launch-log";
 
 export type WorkspaceStore = ReturnType<typeof createWorkspaceStore>;
 
@@ -1438,6 +1439,7 @@ export function createWorkspaceStore(options: {
           setEngine(info);
 
           // Start engine with new workspace directory
+          launchLog("info", "launch:ui", "engineStart called from activateWorkspace");
           const newInfo = await engineStart(next.path, {
             preferSidecar: options.engineSource() === "sidecar",
             auroBinPath:
@@ -3187,14 +3189,38 @@ export function createWorkspaceStore(options: {
 
       try {
         const source = options.engineSource();
-        const result = await engineDoctor({
-          preferSidecar: source === "sidecar",
-          auroBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
-        });
-        setEngineDoctorResult(result);
-        setEngineDoctorCheckedAt(Date.now());
+        // Reuse the doctor result from bootstrapOnboarding if it's fresh
+        // (within 60s). Each engineDoctor call forks two short-lived auro
+        // subprocesses (--version and serve --help) which on Windows can
+        // cost 3-5s due to Bun self-extract + Defender scan. Skipping the
+        // redundant call saves that on every launch.
+        const cached = engineDoctorResult();
+        const checkedAt = engineDoctorCheckedAt();
+        const fresh = cached && checkedAt && Date.now() - checkedAt < 60_000;
+        let result: typeof cached;
+        if (fresh) {
+          launchLog(
+            "info",
+            "launch:ui",
+            "bootstrap onboarding: engineDoctor #2 skipped (using cached result from #1)",
+          );
+          result = cached;
+        } else {
+          const doctor2Start = performance.now();
+          result = await engineDoctor({
+            preferSidecar: source === "sidecar",
+            auroBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
+          });
+          launchLog(
+            "info",
+            "launch:ui",
+            `bootstrap onboarding: engineDoctor #2 done in ${Math.round(performance.now() - doctor2Start)}ms`,
+          );
+          setEngineDoctorResult(result);
+          setEngineDoctorCheckedAt(Date.now());
+        }
 
-        if (!result.found) {
+        if (!result || !result.found) {
           options.setError(
             options.isWindowsPlatform()
             ? "OpenCode CLI not found. Install the AuroWork-pinned OpenCode version for Windows or bundle opencode.exe with AuroWork, then restart. If it is installed, ensure `opencode.exe` is on PATH (try `opencode --version` in PowerShell)."
@@ -3229,6 +3255,7 @@ export function createWorkspaceStore(options: {
         setAuthorizedDirs([dir]);
       }
 
+      launchLog("info", "launch:ui", "engineStart called from startHost");
       const info = await engineStart(dir, {
         preferSidecar: options.engineSource() === "sidecar",
         auroBinPath:
@@ -3433,6 +3460,7 @@ export function createWorkspaceStore(options: {
       const info = await engineStop();
       setEngine(info);
 
+      launchLog("info", "launch:ui", "engineStart called from reloadWorkspaceEngine");
       const nextInfo = await engineStart(root, {
         preferSidecar: options.engineSource() === "sidecar",
         auroBinPath:
@@ -3655,6 +3683,18 @@ export function createWorkspaceStore(options: {
   }
 
   async function bootstrapOnboarding() {
+    const onboardStart = performance.now();
+    let onboardStepStart = onboardStart;
+    const onboardMark = (label: string) => {
+      const now = performance.now();
+      launchLog(
+        "info",
+        "launch:ui",
+        `bootstrap onboarding: ${label} in ${Math.round(now - onboardStepStart)}ms (total ${Math.round(now - onboardStart)}ms)`,
+      );
+      onboardStepStart = now;
+    };
+
     const startupPref = readStartupPreference();
     const onboardingComplete = readInitialWorkspaceSetupComplete();
     const persistedBootstrapState = readStarterBootstrapState();
@@ -3670,6 +3710,7 @@ export function createWorkspaceStore(options: {
         // ignore
       }
     }
+    onboardMark("workspaceBootstrap done");
 
     if (isTauriRuntime() && persistedBootstrapState === "in_progress") {
       if (workspaces().length > 0) {
@@ -3681,6 +3722,7 @@ export function createWorkspaceStore(options: {
 
     await refreshEngine();
     await refreshEngineDoctor();
+    onboardMark("refreshEngine + engineDoctor #1 done");
 
     if (isTauriRuntime()) {
       const active = workspaces().find((w) => w.id === selectedWorkspaceId()) ?? null;
@@ -3758,6 +3800,7 @@ export function createWorkspaceStore(options: {
       }
 
       options.setOnboardingStep("connecting");
+      onboardMark(`workspaceConfig loaded, dispatching startHost (preset=${startupPref ?? "auto"})`);
       const ok = await startHost({ workspacePath: selectedWorkspacePath().trim() });
       if (!ok) {
         options.setOnboardingStep("local");

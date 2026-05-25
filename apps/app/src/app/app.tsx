@@ -28,7 +28,7 @@ import { homeDir } from "@tauri-apps/api/path";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { parse } from "jsonc-parser";
 
-import { markLaunchComplete } from "../lib/launch-log";
+import { launchLog, markLaunchComplete } from "../lib/launch-log";
 
 import ModelPickerModal from "./components/model-picker-modal";
 import ResetModal from "./components/reset-modal";
@@ -7080,11 +7080,24 @@ export default function App() {
 
 
   onMount(async () => {
+    const onMountStart = performance.now();
+    let stepStart = onMountStart;
+    const mark = (step: string) => {
+      const now = performance.now();
+      launchLog(
+        "debug",
+        "launch:ui",
+        `App onMount ${step} in ${Math.round(now - stepStart)}ms (total ${Math.round(now - onMountStart)}ms)`,
+      );
+      stepStart = now;
+    };
+
     const startupPref = readStartupPreference();
     if (startupPref) {
       setRememberStartupChoice(true);
       setStartupPreference(startupPref);
     }
+    mark("step1 startup pref");
 
     const unsubscribeTheme = subscribeToSystemTheme((isDark) => {
       if (themeMode() !== "system") return;
@@ -7094,12 +7107,14 @@ export default function App() {
     onCleanup(() => {
       unsubscribeTheme();
     });
+    mark("step2 system-theme subscribe");
 
     createEffect(() => {
       const next = themeMode();
       persistThemeMode(next);
       applyThemeMode(next);
     });
+    mark("step3 theme persist effect installed");
 
     if (typeof window !== "undefined") {
       try {
@@ -7249,6 +7264,7 @@ export default function App() {
         // ignore
       }
     }
+    mark("step4 prefs restore + refreshMcpServers");
 
     if (isTauriRuntime()) {
       try {
@@ -7268,6 +7284,7 @@ export default function App() {
         checkForUpdates({ quiet: true }).catch(() => undefined);
       }
     }
+    mark("step5 desktop version/updaterEnv + (quiet) checkForUpdates dispatched");
 
     if (typeof window !== "undefined") {
       const handleDeepLinkEvent = (event: Event) => {
@@ -7281,14 +7298,30 @@ export default function App() {
         window.removeEventListener(deepLinkBridgeEvent, handleDeepLinkEvent as EventListener);
       });
     }
+    mark("step6 deep-link bridge installed");
 
-    void workspaceStore.bootstrapOnboarding().finally(() => setBooting(false));
-
-    requestAnimationFrame(() => {
-      queueMicrotask(() => {
-        void markLaunchComplete();
-      });
+    const bootstrapStart = performance.now();
+    void workspaceStore.bootstrapOnboarding().finally(() => {
+      setBooting(false);
+      const now = performance.now();
+      launchLog(
+        "info",
+        "launch:ui",
+        `App onMount step7 bootstrapOnboarding in ${Math.round(now - bootstrapStart)}ms (total ${Math.round(now - onMountStart)}ms)`,
+      );
     });
+  });
+
+  // Defer markLaunchComplete until the Auro engine is actually reachable.
+  // Previously this fired in onMount via rAF+microtask which marked the
+  // launch phase "complete" before any sidecar even spawned, so the engine
+  // startup logs were treated as post-launch noise. Watch engine().baseUrl
+  // and trigger exactly once when it transitions from null -> truthy.
+  createEffect(() => {
+    const info = workspaceStore.engine();
+    const baseUrl = info?.baseUrl?.trim();
+    if (!baseUrl) return;
+    void markLaunchComplete();
   });
 
   createEffect(() => {

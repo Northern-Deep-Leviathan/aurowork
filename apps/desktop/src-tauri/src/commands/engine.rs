@@ -60,7 +60,7 @@ fn aurowork_dev_mode_enabled() -> bool {
     env_truthy("AUROWORK_DEV_MODE").unwrap_or(cfg!(debug_assertions))
 }
 
-fn pinned_auro_version() -> String {
+pub(crate) fn pinned_auro_version() -> String {
     let constants = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../constants.json"
@@ -249,6 +249,13 @@ pub fn engine_doctor(
 
     let (version, supports_serve, serve_help_status, serve_help_stdout, serve_help_stderr) =
         match resolved.as_ref() {
+            // When prefer_sidecar=true we trust the bundled binary: it is
+            // shipped with AuroWork and known to support `serve`. Skipping
+            // the `auro serve --help` probe avoids a second cold subprocess
+            // fork on Windows (Bun self-extract + Defender scan ≈ 1.5s).
+            Some(path) if prefer_sidecar => {
+                (auro_version(path.as_os_str()), true, Some(0), None, None)
+            }
             Some(path) => {
                 let (ok, status, stdout, stderr) = auro_serve_help(path.as_os_str());
                 (auro_version(path.as_os_str()), ok, status, stdout, stderr)

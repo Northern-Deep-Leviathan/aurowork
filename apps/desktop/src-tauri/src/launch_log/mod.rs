@@ -15,7 +15,7 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use chrono::Local;
+use chrono::{Local, TimeZone};
 
 use format::{format_header, format_line, Level};
 
@@ -113,6 +113,7 @@ impl LaunchLogAggregator {
             auro_version,
             platform,
             &path.to_string_lossy(),
+            enabled,
         );
         if let Err(err) = writer.write_all(header.as_bytes()) {
             eprintln!("[launch_log] failed to write header: {err}");
@@ -139,6 +140,24 @@ impl LaunchLogAggregator {
         message: &str,
         stack: Option<&str>,
     ) {
+        self.append_with_ts(level, tag, pid, message, stack, None);
+    }
+
+    /// Append with an optional caller-supplied timestamp (ms since epoch).
+    /// UI-side `launchLog()` captures the time of the call, batches entries,
+    /// then ships them via IPC. The batch can be delayed by long await
+    /// chains on the JS main thread; without using the caller's timestamp,
+    /// every entry in a batch would be stamped at flush time and appear
+    /// out of order with Rust-side sync writes.
+    pub fn append_with_ts(
+        &self,
+        level: Level,
+        tag: &str,
+        pid: Option<u32>,
+        message: &str,
+        stack: Option<&str>,
+        timestamp_ms: Option<i64>,
+    ) {
         let Ok(mut guard) = self.inner.lock() else { return };
         let Some(inner) = guard.as_mut() else { return };
         if inner.complete
@@ -147,7 +166,11 @@ impl LaunchLogAggregator {
         {
             return;
         }
-        let line = format_line(Local::now(), level, tag, pid, message, stack);
+        let ts = match timestamp_ms.and_then(|ms| Local.timestamp_millis_opt(ms).single()) {
+            Some(ts) => ts,
+            None => Local::now(),
+        };
+        let line = format_line(ts, level, tag, pid, message, stack);
         if let Err(err) = inner.writer.write_all(line.as_bytes()) {
             eprintln!("[launch_log] write failed: {err}; disabling");
             *guard = None;
