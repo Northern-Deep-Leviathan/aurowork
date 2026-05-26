@@ -1,0 +1,98 @@
+name: Sync release to Azure Blob
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to sync (e.g. v0.14.5)"
+        required: true
+      prefix:
+        description: "Destination prefix in blob"
+        required: true
+        default: "desktop"
+        type: choice
+        options:
+          - desktop
+          - orchestrator
+          - auro
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine tag and prefix
+        id: vars
+        env:
+          GH_EVENT_NAME: ${{ github.event_name }}
+          GH_RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_PREFIX: ${{ github.event.inputs.prefix }}
+        run: |
+          set -euo pipefail
+          if [ "$GH_EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
+            PREFIX="$INPUT_PREFIX"
+          else
+            TAG="$GH_RELEASE_TAG"
+            case "$GH_RELEASE_TAG" in
+              aurowork-orchestrator-v*) PREFIX="orchestrator" ;;
+              auro-v*)                  PREFIX="auro"         ;;
+              v*)                       PREFIX="desktop"      ;;
+              *)
+                echo "::error::Unrecognized tag pattern: $GH_RELEASE_TAG"
+                exit 1
+                ;;
+            esac
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag=$TAG prefix=$PREFIX"
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run sync script
+        env:
+          AZURE_STORAGE_ACCOUNT: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          AZURE_BLOB_CONTAINER: ${{ vars.AZURE_BLOB_CONTAINER }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/release/sync-to-azure.mjs \
+            --tag "${{ steps.vars.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --prefix "${{ steps.vars.outputs.prefix }}"
+
+      - name: Verification curl
+        env:
+          ACCOUNT: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          CONTAINER: ${{ vars.AZURE_BLOB_CONTAINER }}
+          PREFIX: ${{ steps.vars.outputs.prefix }}
+          TAG: ${{ steps.vars.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ "$PREFIX" = "desktop" ]; then
+            URL="https://${ACCOUNT}.blob.core.windows.net/${CONTAINER}/${PREFIX}/${TAG}/latest.json"
+            echo "Verifying $URL"
+            curl -fsSL -I "$URL"
+          fi
+          echo "Sync complete."
