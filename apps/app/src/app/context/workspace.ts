@@ -276,6 +276,11 @@ export function createWorkspaceStore(options: {
   const [engineAuth, setEngineAuth] = createSignal<AuroAuth | null>(null);
   const [engineDoctorResult, setEngineDoctorResult] = createSignal<EngineDoctorResult | null>(null);
   const [engineDoctorCheckedAt, setEngineDoctorCheckedAt] = createSignal<number | null>(null);
+  // Module-scoped in-flight doctor promise. bootstrapOnboarding kicks off
+  // refreshEngineDoctor() without awaiting so the ~9.6s subprocess fork can
+  // overlap with engine_start (~15s). startHost awaits this before falling
+  // back to a fresh doctor call, so the parallel result is always reused.
+  let pendingEngineDoctor: Promise<void> | null = null;
   const [engineInstallLogs, setEngineInstallLogs] = createSignal<string | null>(null);
   const [sandboxDoctorResult, setSandboxDoctorResult] = createSignal<SandboxDoctorResult | null>(null);
   const [sandboxDoctorCheckedAt, setSandboxDoctorCheckedAt] = createSignal<number | null>(null);
@@ -960,18 +965,26 @@ export function createWorkspaceStore(options: {
   async function refreshEngineDoctor() {
     if (!isTauriRuntime()) return;
 
+    const run = (async () => {
+      try {
+        const source = options.engineSource();
+        const result = await engineDoctor({
+          preferSidecar: source === "sidecar",
+          auroBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
+        });
+        setEngineDoctorResult(result);
+        setEngineDoctorCheckedAt(Date.now());
+      } catch (e) {
+        setEngineDoctorResult(null);
+        setEngineDoctorCheckedAt(Date.now());
+        setEngineInstallLogs(e instanceof Error ? e.message : safeStringify(e));
+      }
+    })();
+    pendingEngineDoctor = run;
     try {
-      const source = options.engineSource();
-      const result = await engineDoctor({
-        preferSidecar: source === "sidecar",
-        auroBinPath: source === "custom" ? options.engineCustomBinPath?.().trim() || null : null,
-      });
-      setEngineDoctorResult(result);
-      setEngineDoctorCheckedAt(Date.now());
-    } catch (e) {
-      setEngineDoctorResult(null);
-      setEngineDoctorCheckedAt(Date.now());
-      setEngineInstallLogs(e instanceof Error ? e.message : safeStringify(e));
+      await run;
+    } finally {
+      if (pendingEngineDoctor === run) pendingEngineDoctor = null;
     }
   }
 
@@ -3194,6 +3207,20 @@ export function createWorkspaceStore(options: {
         // subprocesses (--version and serve --help) which on Windows can
         // cost 3-5s due to Bun self-extract + Defender scan. Skipping the
         // redundant call saves that on every launch.
+        //
+        // bootstrapOnboarding now dispatches the first doctor call without
+        // awaiting it (so it runs in parallel with engine_start). If that
+        // call is still in flight when startHost arrives, wait for it here
+        // rather than firing a second fork.
+        if (pendingEngineDoctor) {
+          const waitStart = performance.now();
+          await pendingEngineDoctor;
+          launchLog(
+            "info",
+            "launch:ui",
+            `bootstrap onboarding: awaited in-flight engineDoctor in ${Math.round(performance.now() - waitStart)}ms`,
+          );
+        }
         const cached = engineDoctorResult();
         const checkedAt = engineDoctorCheckedAt();
         const fresh = cached && checkedAt && Date.now() - checkedAt < 60_000;
@@ -3721,8 +3748,14 @@ export function createWorkspaceStore(options: {
     }
 
     await refreshEngine();
-    await refreshEngineDoctor();
-    onboardMark("refreshEngine + engineDoctor #1 done");
+    // Kick off engineDoctor in parallel with the rest of bootstrap. On Windows
+    // this is a ~9.6s cold subprocess fork (auro --version + maybe serve --help).
+    // engine_start (Rust) does its own sidecar/PATH resolution and does not
+    // depend on the doctor result, so we let it run concurrently with the
+    // ~15s engine spawn. startHost awaits the in-flight promise before its
+    // freshness check, so the result is always reused without a second fork.
+    void refreshEngineDoctor();
+    onboardMark("refreshEngine done; engineDoctor #1 dispatched");
 
     if (isTauriRuntime()) {
       const active = workspaces().find((w) => w.id === selectedWorkspaceId()) ?? null;

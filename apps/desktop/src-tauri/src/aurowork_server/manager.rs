@@ -4,7 +4,7 @@ use tauri_plugin_shell::process::CommandChild;
 
 use crate::types::AuroworkServerInfo;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct AuroworkServerManager {
     pub inner: Arc<Mutex<AuroworkServerState>>,
 }

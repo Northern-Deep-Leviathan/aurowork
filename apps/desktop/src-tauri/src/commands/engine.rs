@@ -17,6 +17,58 @@ use uuid::Uuid;
 
 const MANAGED_AURO_CREDENTIAL_LENGTH: usize = 512;
 
+/// Spawn `start_aurowork_server` on a background thread so `engine_start`
+/// can return immediately. The aurowork-server is a Bun single-file sidecar
+/// whose cold start (~7s on Windows: self-extract + Defender scan) and
+/// optional first-time owner-token health poll (~10s) used to dominate the
+/// launch critical path. The UI doesn't need the server URL/token before
+/// first paint — the MCP panel and file-relay calls fetch it lazily via
+/// `aurowork_server_info`. Any spawn error is logged but does not surface
+/// back to the engine_start caller; failures are visible via
+/// `aurowork_server_info` and the launch log.
+fn spawn_aurowork_server_background(
+    app: &AppHandle,
+    aurowork_manager: &AuroworkServerManager,
+    workspace_paths: Vec<String>,
+    auro_base_url: Option<String>,
+    auro_username: Option<String>,
+    auro_password: Option<String>,
+    remote_access_enabled: bool,
+) {
+    let app = app.clone();
+    let manager = aurowork_manager.clone();
+    std::thread::spawn(move || {
+        if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+            agg.append(
+                crate::launch_log::format::Level::Debug,
+                "launch:server",
+                None,
+                "starting aurowork-server in background (off launch critical path)",
+                None,
+            );
+        }
+        if let Err(error) = start_aurowork_server(
+            &app,
+            &manager,
+            &workspace_paths,
+            auro_base_url.as_deref(),
+            auro_username.as_deref(),
+            auro_password.as_deref(),
+            remote_access_enabled,
+        ) {
+            if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+                agg.append(
+                    crate::launch_log::format::Level::Error,
+                    "launch:server",
+                    None,
+                    &format!("background aurowork-server start failed: {error}"),
+                    None,
+                );
+            }
+        }
+    });
+}
+
 struct EnvVarGuard {
     key: &'static str,
     original: Option<std::ffi::OsString>,
@@ -247,6 +299,29 @@ pub fn engine_doctor(
         current_bin_dir.as_deref(),
     );
 
+    // Cache lookup: each fork of `auro --version` (and `auro serve --help`
+    // when not sidecar) costs ~1.5s on Windows due to Bun self-extract +
+    // Defender scanning. The binary almost never changes between launches,
+    // so we key the cache on the resolved binary's mtime + size and the
+    // doctor inputs. A cache hit skips both forks entirely.
+    let cache_key = resolved.as_ref().and_then(|path| {
+        doctor_cache::CacheKey::from_path(path, prefer_sidecar, auro_bin_path.as_deref())
+    });
+    if let Some(key) = cache_key.as_ref() {
+        if let Some(cached) = doctor_cache::load(&app, key) {
+            if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
+                agg.append(
+                    crate::launch_log::format::Level::Debug,
+                    "launch:shell",
+                    Some(std::process::id()),
+                    "engine_doctor cache hit (skipped --version / serve --help fork)",
+                    None,
+                );
+            }
+            return cached;
+        }
+    }
+
     let (version, supports_serve, serve_help_status, serve_help_stdout, serve_help_stderr) =
         match resolved.as_ref() {
             // When prefer_sidecar=true we trust the bundled binary: it is
@@ -263,7 +338,7 @@ pub fn engine_doctor(
             None => (None, false, None, None, None),
         };
 
-    EngineDoctorResult {
+    let result = EngineDoctorResult {
         found: resolved.is_some(),
         in_path,
         resolved_path: resolved.map(|path| path.to_string_lossy().to_string()),
@@ -273,7 +348,13 @@ pub fn engine_doctor(
         serve_help_status,
         serve_help_stdout,
         serve_help_stderr,
+    };
+
+    if let Some(key) = cache_key.as_ref() {
+        doctor_cache::store(&app, key, &result);
     }
+
+    result
 }
 
 #[tauri::command]
@@ -739,20 +820,15 @@ pub fn engine_start(
             );
         }
 
-        if let Err(error) = start_aurowork_server(
+        spawn_aurowork_server_background(
             &app,
             &aurowork_manager,
-            &workspace_paths,
-            Some(&opencode_connect_url),
-            auro_username.as_deref(),
-            auro_password.as_deref(),
+            workspace_paths.clone(),
+            Some(opencode_connect_url.clone()),
+            auro_username.clone(),
+            auro_password.clone(),
             aurowork_remote_access_enabled,
-        ) {
-            if let Ok(mut state) = manager.inner.lock() {
-                state.last_stderr =
-                    Some(truncate_output(&format!("AuroWork server: {error}"), 8000));
-            }
-        }
+        );
 
         return Ok(EngineInfo {
             running: true,
@@ -1002,17 +1078,106 @@ pub fn engine_start(
 
     let auro_connect_url = format!("http://{client_host}:{port}");
 
-    if let Err(error) = start_aurowork_server(
+    // Release the engine state lock before spawning the background thread so
+    // the snapshot can be taken without contending with the worker.
+    let snapshot = EngineManager::snapshot_locked(&mut state);
+    drop(state);
+
+    spawn_aurowork_server_background(
         &app,
         &aurowork_manager,
-        &workspace_paths,
-        Some(&auro_connect_url),
-        auro_username.as_deref(),
-        auro_password.as_deref(),
+        workspace_paths.clone(),
+        Some(auro_connect_url),
+        auro_username.clone(),
+        auro_password.clone(),
         aurowork_remote_access_enabled,
-    ) {
-        state.last_stderr = Some(truncate_output(&format!("AuroWork server: {error}"), 8000));
+    );
+
+    Ok(snapshot)
+}
+
+/// On-disk cache for `engine_doctor` results. Each `engine_doctor` call forks
+/// `auro --version` (and `auro serve --help` outside sidecar mode), which on
+/// Windows costs ~1.5s per fork because of Bun self-extract + Defender
+/// scanning. The resolved binary only changes when AuroWork is upgraded or
+/// the user switches engine source, so we key the cache on the binary's
+/// (mtime, size) along with the doctor inputs and skip both forks on hit.
+mod doctor_cache {
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    use serde::{Deserialize, Serialize};
+    use tauri::{AppHandle, Manager};
+
+    use crate::types::EngineDoctorResult;
+
+    const FILE_NAME: &str = "engine-doctor-cache.json";
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct CacheKey {
+        pub resolved_path: String,
+        pub mtime_secs: i64,
+        pub size: u64,
+        pub prefer_sidecar: bool,
+        pub auro_bin_path: Option<String>,
     }
 
-    Ok(EngineManager::snapshot_locked(&mut state))
+    impl CacheKey {
+        pub fn from_path(
+            path: &Path,
+            prefer_sidecar: bool,
+            auro_bin_path: Option<&str>,
+        ) -> Option<Self> {
+            let meta = fs::metadata(path).ok()?;
+            let size = meta.len();
+            let mtime_secs = meta
+                .modified()
+                .ok()
+                .and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            Some(Self {
+                resolved_path: path.to_string_lossy().to_string(),
+                mtime_secs,
+                size,
+                prefer_sidecar,
+                auro_bin_path: auro_bin_path.map(|s| s.to_string()),
+            })
+        }
+    }
+
+    #[derive(Debug, Serialize, Deserialize)]
+    struct CacheEntry {
+        key: CacheKey,
+        result: EngineDoctorResult,
+    }
+
+    fn cache_path(app: &AppHandle) -> Option<PathBuf> {
+        app.path().app_data_dir().ok().map(|dir| dir.join(FILE_NAME))
+    }
+
+    pub fn load(app: &AppHandle, key: &CacheKey) -> Option<EngineDoctorResult> {
+        let path = cache_path(app)?;
+        let bytes = fs::read(&path).ok()?;
+        let entry: CacheEntry = serde_json::from_slice(&bytes).ok()?;
+        if entry.key == *key {
+            Some(entry.result)
+        } else {
+            None
+        }
+    }
+
+    pub fn store(app: &AppHandle, key: &CacheKey, result: &EngineDoctorResult) {
+        let Some(path) = cache_path(app) else { return };
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let entry = CacheEntry {
+            key: key.clone(),
+            result: result.clone(),
+        };
+        if let Ok(bytes) = serde_json::to_vec_pretty(&entry) {
+            let _ = fs::write(&path, bytes);
+        }
+    }
 }

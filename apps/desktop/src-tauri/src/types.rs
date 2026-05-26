@@ -180,7 +180,7 @@ pub struct OrchestratorStatus {
     pub last_error: Option<String>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineDoctorResult {
     pub found: bool,

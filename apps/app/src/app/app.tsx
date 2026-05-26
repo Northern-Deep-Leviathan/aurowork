@@ -7254,7 +7254,12 @@ export default function App() {
           setNotionStatusDetail(t("mcp.connecting", currentLocale()));
         }
 
-        await refreshMcpServers();
+        // Fire-and-forget: MCP server enumeration depends on aurowork-server
+        // being up and isn't needed before first paint. The MCP panel reloads
+        // it on demand. Keeps step4 off the launch critical path.
+        void refreshMcpServers().catch(() => {
+          /* best-effort; surfaced via mcpServers signal */
+        });
 
         const storedNotionSkillInstalled = window.localStorage.getItem("aurowork.notionSkillInstalled");
         if (storedNotionSkillInstalled === "1") {
