@@ -25,6 +25,13 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    # The `release` environment is kept on purpose: it pins the OIDC
+    # token subject to `repo:.../environment:release`, which matches the
+    # federated credential on the aurowork-release-sync service
+    # principal. Required reviewers should NOT be configured on this
+    # environment — we want sync to run unattended after every release
+    # published by build-desktop. OIDC + an SP scoped to a single
+    # storage account is the security boundary.
     environment: release
     timeout-minutes: 15
     steps:
