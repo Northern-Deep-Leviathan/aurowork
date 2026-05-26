@@ -82,6 +82,23 @@ jobs:
             --repo "${{ github.repository }}" \
             --prefix "${{ steps.vars.outputs.prefix }}"
 
+      - name: Publish desktop latest.json alias
+        if: steps.vars.outputs.prefix == 'desktop'
+        env:
+          ACCOUNT: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          CONTAINER: ${{ vars.AZURE_BLOB_CONTAINER }}
+          PREFIX: ${{ steps.vars.outputs.prefix }}
+          TAG: ${{ steps.vars.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Copy versioned latest.json to stable alias path used by Tauri updater
+          az storage blob copy start \
+            --account-name "$ACCOUNT" \
+            --destination-container "$CONTAINER" \
+            --destination-blob "${PREFIX}/latest/latest.json" \
+            --source-uri "https://${ACCOUNT}.blob.core.windows.net/${CONTAINER}/${PREFIX}/${TAG}/latest.json" \
+            --auth-mode login
+
       - name: Verification curl
         env:
           ACCOUNT: ${{ vars.AZURE_STORAGE_ACCOUNT }}

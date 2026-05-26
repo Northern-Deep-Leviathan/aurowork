@@ -399,6 +399,10 @@ jobs:
           GH_TOKEN: ${{ steps.gitsetup.outputs.token }}
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+          # Point Tauri updater at the Azure mirror so download URLs are
+          # reachable from regions where GitHub is slow/blocked. The
+          # sync-release-to-azure workflow mirrors the same release assets.
+          AUROWORK_AZURE_BASE_URL: ${{ vars.AUROWORK_AZURE_BASE_URL }}
         run: |
           set -euo pipefail
 

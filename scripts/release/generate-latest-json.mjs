@@ -172,6 +172,14 @@ async function fetchReleaseByTag(repo, tag) {
 }
 
 function releaseAssetUrl(repo, tag, assetName) {
+  // If AUROWORK_AZURE_BASE_URL is set, point updater at the Azure mirror.
+  // Expected form: https://<account>.blob.core.windows.net/<container>/<prefix>
+  //   e.g. https://auroworkdl.blob.core.windows.net/releases/desktop
+  // Final URL: <base>/<tag>/<assetName>
+  const azureBase = process.env.AUROWORK_AZURE_BASE_URL?.trim().replace(/\/+$/, "");
+  if (azureBase) {
+    return `${azureBase}/${encodeURIComponent(tag)}/${assetName}`;
+  }
   return `https://github.com/${repo}/releases/download/${encodeURIComponent(tag)}/${assetName}`;
 }
 

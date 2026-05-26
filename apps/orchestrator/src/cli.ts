@@ -1398,13 +1398,16 @@ async function fetchRemoteManifest(
   const cached = remoteManifestCache.get(url);
   if (cached) return cached;
   const task = (async () => {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) return null;
-      return (await response.json()) as RemoteSidecarManifest;
-    } catch {
-      return null;
+    for (const candidate of mirrorUrls(url)) {
+      try {
+        const response = await fetch(candidate);
+        if (!response.ok) continue;
+        return (await response.json()) as RemoteSidecarManifest;
+      } catch {
+        continue;
+      }
     }
+    return null;
   })();
   remoteManifestCache.set(url, task);
   return task;
@@ -1450,24 +1453,88 @@ function isOverseasUrl(url: string): boolean {
   }
 }
 
-async function downloadToPath(url: string, dest: string): Promise<void> {
-  const dlStartedAt = Date.now();
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download ${url} (HTTP ${response.status})`);
+// Maps a known GitHub release-asset URL to a list of mirror URLs to try in
+// order. The Azure Blob mirror (auroworkdl.blob.core.windows.net) is tried
+// first because it is reachable from regions where GitHub is slow/blocked
+// (e.g. mainland China). GitHub is kept as the last-resort fallback.
+//
+// Patterns recognised:
+//   https://github.com/Northern-Deep-Leviathan/aurowork/releases/download/<tag>/<asset>
+//     -> https://auroworkdl.blob.core.windows.net/releases/{desktop|orchestrator}/<tag>/<asset>
+//   https://github.com/Northern-Deep-Leviathan/auro/releases/download/<tag>/<asset>
+//     -> https://auroworkdl.blob.core.windows.net/releases/auro/<tag>/<asset>
+//
+// AUROWORK_MIRROR_BASE_URL env var can override the Azure base. Set it to
+// empty string to disable the mirror.
+function mirrorUrls(url: string): string[] {
+  const overrideRaw = process.env.AUROWORK_MIRROR_BASE_URL;
+  const mirrorBase =
+    overrideRaw === undefined
+      ? "https://auroworkdl.blob.core.windows.net/releases"
+      : overrideRaw.trim().replace(/\/+$/, "");
+  if (!mirrorBase) return [url];
+
+  const ghMatch = url.match(
+    /^https:\/\/github\.com\/Northern-Deep-Leviathan\/(aurowork|auro)\/releases\/download\/([^/]+)\/(.+)$/,
+  );
+  if (!ghMatch) return [url];
+
+  const repo = ghMatch[1];
+  const tag = ghMatch[2];
+  const asset = ghMatch[3];
+
+  let prefix: string;
+  if (repo === "auro") {
+    prefix = "auro";
+  } else if (tag.startsWith("aurowork-orchestrator-v")) {
+    prefix = "orchestrator";
+  } else {
+    prefix = "desktop";
   }
-  const expectedBytes = Number(response.headers.get("content-length") ?? 0);
-  console.log(
-    `[aurowork-orchestrator] [orchestr-phase] downloading-sidecar elapsed=${Date.now() - dlStartedAt}ms url=${url} bytes_expected=${expectedBytes}${isOverseasUrl(url) ? " [overseas]" : ""}`,
-  );
-  const buffer = Buffer.from(await response.arrayBuffer());
-  await mkdir(dirname(dest), { recursive: true });
-  const tmpPath = `${dest}.tmp-${randomUUID()}`;
-  await writeFile(tmpPath, buffer);
-  await rename(tmpPath, dest);
-  console.log(
-    `[aurowork-orchestrator] [orchestr-phase] sidecar-downloaded elapsed=${Date.now() - dlStartedAt}ms bytes=${buffer.byteLength}`,
-  );
+
+  const azureUrl = `${mirrorBase}/${prefix}/${tag}/${asset}`;
+  return [azureUrl, url];
+}
+
+async function downloadToPath(url: string, dest: string): Promise<void> {
+  const urls = mirrorUrls(url);
+  const dlStartedAt = Date.now();
+  let lastError: unknown = null;
+  for (const candidate of urls) {
+    try {
+      const response = await fetch(candidate);
+      if (!response.ok) {
+        lastError = new Error(
+          `Failed to download ${candidate} (HTTP ${response.status})`,
+        );
+        continue;
+      }
+      const expectedBytes = Number(
+        response.headers.get("content-length") ?? 0,
+      );
+      console.log(
+        `[aurowork-orchestrator] [orchestr-phase] downloading-sidecar elapsed=${Date.now() - dlStartedAt}ms url=${candidate} bytes_expected=${expectedBytes}${isOverseasUrl(candidate) ? " [overseas]" : ""}`,
+      );
+      const buffer = Buffer.from(await response.arrayBuffer());
+      await mkdir(dirname(dest), { recursive: true });
+      const tmpPath = `${dest}.tmp-${randomUUID()}`;
+      await writeFile(tmpPath, buffer);
+      await rename(tmpPath, dest);
+      console.log(
+        `[aurowork-orchestrator] [orchestr-phase] sidecar-downloaded elapsed=${Date.now() - dlStartedAt}ms bytes=${buffer.byteLength}`,
+      );
+      return;
+    } catch (err) {
+      lastError = err;
+      console.warn(
+        `[aurowork-orchestrator] download attempt failed url=${candidate} err=${String(err)}`,
+      );
+      continue;
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Failed to download ${url} from all mirrors`);
 }
 
 async function ensureExecutable(path: string): Promise<void> {
@@ -1552,12 +1619,12 @@ async function downloadSidecarBinary(options: {
 
 function resolveOpencodeAsset(target: SidecarTarget): string | null {
   const assets: Record<SidecarTarget, string> = {
-    "darwin-arm64": "opencode-darwin-arm64.zip",
-    "darwin-x64": "opencode-darwin-x64-baseline.zip",
-    "linux-x64": "opencode-linux-x64-baseline.tar.gz",
-    "linux-arm64": "opencode-linux-arm64.tar.gz",
-    "windows-x64": "opencode-windows-x64-baseline.zip",
-    "windows-arm64": "opencode-windows-arm64.zip",
+    "darwin-arm64": "auro-darwin-arm64.zip",
+    "darwin-x64": "auro-darwin-x64-baseline.zip",
+    "linux-x64": "auro-linux-x64-baseline.tar.gz",
+    "linux-arm64": "auro-linux-arm64.tar.gz",
+    "windows-x64": "auro-windows-x64-baseline.zip",
+    "windows-arm64": "auro-windows-arm64.zip",
   };
   return assets[target] ?? null;
 }
@@ -1596,7 +1663,7 @@ async function resolveOpencodeDownload(
   const version = expectedVersion.startsWith("v")
     ? expectedVersion.slice(1)
     : expectedVersion;
-  const url = `https://github.com/anomalyco/opencode/releases/download/v${version}/${asset}`;
+  const url = `https://github.com/Northern-Deep-Leviathan/auro/releases/download/v${version}/${asset}`;
   const targetDir = join(sidecar.dir, "opencode", version, sidecar.target);
   const targetPath = join(
     targetDir,
@@ -1658,7 +1725,7 @@ async function resolveOpencodeDownload(
         continue;
       }
       const base = basename(current);
-      if (base === "opencode" || base === "opencode.exe") {
+      if (base === "auro" || base === "auro.exe" || base === "opencode" || base === "opencode.exe") {
         candidate = current;
         break;
       }
