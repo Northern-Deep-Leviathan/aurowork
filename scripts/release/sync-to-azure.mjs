@@ -130,7 +130,7 @@ async function main() {
         "--output",
         "table",
       ],
-      { stdio: "inherit" },
+      { stdio: "inherit", shell: true },
     );
     if (azResult.status !== 0) {
       throw new Error(`az upload-batch failed with code ${azResult.status}`);
