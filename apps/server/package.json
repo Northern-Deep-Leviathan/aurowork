@@ -1,6 +1,6 @@
 {
   "name": "aurowork-server",
-  "version": "0.14.5",
+  "version": "0.14.6",
   "description": "Filesystem-backed API for AuroWork remote clients",
   "type": "module",
   "bin": {
