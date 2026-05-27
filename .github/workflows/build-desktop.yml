@@ -437,3 +437,22 @@ jobs:
           echo "Uploading latest.json ..."
           gh release upload "$RELEASE_TAG" latest.json \
             --repo "$GITHUB_REPOSITORY" --clobber
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 4: Mirror the published release assets to Azure Blob.
+  #         Runs ONLY after build has uploaded MSI/sig/latest.json,
+  #         eliminating the race that previously caused sync to fire
+  #         against an empty release.
+  # ──────────────────────────────────────────────────────────────
+  sync-azure:
+    name: Sync to Azure
+    needs: [prepare, build]
+    if: needs.prepare.outputs.prerelease != 'true'
+    uses: ./.github/workflows/sync-release-to-azure.yml
+    with:
+      tag: ${{ needs.prepare.outputs.release_tag }}
+      prefix: desktop
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read

@@ -1,8 +1,14 @@
 name: Sync release to Azure Blob
 
 on:
-  release:
-    types: [published]
+  # NOTE: `release: published` trigger has been intentionally removed.
+  # The desktop build pipeline (build-desktop.yml) now invokes this
+  # workflow via `workflow_call` AFTER all release assets are uploaded,
+  # eliminating the race condition where sync fired before MSI/sig/
+  # latest.json were attached to the release.
+  #
+  # For orchestrator/auro tag releases, or to backfill any past tag,
+  # use the `workflow_dispatch` entry below.
   workflow_dispatch:
     inputs:
       tag:
@@ -17,6 +23,16 @@ on:
           - desktop
           - orchestrator
           - auro
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to sync (e.g. v0.14.6)"
+        required: true
+        type: string
+      prefix:
+        description: "Destination prefix in blob (desktop | orchestrator | auro)"
+        required: true
+        type: string
 
 permissions:
   id-token: write
@@ -29,9 +45,10 @@ jobs:
     # token subject to `repo:.../environment:release`, which matches the
     # federated credential on the aurowork-release-sync service
     # principal. Required reviewers should NOT be configured on this
-    # environment — we want sync to run unattended after every release
-    # published by build-desktop. OIDC + an SP scoped to a single
-    # storage account is the security boundary.
+    # environment — we want sync to run unattended after every desktop
+    # build (invoked via workflow_call from build-desktop.yml) or
+    # whenever an operator dispatches it manually. OIDC + an SP scoped
+    # to a single storage account is the security boundary.
     environment: release
     timeout-minutes: 15
     steps:
@@ -41,27 +58,26 @@ jobs:
       - name: Determine tag and prefix
         id: vars
         env:
-          GH_EVENT_NAME: ${{ github.event_name }}
-          GH_RELEASE_TAG: ${{ github.event.release.tag_name }}
-          INPUT_TAG: ${{ github.event.inputs.tag }}
-          INPUT_PREFIX: ${{ github.event.inputs.prefix }}
+          # Both `workflow_dispatch` and `workflow_call` expose their
+          # inputs via the `inputs` context, so a single code path
+          # handles both trigger types.
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_PREFIX: ${{ inputs.prefix }}
         run: |
           set -euo pipefail
-          if [ "$GH_EVENT_NAME" = "workflow_dispatch" ]; then
-            TAG="$INPUT_TAG"
-            PREFIX="$INPUT_PREFIX"
-          else
-            TAG="$GH_RELEASE_TAG"
-            case "$GH_RELEASE_TAG" in
-              aurowork-orchestrator-v*) PREFIX="orchestrator" ;;
-              auro-v*)                  PREFIX="auro"         ;;
-              v*)                       PREFIX="desktop"      ;;
-              *)
-                echo "::error::Unrecognized tag pattern: $GH_RELEASE_TAG"
-                exit 1
-                ;;
-            esac
+          TAG="$INPUT_TAG"
+          PREFIX="$INPUT_PREFIX"
+          if [ -z "$TAG" ] || [ -z "$PREFIX" ]; then
+            echo "::error::tag and prefix inputs are required"
+            exit 1
           fi
+          case "$PREFIX" in
+            desktop|orchestrator|auro) ;;
+            *)
+              echo "::error::Unrecognized prefix: $PREFIX (expected desktop|orchestrator|auro)"
+              exit 1
+              ;;
+          esac
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
           echo "Resolved tag=$TAG prefix=$PREFIX"
