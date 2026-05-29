@@ -565,7 +565,7 @@ export function createSystemState(options: {
       downloadedBytes: 0,
       notes: pending.notes,
     });
-    
+
     let accumulatedBytes = 0;
     let totalBytes: number | null = null;
 
@@ -580,8 +580,44 @@ export function createSystemState(options: {
       });
     }, 100);
 
+    // Stall watchdog. tauri-plugin-updater's download() does not accept an
+    // AbortSignal, so we cannot cancel the underlying Rust task. We can,
+    // however, stop awaiting it: Promise.race rejects when the watchdog
+    // fires, the frontend unblocks, and the orphaned Rust task dies on its
+    // own network timeout.
+    const STALL_TIMEOUT_MS = 60_000;
+    let stallTimer: ReturnType<typeof setTimeout> | null = null;
+    let stallReject: ((err: Error) => void) | null = null;
+
+    const armStallTimer = () => {
+      if (stallTimer) clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        if (stallReject) {
+          stallReject(
+            new Error(
+              `Download stalled: no progress for ${Math.round(STALL_TIMEOUT_MS / 1000)}s`,
+            ),
+          );
+        }
+      }, STALL_TIMEOUT_MS);
+    };
+
+    const clearStallTimer = () => {
+      if (stallTimer) {
+        clearTimeout(stallTimer);
+        stallTimer = null;
+      }
+      stallReject = null;
+    };
+
+    const stallPromise = new Promise<never>((_, reject) => {
+      stallReject = reject;
+    });
+
+    armStallTimer();
+
     try {
-      await pending.update.download((event: any) => {
+      const downloadPromise = pending.update.download((event: any) => {
         if (!event || typeof event !== "object") return;
         const record = event as Record<string, any>;
 
@@ -591,6 +627,7 @@ export function createSystemState(options: {
               ? record.data.contentLength
               : null;
           totalBytes = newTotal;
+          armStallTimer();
           throttledUpdateProgress();
         }
 
@@ -600,9 +637,19 @@ export function createSystemState(options: {
               ? record.data.chunkLength
               : 0;
           accumulatedBytes += chunk;
+          armStallTimer();
           throttledUpdateProgress();
         }
+
+        if (record.event === "Finished") {
+          armStallTimer();
+        }
       });
+
+      await Promise.race([downloadPromise, stallPromise]);
+
+      clearStallTimer();
+      throttledUpdateProgress.flush();
 
       setUpdateStatus({
         state: "ready",
@@ -611,6 +658,8 @@ export function createSystemState(options: {
         notes: pending.notes,
       });
     } catch (e) {
+      clearStallTimer();
+      throttledUpdateProgress.cancel();
       const message = e instanceof Error ? e.message : safeStringify(e);
       setUpdateStatus({ state: "error", lastCheckedAt, message });
     }
