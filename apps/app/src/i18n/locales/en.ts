@@ -1072,6 +1072,8 @@ export default {
   "settings.update_published_label": "Published",
   "settings.update_check_button": "Check",
   "settings.update_download_button": "Download",
+  "settings.update_retry_button": "Retry",
+  "settings.update_stall_hint": "Download stalled — likely a network drop. Try again.",
   "settings.update_install_restart_button": "Install & Restart",
   "settings.updates_not_supported_reason": "Updates are not supported in this environment.",
   "settings.updates_desktop_only_reason": "Updates are only available in the desktop app.",

@@ -994,6 +994,8 @@ export default {
   "settings.update_published_label": "发布时间",
   "settings.update_check_button": "检查",
   "settings.update_download_button": "下载",
+  "settings.update_retry_button": "重试",
+  "settings.update_stall_hint": "下载停滞，可能是网络中断。请重试。",
   "settings.update_install_restart_button": "安装并重启",
   "settings.updates_not_supported_reason": "此环境不支持更新。",
   "settings.updates_desktop_only_reason": "更新仅在桌面应用中可用。",
