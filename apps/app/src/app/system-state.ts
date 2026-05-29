@@ -23,29 +23,59 @@ import {
 } from "./lib/tauri";
 import { unwrap, waitForHealthy } from "./lib/auro";
 
+interface ThrottledFn<T extends (...args: any[]) => any> {
+  (...args: Parameters<T>): void;
+  flush: () => void;
+  cancel: () => void;
+}
+
 function throttle<T extends (...args: any[]) => any>(
   fn: T,
   delayMs: number
-): (...args: Parameters<T>) => void {
+): ThrottledFn<T> {
   let lastCall = 0;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let lastArgs: Parameters<T> | null = null;
 
-  return (...args: Parameters<T>) => {
+  const throttled = ((...args: Parameters<T>) => {
     const now = Date.now();
     lastArgs = args;
 
     if (now - lastCall >= delayMs) {
       lastCall = now;
+      lastArgs = null;
       fn(...args);
-    } else if (!timeoutId){
+    } else if (!timeoutId) {
       timeoutId = setTimeout(() => {
         lastCall = Date.now();
         timeoutId = null;
         if (lastArgs) fn(...lastArgs);
       }, delayMs - (now - lastCall));
     }
-  }
+  }) as ThrottledFn<T>;
+
+  throttled.flush = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    if (lastArgs) {
+      lastCall = Date.now();
+      const args = lastArgs;
+      lastArgs = null;
+      fn(...args);
+    }
+  };
+
+  throttled.cancel = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    lastArgs = null;
+  };
+
+  return throttled;
 }
 
 export type NotionState = {
