@@ -3,7 +3,7 @@ mod bun_env;
 mod commands;
 mod config;
 mod dev_mode;
-mod diagnostic_flag;
+mod dev_mode_flag;
 mod launch_log;
 mod engine;
 mod fs;
@@ -24,9 +24,9 @@ use commands::command_files::{auro_command_delete, auro_command_list, auro_comma
 use commands::config::{read_auro_config, write_auro_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
 use commands::launch_log::{
-    arm_launch_diagnostic, dev_mode_info, launch_diagnostic_status, launch_log_append,
-    launch_log_append_batch, launch_log_mark_complete, launch_log_path, launch_log_summary,
-    open_launch_log_folder,
+    dev_mode_info, get_developer_mode_persistent, launch_log_append, launch_log_append_batch,
+    launch_log_mark_complete, launch_log_path, launch_log_status, launch_log_summary,
+    open_launch_log_folder, set_developer_mode_persistent,
 };
 use commands::engine::{
     engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
@@ -181,16 +181,18 @@ pub fn run() {
         .setup(|app| {
             set_dev_app_name();
 
-            // One-shot diagnostic flag: take + delete it so the NEXT launch
-            // is back to normal. The launch log is enabled if either
-            // dev mode is on, OR a diagnostic was armed before restart.
-            let diagnostic_armed = app
+            // Sticky developer-mode flag persisted by the frontend. When set,
+            // every launch writes a launch log file regardless of build flavor.
+            // The flag survives restarts (unlike the old one-shot diagnostic
+            // mechanism), and is toggled by the user via Settings →
+            // Developer Mode.
+            let developer_mode_sticky = app
                 .path()
                 .app_data_dir()
                 .ok()
-                .map(|dir| crate::diagnostic_flag::take(&dir))
+                .map(|dir| crate::dev_mode_flag::is_set(&dir))
                 .unwrap_or(false);
-            let log_enabled = dev_mode::is_enabled() || diagnostic_armed;
+            let log_enabled = dev_mode::is_enabled() || developer_mode_sticky;
 
             let aggregator = LaunchLogAggregator::default();
             if let Ok(log_dir) = app.path().app_log_dir() {
@@ -211,10 +213,10 @@ pub fn run() {
                 "launch:shell",
                 Some(std::process::id()),
                 &format!(
-                    "aurowork desktop starting, version={}, dev_mode={}, diagnostic_armed={}",
+                    "aurowork desktop starting, version={}, dev_mode={}, developer_mode_sticky={}",
                     env!("CARGO_PKG_VERSION"),
                     dev_mode::is_enabled(),
-                    diagnostic_armed,
+                    developer_mode_sticky,
                 ),
                 None,
             );
@@ -233,9 +235,6 @@ pub fn run() {
                 None,
             );
             app.manage(aggregator.clone());
-            app.manage(commands::launch_log::LaunchDiagnosticStatus {
-                armed_on_startup: diagnostic_armed,
-            });
             launch_log::install_global(aggregator);
             if let Some(agg) = app.try_state::<crate::launch_log::LaunchLogAggregator>() {
                 agg.append(
@@ -314,8 +313,9 @@ pub fn run() {
             launch_log_summary,
             dev_mode_info,
             open_launch_log_folder,
-            arm_launch_diagnostic,
-            launch_diagnostic_status
+            launch_log_status,
+            set_developer_mode_persistent,
+            get_developer_mode_persistent
         ])
         .build(tauri::generate_context!())
         .expect("error while building AuroWork");

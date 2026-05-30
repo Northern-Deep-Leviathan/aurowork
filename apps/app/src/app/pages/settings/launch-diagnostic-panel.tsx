@@ -1,5 +1,5 @@
 import { Show, createSignal, onMount } from "solid-js";
-import { Copy, FolderOpen, Play } from "lucide-solid";
+import { Copy, FolderOpen, RotateCw } from "lucide-solid";
 import Button from "../../components/button";
 
 const settingsPanelSoftClass =
@@ -7,8 +7,7 @@ const settingsPanelSoftClass =
 const compactOutlineActionClass =
   "inline-flex items-center gap-1.5 rounded-lg border border-dls-border px-2.5 py-1 text-xs text-dls-secondary hover:bg-dls-hover transition";
 
-interface LaunchDiagnosticStatusDto {
-  armedOnStartup: boolean;
+interface LaunchLogStatusDto {
   logFilePath: string | null;
 }
 
@@ -24,7 +23,7 @@ export function LaunchDiagnosticPanel(props: LaunchDiagnosticPanelProps) {
   onMount(async () => {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
-      const status = await invoke<LaunchDiagnosticStatusDto>("launch_diagnostic_status");
+      const status = await invoke<LaunchLogStatusDto>("launch_log_status");
       setLogPath(status.logFilePath);
     } catch {
       // Not in Tauri runtime or command not registered yet — silent.
@@ -32,14 +31,12 @@ export function LaunchDiagnosticPanel(props: LaunchDiagnosticPanelProps) {
     }
   });
 
-  async function runDiagnostic() {
+  async function restartApp() {
     setErrorMsg(null);
     const ok = window.confirm(props.translate("settings.launch_diag_confirm"));
     if (!ok) return;
     setBusy(true);
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      await invoke("arm_launch_diagnostic");
       const { relaunch } = await import("@tauri-apps/plugin-process");
       await relaunch();
       // On success the app process exits before this line runs.
@@ -83,10 +80,10 @@ export function LaunchDiagnosticPanel(props: LaunchDiagnosticPanelProps) {
         <Button
           variant="primary"
           class="text-xs h-8 py-0 px-3"
-          onClick={() => void runDiagnostic()}
+          onClick={() => void restartApp()}
           disabled={busy()}
         >
-          <Play size={13} class="mr-1.5" />
+          <RotateCw size={13} class="mr-1.5" />
           {busy()
             ? props.translate("settings.launch_diag_running")
             : props.translate("settings.launch_diag_run")}

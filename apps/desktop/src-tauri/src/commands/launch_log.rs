@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 
 use crate::dev_mode;
+use crate::dev_mode_flag;
 use crate::launch_log::format::Level;
 use crate::launch_log::LaunchLogAggregator;
 
@@ -107,16 +108,15 @@ pub struct DevModeInfo {
 }
 
 #[tauri::command]
-pub fn dev_mode_info(
-    aggregator: State<'_, LaunchLogAggregator>,
-    diagnostic_status: State<'_, LaunchDiagnosticStatus>,
-) -> DevModeInfo {
+pub fn dev_mode_info(aggregator: State<'_, LaunchLogAggregator>) -> DevModeInfo {
+    // `enabled` reports whether the launch log is recording for this
+    // session. The aggregator already knows: if init was called with
+    // `enabled=false` (i.e. neither AUROWORK_DEV_MODE/debug build nor the
+    // sticky developer-mode flag was set when this process started),
+    // `path()` returns None. The frontend uses this to decide whether
+    // to ship UI entries via IPC.
     DevModeInfo {
-        // `enabled` reports whether the launch log is recording for this
-        // session — true whenever dev mode is on OR this launch was
-        // triggered by an armed diagnostic. The frontend uses this to
-        // decide whether to ship UI entries via IPC.
-        enabled: dev_mode::is_enabled() || diagnostic_status.armed_on_startup,
+        enabled: aggregator.path().is_some(),
         log_file_path: aggregator.path().map(|p| p.to_string_lossy().to_string()),
     }
 }
@@ -133,43 +133,17 @@ pub fn open_launch_log_folder(app: AppHandle) -> Result<(), String> {
         .map_err(|e| format!("Failed to open log folder: {e}"))
 }
 
-/// Process-wide state recording whether THIS launch was triggered by an
-/// armed diagnostic flag. Captured in `lib::run().setup()` before the
-/// flag is deleted, then read by the frontend at boot time.
-pub struct LaunchDiagnosticStatus {
-    pub armed_on_startup: bool,
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LaunchDiagnosticStatusDto {
-    pub armed_on_startup: bool,
+pub struct LaunchLogStatusDto {
     pub log_file_path: Option<String>,
 }
 
-/// Arm the one-shot diagnostic flag. The next launch will write a
-/// launch log file regardless of dev mode. Caller is expected to
-/// trigger an app restart immediately after.
+/// Returns the current launch log file path (if any). Called by the
+/// Debug-tab panel to populate the "Last launch log" display.
 #[tauri::command]
-pub fn arm_launch_diagnostic(app: AppHandle) -> Result<(), String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
-    crate::diagnostic_flag::set(&dir).map_err(|e| format!("Failed to arm diagnostic: {e}"))
-}
-
-/// Read whether this launch was diagnostic-triggered, and the current
-/// launch log file path (if any). Called by the frontend on boot to
-/// decide whether to show the "diagnostic captured" toast, and by the
-/// Debug-tab panel to populate the "Last diagnostic" display.
-#[tauri::command]
-pub fn launch_diagnostic_status(
-    status: State<'_, LaunchDiagnosticStatus>,
-    aggregator: State<'_, LaunchLogAggregator>,
-) -> LaunchDiagnosticStatusDto {
-    LaunchDiagnosticStatusDto {
-        armed_on_startup: status.armed_on_startup,
+pub fn launch_log_status(aggregator: State<'_, LaunchLogAggregator>) -> LaunchLogStatusDto {
+    LaunchLogStatusDto {
         log_file_path: aggregator.path().map(|p| p.to_string_lossy().to_string()),
     }
 }
@@ -178,4 +152,38 @@ pub fn launch_diagnostic_status(
 pub fn launch_log_mark_complete(aggregator: State<'_, LaunchLogAggregator>) -> Result<(), String> {
     aggregator.mark_complete();
     Ok(())
+}
+
+/// Persist (or clear) the sticky "developer mode" flag in the app data
+/// dir. When set, the next launch will open a launch log file
+/// regardless of build flavor. Called by the frontend's
+/// `toggleDeveloperMode` so the choice survives restarts.
+#[tauri::command]
+pub fn set_developer_mode_persistent(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+    if enabled {
+        dev_mode_flag::enable(&dir).map_err(|e| format!("Failed to enable developer mode: {e}"))
+    } else {
+        dev_mode_flag::disable(&dir).map_err(|e| format!("Failed to disable developer mode: {e}"))
+    }
+}
+
+/// Read the sticky "developer mode" flag. Called by the frontend at
+/// startup to initialize its in-memory `developerMode` signal so the UI
+/// matches the launch-log decision Rust already made in `setup`.
+#[tauri::command]
+pub fn get_developer_mode_persistent(app: AppHandle) -> Result<bool, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+    // Tolerate either source of truth: the sticky flag OR the build-time
+    // env/debug-assertion (`dev_mode::is_enabled()`). The latter is the
+    // historical "always on" case for debug builds; we don't want users
+    // running a dev build to see Developer Mode reported as "off" simply
+    // because the flag file was never written.
+    Ok(dev_mode::is_enabled() || dev_mode_flag::is_set(&dir))
 }
