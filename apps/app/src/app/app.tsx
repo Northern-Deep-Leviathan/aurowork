@@ -1478,6 +1478,25 @@ export default function App() {
   const [developerMode, setDeveloperMode] = createSignal(false);
   const [documentVisible, setDocumentVisible] = createSignal(true);
 
+  // Hydrate developerMode from the Rust-side sticky flag once on startup.
+  // Rust is the single source of truth: the same flag drives whether the
+  // launch log is recording for this process (decided in `lib::run().setup`
+  // long before this signal exists), so the UI must mirror it.
+  if (isTauriRuntime()) {
+    onMount(async () => {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const enabled = await invoke<boolean>("get_developer_mode_persistent");
+        if (enabled) {
+          setDeveloperMode(true);
+          enableDebugFileLog();
+        }
+      } catch {
+        // best-effort; flag stays false
+      }
+    });
+  }
+
   createEffect(() => {
     if (developerMode()) return;
     clearPerfLogs();
@@ -5492,6 +5511,17 @@ export default function App() {
       setUpdateAutoDownload(false);
       setUpdateStatus({ state: "idle", lastCheckedAt: null });
       setDeveloperMode(false);
+      disableDebugFileLog();
+      // Clear the Rust-side sticky flag so the next launch does not
+      // resurrect "developer mode is on" from the file.
+      if (isTauriRuntime()) {
+        try {
+          const { invoke } = await import("@tauri-apps/api/core");
+          await invoke("set_developer_mode_persistent", { enabled: false });
+        } catch {
+          // best-effort
+        }
+      }
 
       clearStartupPreference();
       setStartupPreference(null);
@@ -8130,13 +8160,23 @@ export default function App() {
       auroEnableExa: auroEnableExa(),
       toggleOpencodeEnableExa: () => setOpencodeEnableExa((v) => !v),
       isWindows: isWindowsPlatform(),
-      toggleDeveloperMode: () => {
-        setDeveloperMode((v) => {
-          const next = !v;
-          if (next) enableDebugFileLog();
-          else disableDebugFileLog();
-          return next;
-        });
+      toggleDeveloperMode: async () => {
+        const next = !developerMode();
+        // Persist to Rust first so a crash between the signal flip and the
+        // file write can't desynchronize UI vs the launch-log decision the
+        // next process makes in `setup`.
+        if (isTauriRuntime()) {
+          try {
+            const { invoke } = await import("@tauri-apps/api/core");
+            await invoke("set_developer_mode_persistent", { enabled: next });
+          } catch {
+            // best-effort; still mutate the in-memory signal so the UI
+            // reflects the user's intent even if the file write failed
+          }
+        }
+        setDeveloperMode(next);
+        if (next) enableDebugFileLog();
+        else disableDebugFileLog();
       },
       developerMode: developerMode(),
       stopHost,
