@@ -2268,6 +2268,15 @@ export default function SettingsView(props: SettingsViewProps) {
                                 <div class="text-xs text-red-11">
                                   {updateErrorMessage()}
                                 </div>
+                                <Show
+                                  when={
+                                    updateErrorMessage()?.toLowerCase().includes("stall")
+                                  }
+                                >
+                                  <div class="text-xs text-dls-secondary">
+                                    {translate("settings.update_stall_hint")}
+                                  </div>
+                                </Show>
                               </Show>
                             </div>
 
@@ -2295,6 +2304,17 @@ export default function SettingsView(props: SettingsViewProps) {
                                   }
                                 >
                                   {translate("settings.update_download_button")}
+                                </Button>
+                              </Show>
+
+                              <Show when={updateState() === "error"}>
+                                <Button
+                                  variant="secondary"
+                                  class="text-xs h-9 py-0 px-4 rounded-full"
+                                  onClick={props.downloadUpdate}
+                                  disabled={props.busy}
+                                >
+                                  {translate("settings.update_retry_button")}
                                 </Button>
                               </Show>
 

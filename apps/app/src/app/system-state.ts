@@ -23,29 +23,59 @@ import {
 } from "./lib/tauri";
 import { unwrap, waitForHealthy } from "./lib/auro";
 
+interface ThrottledFn<T extends (...args: any[]) => any> {
+  (...args: Parameters<T>): void;
+  flush: () => void;
+  cancel: () => void;
+}
+
 function throttle<T extends (...args: any[]) => any>(
   fn: T,
   delayMs: number
-): (...args: Parameters<T>) => void {
+): ThrottledFn<T> {
   let lastCall = 0;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let lastArgs: Parameters<T> | null = null;
 
-  return (...args: Parameters<T>) => {
+  const throttled = ((...args: Parameters<T>) => {
     const now = Date.now();
     lastArgs = args;
 
     if (now - lastCall >= delayMs) {
       lastCall = now;
+      lastArgs = null;
       fn(...args);
-    } else if (!timeoutId){
+    } else if (!timeoutId) {
       timeoutId = setTimeout(() => {
         lastCall = Date.now();
         timeoutId = null;
         if (lastArgs) fn(...lastArgs);
       }, delayMs - (now - lastCall));
     }
-  }
+  }) as ThrottledFn<T>;
+
+  throttled.flush = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    if (lastArgs) {
+      lastCall = Date.now();
+      const args = lastArgs;
+      lastArgs = null;
+      fn(...args);
+    }
+  };
+
+  throttled.cancel = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    lastArgs = null;
+  };
+
+  return throttled;
 }
 
 export type NotionState = {
@@ -535,7 +565,7 @@ export function createSystemState(options: {
       downloadedBytes: 0,
       notes: pending.notes,
     });
-    
+
     let accumulatedBytes = 0;
     let totalBytes: number | null = null;
 
@@ -550,8 +580,44 @@ export function createSystemState(options: {
       });
     }, 100);
 
+    // Stall watchdog. tauri-plugin-updater's download() does not accept an
+    // AbortSignal, so we cannot cancel the underlying Rust task. We can,
+    // however, stop awaiting it: Promise.race rejects when the watchdog
+    // fires, the frontend unblocks, and the orphaned Rust task dies on its
+    // own network timeout.
+    const STALL_TIMEOUT_MS = 60_000;
+    let stallTimer: ReturnType<typeof setTimeout> | null = null;
+    let stallReject: ((err: Error) => void) | null = null;
+
+    const armStallTimer = () => {
+      if (stallTimer) clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        if (stallReject) {
+          stallReject(
+            new Error(
+              `Download stalled: no progress for ${Math.round(STALL_TIMEOUT_MS / 1000)}s`,
+            ),
+          );
+        }
+      }, STALL_TIMEOUT_MS);
+    };
+
+    const clearStallTimer = () => {
+      if (stallTimer) {
+        clearTimeout(stallTimer);
+        stallTimer = null;
+      }
+      stallReject = null;
+    };
+
+    const stallPromise = new Promise<never>((_, reject) => {
+      stallReject = reject;
+    });
+
+    armStallTimer();
+
     try {
-      await pending.update.download((event: any) => {
+      const downloadPromise = pending.update.download((event: any) => {
         if (!event || typeof event !== "object") return;
         const record = event as Record<string, any>;
 
@@ -561,6 +627,7 @@ export function createSystemState(options: {
               ? record.data.contentLength
               : null;
           totalBytes = newTotal;
+          armStallTimer();
           throttledUpdateProgress();
         }
 
@@ -570,9 +637,19 @@ export function createSystemState(options: {
               ? record.data.chunkLength
               : 0;
           accumulatedBytes += chunk;
+          armStallTimer();
           throttledUpdateProgress();
         }
+
+        if (record.event === "Finished") {
+          armStallTimer();
+        }
       });
+
+      await Promise.race([downloadPromise, stallPromise]);
+
+      clearStallTimer();
+      throttledUpdateProgress.flush();
 
       setUpdateStatus({
         state: "ready",
@@ -581,6 +658,8 @@ export function createSystemState(options: {
         notes: pending.notes,
       });
     } catch (e) {
+      clearStallTimer();
+      throttledUpdateProgress.cancel();
       const message = e instanceof Error ? e.message : safeStringify(e);
       setUpdateStatus({ state: "error", lastCheckedAt, message });
     }
