@@ -18,7 +18,6 @@ import {
 
 import Button from "../components/button";
 import ProviderIcon from "../components/provider-icon";
-import DenSettingsPanel from "../components/den-settings-panel";
 import TextInput from "../components/text-input";
 import WebUnavailableSurface from "../components/web-unavailable-surface";
 import type { McpDirectoryInfo } from "../constants";
@@ -283,12 +282,6 @@ export type SettingsViewProps = {
     directory?: string | null;
     displayName?: string | null;
   }) => Promise<boolean>;
-  openCloudTemplate: (input: {
-    templateId: string;
-    name: string;
-    templateData: unknown;
-    organizationName?: string | null;
-  }) => Promise<void> | void;
 };
 
 const DISCORD_INVITE_URL = "https://discord.gg/VEhNQXxYMB";
@@ -855,8 +848,6 @@ export default function SettingsView(props: SettingsViewProps) {
 
   const tabLabel = (tab: SettingsTab) => {
     switch (tab) {
-      case "den":
-        return translate("settings.tab_cloud");
       case "model":
         return translate("settings.tab_model");
       case "skills":
@@ -1346,8 +1337,6 @@ export default function SettingsView(props: SettingsViewProps) {
 
   const tabDescription = (tab: SettingsTab) => {
     switch (tab) {
-      case "den":
-        return translate("settings.tab_desc_den");
       case "model":
         return translate("settings.tab_desc_model");
       case "skills":
@@ -1951,14 +1940,6 @@ export default function SettingsView(props: SettingsViewProps) {
               removePlugin={props.removePlugin}
             />
           </WebUnavailableSurface>
-        </Match>
-
-        <Match when={activeTab() === "den"}>
-          <DenSettingsPanel
-            developerMode={props.developerMode}
-            connectRemoteWorkspace={props.connectRemoteWorkspace}
-            openCloudTemplate={props.openCloudTemplate}
-          />
         </Match>
 
         <Match when={activeTab() === "advanced"}>

@@ -484,6 +484,52 @@ pub fn write_local_skill(
 }
 
 #[tauri::command]
+pub fn install_skill_template(
+    project_dir: String,
+    name: String,
+    content: String,
+    overwrite: Option<bool>,
+) -> Result<ExecResult, String> {
+    let project_dir = project_dir.trim();
+    if project_dir.is_empty() {
+        return Err("projectDir is required".to_string());
+    }
+
+    let name = validate_skill_name(&name)?;
+    let project_path = PathBuf::from(project_dir);
+    let skill_dir = project_path.join(".opencode").join("skills").join(&name);
+    let skill_file = skill_dir.join("SKILL.md");
+    let overwrite = overwrite.unwrap_or(false);
+
+    if skill_file.exists() && !overwrite {
+        return Ok(ExecResult {
+            ok: false,
+            status: 1,
+            stdout: String::new(),
+            stderr: format!("Skill already exists: {}", name),
+        });
+    }
+
+    fs::create_dir_all(&skill_dir)
+        .map_err(|e| format!("Failed to create {}: {e}", skill_dir.display()))?;
+
+    let next = if content.ends_with('\n') {
+        content
+    } else {
+        format!("{}\n", content)
+    };
+    fs::write(&skill_file, next)
+        .map_err(|e| format!("Failed to write {}: {e}", skill_file.display()))?;
+
+    Ok(ExecResult {
+        ok: true,
+        status: 0,
+        stdout: format!("Installed skill {}", name),
+        stderr: String::new(),
+    })
+}
+
+#[tauri::command]
 pub fn uninstall_skill(project_dir: String, name: String) -> Result<ExecResult, String> {
     let project_dir = project_dir.trim();
     if project_dir.is_empty() {

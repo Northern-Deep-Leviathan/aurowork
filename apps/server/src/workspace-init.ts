@@ -167,7 +167,8 @@ async function upsertPresetSkill(workspaceRoot: string, rawContent: string): Pro
         // Corrupted meta — overwrite
       }
     } else {
-      // Overwrite for existing skills migration
+      // No preset metadata means this is user-created or manually managed.
+      return;
     }
   }
 

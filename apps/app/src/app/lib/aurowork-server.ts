@@ -1108,39 +1108,6 @@ export function createAuroworkServerClient(options: {
   return {
     baseUrl,
     token,
-    fetchBundle: async (_url: string): Promise<unknown> => {
-      throw new Error("AuroWork server fetchBundle is not implemented");
-    },
-    publishBundle: async (
-      _payload: unknown,
-      _kind: string,
-      _opts?: { name?: string; baseUrl?: string; workspaceId?: string },
-    ): Promise<{ url: string }> => {
-      throw new Error("AuroWork server publishBundle is not implemented");
-    },
-    listAudit: async (
-      _workspaceId: string,
-      _limit: number,
-    ): Promise<{ items: AuroworkAuditEntry[] }> => {
-      throw new Error("AuroWork server listAudit is not implemented");
-    },
-    listScheduledJobs: async (
-      _workspaceId: string,
-    ): Promise<{
-      items: Array<{ id: string; cron: string; nextRunAt: number | null }>;
-    }> => {
-      throw new Error("AuroWork server listScheduledJobs is not implemented");
-    },
-    materializeBlueprintSessions: async (
-      _workspaceId: string,
-    ): Promise<{
-      created: Array<{ sessionId: string; templateId?: string | null }>;
-      openSessionId?: string | null;
-    }> => {
-      throw new Error(
-        "AuroWork server materializeBlueprintSessions is not implemented",
-      );
-    },
     health: () =>
       requestJson<{ ok: boolean; version: string; uptimeMs: number }>(
         baseUrl,

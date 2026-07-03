@@ -42,10 +42,7 @@ import { LaunchDiagnosticToast } from "./components/launch-diagnostic-toast";
 import OnboardingView from "./pages/onboarding";
 import DashboardView from "./pages/dashboard";
 import SessionView from "./pages/session";
-import ProtoWorkspacesView from "./pages/proto-workspaces";
-import ProtoV1UxView from "./pages/proto-v1-ux";
 import { createClient, unwrap, waitForHealthy, type AuroAuth } from "./lib/auro";
-import { createDenClient, normalizeDenBaseUrl, writeDenSettings, DEFAULT_DEN_BASE_URL } from "./lib/den";
 import {
   abortSession as abortSessionTyped,
   abortSessionSafe,
@@ -542,10 +539,6 @@ async function fetchSharedBundle(bundleUrl: string, serverClient?: AuroworkServe
     targetUrl.searchParams.set("format", "json");
   }
 
-  if (serverClient) {
-    return parseSharedBundle(await serverClient.fetchBundle(targetUrl.toString()));
-  }
-
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 15_000);
 
@@ -634,79 +627,8 @@ function buildImportPayloadFromBundle(bundle: SharedBundleV1): {
 }
 
 function parseSharedBundleDeepLink(rawUrl: string): SharedBundleDeepLink | null {
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    return null;
-  }
-
-  const protocol = url.protocol.toLowerCase();
-  if (!isSupportedDeepLinkProtocol(protocol)) {
-    return null;
-  }
-
-  const routeHost = url.hostname.toLowerCase();
-  const routePath = url.pathname.replace(/^\/+/, "").toLowerCase();
-  const routeSegments = routePath.split("/").filter(Boolean);
-  const routeTail = routeSegments[routeSegments.length - 1] ?? "";
-  const looksLikeImportRoute =
-    routeHost === "import-bundle" ||
-    routePath === "import-bundle" ||
-    routeTail === "import-bundle";
-
-  const rawBundleUrl =
-    url.searchParams.get("ow_bundle") ??
-    url.searchParams.get("bundleUrl") ??
-    "";
-
-  if (!looksLikeImportRoute && !rawBundleUrl.trim()) {
-    return null;
-  }
-
-  try {
-    if ((protocol === "https:" || protocol === "http:") && !rawBundleUrl.trim()) {
-      const host = url.hostname.toLowerCase();
-      const path = url.pathname.replace(/^\/+/, "");
-      const segments = path.split("/").filter(Boolean);
-      if (
-        (host === "share.aurowork.software"
-          || host.endsWith(".aurowork.software"))
-        && segments[0] === "b"
-        && segments[1]
-      ) {
-        const intent = normalizeSharedBundleImportIntent(url.searchParams.get("ow_intent") ?? url.searchParams.get("intent"));
-        const source = url.searchParams.get("ow_source")?.trim() ?? url.searchParams.get("source")?.trim() ?? "";
-        const orgId = url.searchParams.get("ow_org")?.trim() ?? "";
-        const label = url.searchParams.get("ow_label")?.trim() ?? url.searchParams.get("label")?.trim() ?? "";
-        return {
-          bundleUrl: url.toString(),
-          intent,
-          source: source || undefined,
-          orgId: orgId || undefined,
-          label: label || undefined,
-        };
-      }
-    }
-
-    const parsedBundleUrl = new URL(rawBundleUrl.trim());
-    if (parsedBundleUrl.protocol !== "https:" && parsedBundleUrl.protocol !== "http:") {
-      return null;
-    }
-    const intent = normalizeSharedBundleImportIntent(url.searchParams.get("ow_intent") ?? url.searchParams.get("intent"));
-    const source = url.searchParams.get("ow_source")?.trim() ?? url.searchParams.get("source")?.trim() ?? "";
-    const orgId = url.searchParams.get("ow_org")?.trim() ?? "";
-    const label = url.searchParams.get("ow_label")?.trim() ?? "";
-    return {
-      bundleUrl: parsedBundleUrl.toString(),
-      intent,
-      source: source || undefined,
-      orgId: orgId || undefined,
-      label: label || undefined,
-    };
-  } catch {
-    return null;
-  }
+  void rawUrl;
+  return null;
 }
 
 function stripSharedBundleQuery(rawUrl: string): string | null {
@@ -781,41 +703,6 @@ function parseRemoteConnectDeepLink(rawUrl: string): RemoteWorkspaceDefaults | n
   };
 }
 
-type DenAuthDeepLink = {
-  grant: string;
-  denBaseUrl: string;
-};
-
-function parseDenAuthDeepLink(rawUrl: string): DenAuthDeepLink | null {
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    return null;
-  }
-
-  const protocol = url.protocol.toLowerCase();
-  if (!isSupportedDeepLinkProtocol(protocol)) {
-    return null;
-  }
-
-  const routeHost = url.hostname.toLowerCase();
-  const routePath = url.pathname.replace(/^\/+/, "").toLowerCase();
-  const routeSegments = routePath.split("/").filter(Boolean);
-  const routeTail = routeSegments[routeSegments.length - 1] ?? "";
-  if (routeHost !== "den-auth" && routePath !== "den-auth" && routeTail !== "den-auth") {
-    return null;
-  }
-
-  const grant = url.searchParams.get("grant")?.trim() ?? "";
-  const denBaseUrl = normalizeDenBaseUrl(url.searchParams.get("denBaseUrl")?.trim() ?? "") ?? DEFAULT_DEN_BASE_URL;
-  if (!grant) {
-    return null;
-  }
-
-  return { grant, denBaseUrl };
-}
-
 function normalizeDebugDeepLinkInput(rawValue: string): string {
   const trimmed = rawValue.trim();
   if (!trimmed) return "";
@@ -823,24 +710,15 @@ function normalizeDebugDeepLinkInput(rawValue: string): string {
   const directMatch = trimmed.match(/(?:aurowork-dev|aurowork|https?):\/\/[^\s"'<>]+/i);
   if (directMatch) return directMatch[0];
 
-  const bareShareMatch = trimmed.match(/share\.aurowork(?:labs\.com|\.software)\/b\/[^\s"'<>]+/i);
-  if (bareShareMatch) return `https://${bareShareMatch[0]}`;
-
   return trimmed;
 }
 
 function parseDebugDeepLinkInput(rawValue: string):
   | { kind: "bundle"; link: SharedBundleDeepLink }
   | { kind: "remote"; link: RemoteWorkspaceDefaults }
-  | { kind: "auth"; link: DenAuthDeepLink }
   | null {
   const normalized = normalizeDebugDeepLinkInput(rawValue);
   if (!normalized) return null;
-
-  const denAuthLink = parseDenAuthDeepLink(normalized);
-  if (denAuthLink) {
-    return { kind: "auth", link: denAuthLink };
-  }
 
   const sharedBundleLink = parseSharedBundleDeepLink(normalized);
   if (sharedBundleLink) {
@@ -850,38 +728,6 @@ function parseDebugDeepLinkInput(rawValue: string):
   const remoteConnectLink = parseRemoteConnectDeepLink(normalized);
   if (remoteConnectLink) {
     return { kind: "remote", link: remoteConnectLink };
-  }
-
-  const bundleMatch = normalized.match(/ow_bundle=([^&\s]+)/i);
-  if (bundleMatch?.[1]) {
-    try {
-      const bundleUrl = decodeURIComponent(bundleMatch[1]);
-      const intentMatch = normalized.match(/(?:ow_intent|intent)=([^&\s]+)/i);
-      const labelMatch = normalized.match(/ow_label=([^&\s]+)/i);
-      const sourceMatch = normalized.match(/(?:ow_source|source)=([^&\s]+)/i);
-      return {
-        kind: "bundle",
-        link: {
-          bundleUrl,
-          intent: normalizeSharedBundleImportIntent(intentMatch?.[1] ? decodeURIComponent(intentMatch[1]) : undefined),
-          label: labelMatch?.[1] ? decodeURIComponent(labelMatch[1]) : undefined,
-          source: sourceMatch?.[1] ? decodeURIComponent(sourceMatch[1]) : undefined,
-        },
-      };
-    } catch {
-      // ignore fallback parsing errors
-    }
-  }
-
-  const shareIdMatch = normalized.match(/share\.aurowork\.software\/b\/([^\s/?#"'<>]+)/i);
-  if (shareIdMatch?.[1]) {
-    return {
-      kind: "bundle",
-      link: {
-        bundleUrl: `https://share.example.com/b/${shareIdMatch[1]}`,
-        intent: "new_worker",
-      },
-    };
   }
 
   return null;
@@ -963,12 +809,8 @@ export default function App() {
     const path = location.pathname.toLowerCase();
     if (path.startsWith("/onboarding")) return "onboarding";
     if (path.startsWith("/session")) return "session";
-    if (path.startsWith("/proto")) return "proto";
     return "dashboard";
   });
-  const isProtoV1Ux = createMemo(() =>
-    location.pathname.toLowerCase().startsWith("/proto-v1-ux")
-  );
 
   const [tab, setTabState] = createSignal<DashboardTab>("skills");
   const [settingsTab, setSettingsTab] = createSignal<SettingsTab>("general");
@@ -993,10 +835,7 @@ export default function App() {
     if (next === "dashboard" && Date.now() < sessionViewLockUntil()) {
       return;
     }
-    if (next === "proto") {
-      navigate("/proto/workspaces");
-      return;
-    }
+    if (next === "proto") next = "dashboard";
     if (next === "onboarding") {
       navigate("/onboarding");
       return;
@@ -1651,7 +1490,7 @@ export default function App() {
       return;
     }
     if (target.view === "proto") {
-      navigate("/proto/workspaces");
+      goToDashboard("skills");
       return;
     }
     goToDashboard(target.tab);
@@ -4510,46 +4349,9 @@ export default function App() {
       setAuroworkAuditError(null);
       return;
     }
-    if (!documentVisible()) return;
-
-    const client = devtoolsAuroworkClient();
-    const workspaceId = devtoolsWorkspaceId();
-    if (!client || !workspaceId) {
-      setAuroworkAuditEntries([]);
-      setAuroworkAuditStatus("idle");
-      setAuroworkAuditError(null);
-      return;
-    }
-
-    let active = true;
-    let busy = false;
-
-    const run = async () => {
-      if (busy) return;
-      busy = true;
-      setAuroworkAuditStatus("loading");
-      setAuroworkAuditError(null);
-      try {
-        const result = await client.listAudit(workspaceId, 50);
-        if (!active) return;
-        setAuroworkAuditEntries(Array.isArray(result.items) ? result.items : []);
-        setAuroworkAuditStatus("idle");
-      } catch (error) {
-        if (!active) return;
-        setAuroworkAuditEntries([]);
-        setAuroworkAuditStatus("error");
-        setAuroworkAuditError(error instanceof Error ? error.message : "Failed to load audit log.");
-      } finally {
-        busy = false;
-      }
-    };
-
-    run();
-    const interval = window.setInterval(run, 15_000);
-    onCleanup(() => {
-      active = false;
-      window.clearInterval(interval);
-    });
+    setAuroworkAuditEntries([]);
+    setAuroworkAuditStatus("idle");
+    setAuroworkAuditError(null);
   });
 
   createEffect(() => {
@@ -4649,8 +4451,6 @@ export default function App() {
   const [deepLinkRemoteWorkspaceDefaults, setDeepLinkRemoteWorkspaceDefaults] = createSignal<RemoteWorkspaceDefaults | null>(null);
   const [pendingRemoteConnectDeepLink, setPendingRemoteConnectDeepLink] = createSignal<RemoteWorkspaceDefaults | null>(null);
   const [autoConnectRemoteWorkspaceOverlayOpen, setAutoConnectRemoteWorkspaceOverlayOpen] = createSignal(false);
-  const [pendingDenAuthDeepLink, setPendingDenAuthDeepLink] = createSignal<DenAuthDeepLink | null>(null);
-  const [processingDenAuthDeepLink, setProcessingDenAuthDeepLink] = createSignal(false);
   const [pendingSharedBundleInvite, setPendingSharedBundleInvite] = createSignal<SharedBundleDeepLink | null>(null);
   const [sharedTemplateStartRequest, setSharedTemplateStartRequest] =
     createSignal<SharedTemplateStartRequest | null>(null);
@@ -4782,15 +4582,6 @@ export default function App() {
     }
   };
 
-  const queueDenAuthDeepLink = (rawUrl: string): boolean => {
-    const parsed = parseDenAuthDeepLink(rawUrl);
-    if (!parsed) {
-      return false;
-    }
-    setPendingDenAuthDeepLink(parsed);
-    return true;
-  };
-
   const queueSharedBundleDeepLink = (rawUrl: string): boolean => {
     const parsed = parseSharedBundleDeepLink(rawUrl);
     if (!parsed) {
@@ -4845,10 +4636,9 @@ export default function App() {
         continue;
       }
 
-      const matchedDen = queueDenAuthDeepLink(url);
-      const matchedRemote = !matchedDen && queueRemoteConnectDeepLink(url);
-      const matchedBundle = !matchedDen && !matchedRemote && queueSharedBundleDeepLink(url);
-      const claimed = matchedDen || matchedRemote || matchedBundle;
+      const matchedRemote = queueRemoteConnectDeepLink(url);
+      const matchedBundle = !matchedRemote && queueSharedBundleDeepLink(url);
+      const claimed = matchedRemote || matchedBundle;
       if (!claimed) {
         continue;
       }
@@ -4900,11 +4690,6 @@ export default function App() {
         setSharedBundleImportBusy(false);
       }
     }
-    if (parsed.kind === "auth") {
-      setPendingDenAuthDeepLink(parsed.link);
-      return { ok: true, message: "Queued the Cloud auth deep link for AuroWork." };
-    }
-
     setPendingRemoteConnectDeepLink(parsed.kind === "remote" ? parsed.link : null);
     setTab("skills");
     return { ok: true, message: "Queued remote worker link. AuroWork should move into the connect flow." };
@@ -4914,47 +4699,6 @@ export default function App() {
     if (sharedBundleImportBusy()) return;
     setSharedBundleImportChoice(null);
     setSharedBundleImportError(null);
-  };
-
-  const openCloudTemplate = async (input: {
-    templateId: string;
-    name: string;
-    templateData: unknown;
-    organizationName?: string | null;
-  }) => {
-    const bundle = parseSharedBundle(input.templateData);
-    setError(null);
-    setView("dashboard");
-    setTab("settings");
-    setSharedSkillDestinationBusyId(null);
-    setSharedBundleImportError(null);
-    setSharedTemplateStartRequest(null);
-    setSharedBundleCreateWorkerRequest(null);
-
-    if (bundle.type === "skill") {
-      setSharedBundleImportChoice(null);
-      setSharedSkillDestinationRequest({
-        request: {
-          bundleUrl: "",
-          intent: "import_current",
-          source: "cloud-template",
-          label: input.name,
-        },
-        bundle,
-      });
-      return;
-    }
-
-    setSharedSkillDestinationRequest(null);
-    setSharedBundleImportChoice({
-      request: {
-        bundleUrl: "",
-        intent: "import_current",
-        source: "cloud-template",
-        label: input.name,
-      },
-      bundle,
-    });
   };
 
   const sharedBundleImportCopy = createMemo(() => {
@@ -5087,57 +4831,6 @@ export default function App() {
       setSharedBundleImportBusy(false);
     }
   };
-
-  createEffect(() => {
-    const pending = pendingDenAuthDeepLink();
-    if (!pending || booting() || processingDenAuthDeepLink()) {
-      return;
-    }
-
-    setProcessingDenAuthDeepLink(true);
-    setPendingDenAuthDeepLink(null);
-    setView("dashboard");
-    setSettingsTab("den");
-    goToDashboard("settings");
-
-    void createDenClient({ baseUrl: pending.denBaseUrl })
-      .exchangeDesktopHandoff(pending.grant)
-      .then((result) => {
-        if (!result.token) {
-          throw new Error("Desktop sign-in completed, but AuroWork Cloud did not return a session token.");
-        }
-
-        writeDenSettings({
-          baseUrl: pending.denBaseUrl,
-          authToken: result.token,
-          activeOrgId: null,
-          activeOrgSlug: null,
-          activeOrgName: null,
-        });
-
-        window.dispatchEvent(
-          new CustomEvent("aurowork-den-session-updated", {
-            detail: {
-              status: "success",
-              email: result.user?.email ?? null,
-            },
-          }),
-        );
-      })
-      .catch((error) => {
-        window.dispatchEvent(
-          new CustomEvent("aurowork-den-session-updated", {
-            detail: {
-              status: "error",
-              message: error instanceof Error ? error.message : "Failed to complete AuroWork Cloud sign-in.",
-            },
-          }),
-        );
-      })
-      .finally(() => {
-        setProcessingDenAuthDeepLink(false);
-      });
-  });
 
   createEffect(() => {
     const pending = pendingRemoteConnectDeepLink();
@@ -5628,23 +5321,12 @@ export default function App() {
     setEngineInstallLogs,
   } = workspaceStore;
 
-  // Scheduler helpers - must be defined after workspaceStore
-  const resolveAuroworkScheduler = () => {
-    const client = auroworkServerClient();
-    const workspaceId = runtimeWorkspaceId();
-    if (auroworkServerStatus() !== "connected" || !client || !workspaceId) return null;
-    return { client, workspaceId };
-  };
-
   const scheduledJobsSource = createMemo<"local" | "remote">(() => {
-    return resolveAuroworkScheduler() ? "remote" : "local";
+    return "local";
   });
 
   const scheduledJobsSourceReady = createMemo(() => {
-    if (scheduledJobsSource() !== "remote") return true;
-    const client = auroworkServerClient();
-    const workspaceId = runtimeWorkspaceId();
-    return auroworkServerStatus() === "connected" && Boolean(client && workspaceId);
+    return true;
   });
 
   const schedulerPluginInstalled = createMemo(() => isPluginInstalledByName("opencode-scheduler"));
@@ -5656,8 +5338,7 @@ export default function App() {
   });
 
   const scheduledJobsPollingAvailable = createMemo(() => {
-    if (scheduledJobsSource() === "remote") return scheduledJobsSourceReady();
-    return isTauriRuntime() && !isWindowsPlatform() && schedulerPluginInstalled();
+    return false;
   });
 
   const refreshScheduledJobs = async (
@@ -5668,76 +5349,11 @@ export default function App() {
 
     const requestContextKey = scheduledJobsContextKey();
 
-    if (scheduledJobsSource() === "remote") {
-      const scheduler = resolveAuroworkScheduler();
-      if (!scheduler) {
-        if (scheduledJobsContextKey() !== requestContextKey) return "skipped";
-        const status =
-          auroworkServerStatus() === "disconnected"
-            ? "AuroWork server unavailable. Connect to sync scheduled tasks."
-            : auroworkServerStatus() === "limited"
-              ? "AuroWork server needs a token to load scheduled tasks."
-              : "AuroWork server not ready.";
-        setScheduledJobsStatus(status);
-        return "unavailable";
-      }
-
-      setScheduledJobsBusy(true);
-      setScheduledJobsStatus(null);
-
-      try {
-        const response = await scheduler.client.listScheduledJobs(scheduler.workspaceId);
-        if (scheduledJobsContextKey() !== requestContextKey) return "skipped";
-        const jobs = Array.isArray(response.items) ? response.items : [];
-        setScheduledJobs(jobs);
-        setScheduledJobsUpdatedAt(Date.now());
-        return "success";
-      } catch (error) {
-        if (scheduledJobsContextKey() !== requestContextKey) return "skipped";
-        const message = error instanceof Error ? error.message : String(error);
-        setScheduledJobsStatus(message || "Failed to load scheduled tasks.");
-        return "error";
-      } finally {
-        setScheduledJobsBusy(false);
-      }
-    }
-
-    if (!isTauriRuntime()) {
-      if (scheduledJobsContextKey() !== requestContextKey) return "skipped";
-      setScheduledJobsStatus(null);
-      return "unavailable";
-    }
-
-    if (isWindowsPlatform()) {
-      if (scheduledJobsContextKey() !== requestContextKey) return "skipped";
-      setScheduledJobsStatus(null);
-      return "unavailable";
-    }
-
-    if (!schedulerPluginInstalled()) {
-      if (scheduledJobsContextKey() !== requestContextKey) return "skipped";
-      setScheduledJobsStatus(null);
-      return "unavailable";
-    }
-
-    setScheduledJobsBusy(true);
     setScheduledJobsStatus(null);
-
-    try {
-      const root = workspaceStore.selectedWorkspaceRoot().trim();
-      const jobs: unknown[] = []; // scheduler feature removed
-      if (scheduledJobsContextKey() !== requestContextKey) return "skipped";
-      setScheduledJobs(jobs);
-      setScheduledJobsUpdatedAt(Date.now());
-      return "success";
-    } catch (error) {
-      if (scheduledJobsContextKey() !== requestContextKey) return "skipped";
-      const message = error instanceof Error ? error.message : String(error);
-      setScheduledJobsStatus(message || "Failed to load scheduled tasks.");
-      return "error";
-    } finally {
-      setScheduledJobsBusy(false);
-    }
+    if (scheduledJobsContextKey() !== requestContextKey) return "skipped";
+    setScheduledJobs([]);
+    setScheduledJobsUpdatedAt(null);
+    return "unavailable";
   };
 
   createEffect(() => {
@@ -5938,75 +5554,8 @@ export default function App() {
     createSignal<Record<string, boolean>>({});
 
   createEffect(() => {
-    const workspaceId = (runtimeWorkspaceId() ?? "").trim();
-    const client = auroworkServerClient();
-    const connected = auroworkServerStatus() === "connected";
-    const root = workspaceStore.selectedWorkspaceRoot().trim();
-    const config = resolvedActiveWorkspaceConfig();
-    const templates = blueprintSessions(config);
-    const materialized = blueprintMaterializedSessions(config);
-    const currentSessions = sessions();
-    const normalizedRoot = normalizeDirectoryPath(root);
-    const hasWorkspaceSessions = currentSessions.some((session) => {
-      const directory = typeof session.directory === "string" ? session.directory : "";
-      return normalizeDirectoryPath(directory) === normalizedRoot;
-    });
-
-    if (!workspaceId || !client || !connected) return;
-    if (!root) return;
-    if (!sessionsLoaded()) return;
-    if (creatingSession()) return;
-    if (selectedSessionId()) return;
-    if (!templates.length) return;
-    if (materialized.length > 0) return;
-    if (hasWorkspaceSessions) return;
-    if (blueprintSessionMaterializeBusyByWorkspaceId()[workspaceId]) return;
-    if (blueprintSessionMaterializeAttemptedByWorkspaceId()[workspaceId]) return;
-
-    setBlueprintSessionMaterializeBusyByWorkspaceId((current) => ({
-      ...current,
-      [workspaceId]: true,
-    }));
-
-    void (async () => {
-      try {
-        const result = await client.materializeBlueprintSessions(workspaceId);
-        const templateMessages = new Map(
-          templates.map((template) => [template.id?.trim(), (template.messages ?? []).filter((entry) => entry?.text?.trim())] as const),
-        );
-        if (result.created.length > 0) {
-          setBlueprintSeedMessagesBySessionId((current) => {
-            const next = { ...current };
-            result.created.forEach((entry) => {
-              const messages = templateMessages.get(entry.templateId?.trim());
-              if (messages && messages.length > 0) {
-                next[entry.sessionId] = messages;
-              }
-            });
-            return next;
-          });
-        }
-        setBlueprintSessionMaterializeAttemptedByWorkspaceId((current) => ({
-          ...current,
-          [workspaceId]: true,
-        }));
-        await refreshActiveWorkspaceServerConfig(workspaceId);
-        await loadSessionsWithReady(root || undefined);
-        if (result.openSessionId) {
-          setView("session");
-          await selectSession(result.openSessionId);
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : safeStringify(error);
-        setError(addOpencodeCacheHint(message));
-      } finally {
-        setBlueprintSessionMaterializeBusyByWorkspaceId((current) => {
-          const next = { ...current };
-          delete next[workspaceId];
-          return next;
-        });
-      }
-    })();
+    runtimeWorkspaceId();
+    resolvedActiveWorkspaceConfig();
   });
 
   const [appVersion, setAppVersion] = createSignal<string | null>(null);
@@ -8060,7 +7609,6 @@ export default function App() {
       pickFolderWorkspace: workspaceStore.createWorkspaceFromPickedFolder,
       openCreateRemoteWorkspace: () => workspaceStore.setCreateRemoteWorkspaceOpen(true),
       connectRemoteWorkspace: workspaceStore.createRemoteWorkspaceFlow,
-      openCloudTemplate,
       importWorkspaceConfig: workspaceStore.importWorkspaceConfig,
       importingWorkspaceConfig: workspaceStore.importingWorkspaceConfig(),
       exportWorkspaceConfig: workspaceStore.exportWorkspaceConfig,
@@ -8534,23 +8082,8 @@ export default function App() {
       return;
     }
 
-    if (path.startsWith("/proto-v1-ux")) {
-      if (isTauriRuntime()) {
-        navigate("/dashboard/skills", { replace: true });
-      }
-      return;
-    }
-
     if (path.startsWith("/proto")) {
-      if (isTauriRuntime()) {
-        navigate("/dashboard/skills", { replace: true });
-        return;
-      }
-
-      const [, , protoSegment] = rawPath.split("/");
-      if (!protoSegment) {
-        navigate("/proto/workspaces", { replace: true });
-      }
+      navigate("/dashboard/skills", { replace: true });
       return;
     }
 
@@ -8570,16 +8103,6 @@ export default function App() {
   return (
     <>
       <Switch>
-        <Match when={currentView() === "proto"}>
-          <Switch>
-            <Match when={isProtoV1Ux()}>
-              <ProtoV1UxView />
-            </Match>
-            <Match when={true}>
-              <ProtoWorkspacesView />
-            </Match>
-          </Switch>
-        </Match>
         <Match when={currentView() === "onboarding"}>
           <OnboardingView {...onboardingProps()} />
         </Match>
@@ -8716,7 +8239,7 @@ export default function App() {
           >
             <div class="border-b border-dls-border bg-dls-surface px-6 py-5">
               <div class="inline-flex items-center rounded-full border border-dls-border bg-dls-hover px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-dls-secondary">
-                AuroWork Cloud
+                Remote worker
               </div>
               <h3 class="mt-4 text-lg font-semibold text-dls-text">Adding your worker</h3>
               <p class="mt-1 text-sm text-dls-secondary">

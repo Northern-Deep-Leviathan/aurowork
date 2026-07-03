@@ -1,0 +1,59 @@
+name: Verify Local Desktop
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-local-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Setup, Docs, Debug, Fast Verify, Eval
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: "1.3.6"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Setup doctor
+        run: pnpm setup:doctor
+
+      - name: Documentation checks
+        run: pnpm docs:check
+
+      - name: Debug report
+        run: pnpm debug:report
+
+      - name: Fast verification
+        run: pnpm verify:fast
+
+      - name: Local desktop eval
+        run: pnpm eval:local-desktop

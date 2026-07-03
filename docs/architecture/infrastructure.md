@@ -54,7 +54,7 @@ Concretely, an agent should be able to:
 * run the underlying CLIs directly (since each component is implemented as a sidecar)
 * talk to the real OpenCode HTTP surface (loopback, dynamic port — read it from the orchestrator state file)
 * use bash + `curl` against AuroWork Server / OpenCode endpoints
-* request credentials when needed (e.g. to test Telegram or other connector flows)
+* collect setup, launch, and debug diagnostics without UI mediation
 
 The goal: an agent can exercise ~99% of any flow without UI mediation.
 
@@ -70,21 +70,12 @@ The goal: an agent can exercise ~99% of any flow without UI mediation.
 * Runs standalone via `aurowork-server` CLI.
 * Provides filesystem-backed config surfaces (skills, plugins, MCP, commands).
 * Sidecar lifecycle is described in `docs/architecture/backend.md`.
-* Can also be consumed as a hosted AuroWork Cloud control surface for remote worker lifecycle.
-
-### AuroWork Cloud Control Plane
-
-* Hosted deployment of AuroWork server capabilities for worker provisioning and remote connect.
-* Must preserve the same user-level contract as self-hosted paths:
-  - launch worker
-  - get connect credentials (URL + token)
-  - connect via `Add worker` -> `Connect remote`
-* Should not require a separate mental model for users moving between local and hosted modes.
+* Current product usage is local desktop sidecar infrastructure.
 
 ## Non-goals
 
 * Replacing OpenCode primitives with custom abstractions.
-* Forcing cloud-only lock-in (self-hosted desktop/CLI paths must remain valid).
+* Replacing local desktop workflows with hosted-only infrastructure.
 
 ## References
 

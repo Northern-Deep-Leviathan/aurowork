@@ -1,5 +1,5 @@
 import { Show, createMemo } from "solid-js";
-import { MessageCircle, Settings } from "lucide-solid";
+import { Settings } from "lucide-solid";
 
 import type { AuroworkServerStatus } from "../lib/aurowork-server";
 import type { McpStatusMap } from "../types";
@@ -11,7 +11,6 @@ type StatusBarProps = {
   settingsOpen: boolean;
   onSendFeedback: () => void;
   onOpenSettings: () => void;
-  onOpenMessaging: () => void;
   onOpenProviders: () => Promise<void> | void;
   onOpenMcp: () => void;
   providerConnectedIds: string[];

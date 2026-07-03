@@ -1,63 +1,69 @@
-# Release checklist
+# Local Desktop Release Runbook
 
-AuroWork releases should be deterministic, easy to reproduce, and fully verifiable with CLI tooling.
+Date: 2026-07-02
+Status: Current
 
-## Preflight
+This runbook describes the current AuroWork release path while the product is being reduced to a local desktop application. Treat remote/cloud/share publishing as legacy unless a current plan explicitly reintroduces it.
 
-- Sync the default branch (currently `dev`).
-- Run `pnpm release:review` and fix any mismatches.
-- If you are building sidecar assets, set `SOURCE_DATE_EPOCH` to the tag timestamp for deterministic manifests.
+## Release Principles
 
-## App release (desktop)
+- Release gates must be runnable locally before GitHub Actions packages installers.
+- The default build target is the Tauri desktop app.
+- CI should call the same root commands contributors run locally.
+- Azure Blob sync is installer distribution only, not a cloud product surface.
+- Sidecar/npm publishing remains a packaging concern while `apps/orchestrator` and `aurowork-server` are still part of the desktop runtime.
 
-1. Bump versions (app + desktop + Tauri + Cargo):
-    - `pnpm bump:patch` or `pnpm bump:minor` or `pnpm bump:major`
-2. Re-run `pnpm release:review`.
-3. Build sidecars for the desktop bundle:
-   - `pnpm --filter @aurowork/desktop prepare:sidecar`
-4. Commit the version bump.
-5. Tag and push:
-   - `git tag vX.Y.Z`
-   - `git push origin vX.Y.Z`
+## Local Preflight
 
-## aurowork-orchestrator (npm + sidecars)
+Run these from the repo root before preparing a release:
 
-1. Bump versions (includes `apps/orchestrator/package.json`):
-   - `pnpm bump:patch` or `pnpm bump:minor` or `pnpm bump:major`
-2. Build sidecar assets and manifest:
-   - `pnpm --filter aurowork-orchestrator build:sidecars`
-3. Create the GitHub release for sidecars:
-   - `gh release create aurowork-orchestrator-vX.Y.Z apps/orchestrator/dist/sidecars/* --repo Northern-Deep-Leviathan/aurowork`
-4. Publish the package:
-   - `pnpm --filter aurowork-orchestrator publish --access public`
+```bash
+pnpm setup:doctor
+pnpm docs:check
+pnpm verify:fast
+pnpm eval:local-desktop
+node scripts/release/review.mjs --strict
+```
 
-## aurowork-server (if version changed)
+`release:review` checks version alignment, required root automation scripts, the default desktop build target, active local desktop CI commands, and desktop release quality gate wiring.
 
-- `pnpm --filter aurowork-server publish --access public`
+## Full Release Gate
 
-## Verification
+Run the release gate before tagging:
 
-- `aurowork start --workspace /path/to/workspace --check --check-events`
-- `gh run list --repo Northern-Deep-Leviathan/aurowork --workflow "Release App" --limit 5`
-- `gh release view vX.Y.Z --repo Northern-Deep-Leviathan/aurowork`
+```bash
+pnpm verify:release
+```
 
-Use `pnpm release:review --json` when automating these checks in scripts or agents.
+This runs the full verification pipeline, builds the app, prepares sidecars, and runs the release review.
 
-## AUR
+Current environment caveat: some local desktop tests bind loopback ports. In restricted sandboxes, `pnpm verify:full` or Rust desktop tests can fail with `Operation not permitted` / `listen EPERM 127.0.0.1`. Treat that as an environment limitation only after the same tests pass in a normal local or CI environment.
 
-`Release App` publishes the Arch AUR package automatically after the Linux `.deb` asset is uploaded.
+## Prepare And Ship
 
-For local AMD64 Arch builds without Docker, see `packaging/aur/README.md`.
+Use the release scripts instead of hand-editing versions:
 
-Required repo config:
+```bash
+pnpm release:prepare --patch
+pnpm release:ship
+```
 
-- GitHub Actions secret: `AUR_SSH_PRIVATE_KEY` (SSH key with push access to the AUR package repo)
-- Optional repo variable: `AUR_REPO` (defaults to `aurowork`)
+`release:prepare` bumps versions, runs verification, commits the release change, and creates the tag locally. `release:ship` pushes the tag and branch so GitHub Actions can package installers.
 
-## npm publishing
+## Active GitHub Actions
 
-If you want `Release App` to publish `aurowork-orchestrator` and `aurowork-server` to npm, configure:
+- `.github/workflows/verify-local-desktop.yml` runs setup, docs, fast verification, and local desktop eval on PR/push.
+- `.github/workflows/build-desktop.yml` packages installers only after its `quality` job runs `pnpm verify:release`.
+- `.github/workflows/sync-release-to-azure.yml` mirrors release artifacts for installer delivery.
 
-- GitHub Actions secret: `NPM_TOKEN` (npm automation token)
+Disabled workflows are historical until reviewed and either restored for local desktop needs or archived.
 
-If `NPM_TOKEN` is not set, the npm publish job is skipped.
+## Post-Release Checks
+
+```bash
+gh run list --workflow build-desktop.yml --limit 5
+gh release view vX.Y.Z
+pnpm release:review --json
+```
+
+Confirm the release contains only expected desktop installer artifacts and updater metadata. Do not add public share, cloud worker, Den, or chat connector artifacts to the release unless a current local desktop plan explicitly requires them.

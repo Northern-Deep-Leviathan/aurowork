@@ -710,7 +710,6 @@ function buildCapabilities(config: ServerConfig): Capabilities {
   const maxBytes = resolveInboxMaxBytes();
   const toyUiEnabled = resolveToyUiEnabled();
   const browserProvider = resolveBrowserProvider();
-  const opencodeRouterConfigured = Boolean(parseInteger(process.env.OPENCODE_ROUTER_HEALTH_PORT));
   const opencodeConfigured = config.workspaces.some((workspace) => Boolean(workspace.baseUrl?.trim()));
   return {
     schemaVersion,
@@ -727,7 +726,6 @@ function buildCapabilities(config: ServerConfig): Capabilities {
     tokens: { scoped: true, scopes: ["owner", "collaborator", "viewer"] },
     proxy: {
       opencode: opencodeConfigured,
-      opencodeRouter: opencodeRouterConfigured,
     },
     toolProviders: {
       browser: browserProvider,
@@ -4771,4 +4769,3 @@ async function importWorkspace(workspace: WorkspaceInfo, payload: Record<string,
     }
   }
 }
-

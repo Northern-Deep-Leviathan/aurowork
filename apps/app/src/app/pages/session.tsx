@@ -47,7 +47,6 @@ async function readObsidianMirrorFile(_key: string, _path: string): Promise<{ ex
 
 import { currentLocale, t } from "../../i18n";
 import { usePlatform } from "../context/platform";
-import { buildDenAuthUrl, createDenClient, readDenSettings, writeDenSettings } from "../lib/den";
 import { buildFeedbackUrl } from "../lib/feedback";
 import { getAuroWorkDeployment } from "../lib/aurowork-deployment";
 import { createWorkspaceShellLayout } from "../lib/workspace-shell-layout";
@@ -95,7 +94,6 @@ import type {
   AuroworkServerDiagnostics,
   AuroworkServerSettings,
   AuroworkServerStatus,
-  AuroworkWorkspaceExport,
 } from "../lib/aurowork-server";
 const DEFAULT_AUROWORK_PUBLISHER_BASE_URL = "";
 import { join } from "@tauri-apps/api/path";
@@ -325,14 +323,6 @@ type SharedSkillItem = {
   description?: string;
   content: string;
   trigger?: string;
-};
-
-type WorkspaceProfileBundleV1 = {
-  schemaVersion: 1;
-  type: "workspace-profile";
-  name: string;
-  description: string;
-  workspace: AuroworkWorkspaceExport;
 };
 
 type SkillsSetBundleV1 = {
@@ -3007,14 +2997,6 @@ export default function SessionView(props: SessionViewProps) {
   >(null);
   const [shareWorkspaceProfileError, setShareWorkspaceProfileError] =
     createSignal<string | null>(null);
-  const [shareWorkspaceProfileTeamBusy, setShareWorkspaceProfileTeamBusy] =
-    createSignal(false);
-  const [shareWorkspaceProfileTeamError, setShareWorkspaceProfileTeamError] =
-    createSignal<string | null>(null);
-  const [shareWorkspaceProfileTeamSuccess, setShareWorkspaceProfileTeamSuccess] =
-    createSignal<string | null>(null);
-  const [shareCloudSettingsVersion, setShareCloudSettingsVersion] =
-    createSignal(0);
   const [shareSkillsSetBusy, setShareSkillsSetBusy] = createSignal(false);
   const [shareSkillsSetUrl, setShareSkillsSetUrl] = createSignal<string | null>(
     null,
@@ -3028,9 +3010,6 @@ export default function SessionView(props: SessionViewProps) {
       setShareWorkspaceProfileBusy(false);
       setShareWorkspaceProfileUrl(null);
       setShareWorkspaceProfileError(null);
-      setShareWorkspaceProfileTeamBusy(false);
-      setShareWorkspaceProfileTeamError(null);
-      setShareWorkspaceProfileTeamSuccess(null);
       setShareSkillsSetBusy(false);
       setShareSkillsSetUrl(null);
       setShareSkillsSetError(null);
@@ -3225,50 +3204,6 @@ export default function SessionView(props: SessionViewProps) {
     return null;
   });
 
-  const shareCloudSettings = createMemo(() => {
-    shareWorkspaceId();
-    shareCloudSettingsVersion();
-    return readDenSettings();
-  });
-
-  createEffect(() => {
-    const handleCloudSessionUpdate = () =>
-      setShareCloudSettingsVersion((value) => value + 1);
-    window.addEventListener("aurowork-den-session-updated", handleCloudSessionUpdate);
-    onCleanup(() =>
-      window.removeEventListener(
-        "aurowork-den-session-updated",
-        handleCloudSessionUpdate,
-      ),
-    );
-  });
-
-  const shareWorkspaceProfileTeamOrgName = createMemo(() => {
-    const orgName = shareCloudSettings().activeOrgName?.trim();
-    if (orgName) return orgName;
-    return translate("session.share_active_cloud_org");
-  });
-
-  const shareWorkspaceProfileToTeamNeedsSignIn = createMemo(
-    () => !shareCloudSettings().authToken?.trim(),
-  );
-
-  const shareWorkspaceProfileTeamDisabledReason = createMemo(() => {
-    const exportReason = shareServiceDisabledReason();
-    if (exportReason) return exportReason;
-    if (shareWorkspaceProfileToTeamNeedsSignIn()) return null;
-    const settings = shareCloudSettings();
-    if (!settings.activeOrgId?.trim() && !settings.activeOrgSlug?.trim()) {
-      return translate("session.share_choose_org");
-    }
-    return null;
-  });
-
-  const startShareWorkspaceProfileToTeamSignIn = () => {
-    const settings = readDenSettings();
-    platform.openLink(buildDenAuthUrl(settings.baseUrl, "sign-in"));
-  };
-
   const resolveShareExportContext = async (): Promise<{
     client: AuroworkServerClient;
     workspaceId: string;
@@ -3371,29 +3306,7 @@ export default function SessionView(props: SessionViewProps) {
     setShareWorkspaceProfileUrl(null);
 
     try {
-      const { client, workspaceId, workspace } =
-        await resolveShareExportContext();
-      const exported = await client.exportWorkspace(workspaceId);
-      const payload: WorkspaceProfileBundleV1 = {
-        schemaVersion: 1,
-        type: "workspace-profile",
-        name: `${workspaceLabel(workspace)} template`,
-        description:
-          translate("session.share_workspace_template_description"),
-        workspace: exported,
-      };
-
-      const result = await client.publishBundle(payload, "workspace-profile", {
-        name: payload.name,
-        baseUrl: DEFAULT_AUROWORK_PUBLISHER_BASE_URL,
-      });
-
-      setShareWorkspaceProfileUrl(result.url);
-      try {
-        await navigator.clipboard.writeText(result.url);
-      } catch {
-        // ignore
-      }
+      throw new Error("Public workspace profile links are not part of the local desktop product.");
     } catch (error) {
       setShareWorkspaceProfileError(
         error instanceof Error
@@ -3405,81 +3318,6 @@ export default function SessionView(props: SessionViewProps) {
     }
   };
 
-  const shareWorkspaceProfileToTeam = async (templateName: string) => {
-    if (shareWorkspaceProfileTeamBusy()) return;
-    setShareWorkspaceProfileTeamBusy(true);
-    setShareWorkspaceProfileTeamError(null);
-    setShareWorkspaceProfileTeamSuccess(null);
-
-    try {
-      const { client, workspaceId, workspace } =
-        await resolveShareExportContext();
-      const exported = await client.exportWorkspace(workspaceId);
-      const fallbackName = `${workspaceLabel(workspace)} template`;
-      const name = templateName.trim() || fallbackName;
-      const payload: WorkspaceProfileBundleV1 = {
-        schemaVersion: 1,
-        type: "workspace-profile",
-        name,
-        description:
-          translate("session.share_workspace_template_description"),
-        workspace: exported,
-      };
-
-      const settings = readDenSettings();
-      const token = settings.authToken?.trim() ?? "";
-      if (!token) {
-        throw new Error(
-          translate("session.share_sign_in_cloud"),
-        );
-      }
-
-      const cloudClient = createDenClient({ baseUrl: settings.baseUrl, token });
-      let orgId = settings.activeOrgId?.trim() ?? "";
-      let orgSlug = settings.activeOrgSlug?.trim() ?? "";
-      let orgName = settings.activeOrgName?.trim() ?? "";
-
-      if (!orgSlug || !orgName) {
-        const response = await cloudClient.listOrgs();
-        const match = orgId
-          ? response.orgs.find((org) => org.id === orgId)
-          : response.orgs.find((org) => org.slug === orgSlug) ??
-            response.orgs[0];
-        if (!match) {
-          throw new Error(
-            translate("session.share_choose_org"),
-          );
-        }
-        orgId = match.id;
-        orgSlug = match.slug;
-        orgName = match.name;
-        writeDenSettings({
-          ...settings,
-          baseUrl: settings.baseUrl,
-          authToken: token,
-          activeOrgId: orgId,
-          activeOrgSlug: orgSlug,
-          activeOrgName: orgName,
-        });
-      }
-
-      const created = await cloudClient.createTemplate(orgSlug, {
-        name,
-        templateData: payload,
-      });
-
-      setShareWorkspaceProfileTeamSuccess(
-        `${translate("session.share_team_saved_prefix")} ${created.name} ${translate("session.share_team_saved_to")} ${orgName || translate("session.share_team_templates")}.`,
-      );
-    } catch (error) {
-      setShareWorkspaceProfileTeamError(
-        error instanceof Error ? error.message : translate("session.share_team_save_failed"),
-      );
-    } finally {
-      setShareWorkspaceProfileTeamBusy(false);
-    }
-  };
-
   const publishSkillsSetLink = async () => {
     if (shareSkillsSetBusy()) return;
     setShareSkillsSetBusy(true);
@@ -3487,42 +3325,7 @@ export default function SessionView(props: SessionViewProps) {
     setShareSkillsSetUrl(null);
 
     try {
-      const { client, workspaceId, workspace } =
-        await resolveShareExportContext();
-      const exported = await client.exportWorkspace(workspaceId);
-      const skills = Array.isArray(exported.skills) ? exported.skills : [];
-      if (!skills.length) {
-        throw new Error(translate("session.share_no_skills"));
-      }
-
-      const payload: SkillsSetBundleV1 = {
-        schemaVersion: 1,
-        type: "skills-set",
-        name: `${workspaceLabel(workspace)} skills`,
-        description: translate("session.share_skills_set_description"),
-        skills: skills.map((skill) => ({
-          name: skill.name,
-          description: skill.description,
-          trigger: skill.trigger,
-          content: skill.content,
-        })),
-        sourceWorkspace: {
-          id: workspaceId,
-          name: workspaceLabel(workspace),
-        },
-      };
-
-      const result = await client.publishBundle(payload, "skills-set", {
-        name: payload.name,
-        baseUrl: DEFAULT_AUROWORK_PUBLISHER_BASE_URL,
-      });
-
-      setShareSkillsSetUrl(result.url);
-      try {
-        await navigator.clipboard.writeText(result.url);
-      } catch {
-        // ignore
-      }
+      throw new Error("Public skills-set links are not part of the local desktop product.");
     } catch (error) {
       setShareSkillsSetError(
         error instanceof Error ? error.message : translate("session.share_skills_publish_failed"),
@@ -4732,7 +4535,6 @@ export default function SessionView(props: SessionViewProps) {
             onSendFeedback={openFeedback}
             showSettingsButton={true}
             onOpenSettings={props.toggleSettings}
-            onOpenMessaging={() => openSettings("general")}
             onOpenProviders={openProviderAuth}
             onOpenMcp={openMcp}
             providerConnectedIds={props.providerConnectedIds}
@@ -4946,14 +4748,6 @@ export default function SessionView(props: SessionViewProps) {
         shareWorkspaceProfileUrl={shareWorkspaceProfileUrl()}
         shareWorkspaceProfileError={shareWorkspaceProfileError()}
         shareWorkspaceProfileDisabledReason={shareServiceDisabledReason()}
-        onShareWorkspaceProfileToTeam={shareWorkspaceProfileToTeam}
-        shareWorkspaceProfileToTeamBusy={shareWorkspaceProfileTeamBusy()}
-        shareWorkspaceProfileToTeamError={shareWorkspaceProfileTeamError()}
-        shareWorkspaceProfileToTeamSuccess={shareWorkspaceProfileTeamSuccess()}
-        shareWorkspaceProfileToTeamDisabledReason={shareWorkspaceProfileTeamDisabledReason()}
-        shareWorkspaceProfileToTeamOrgName={shareWorkspaceProfileTeamOrgName()}
-        shareWorkspaceProfileToTeamNeedsSignIn={shareWorkspaceProfileToTeamNeedsSignIn()}
-        onShareWorkspaceProfileToTeamSignIn={startShareWorkspaceProfileToTeamSignIn}
         onShareSkillsSet={publishSkillsSetLink}
         onOpenSingleSkillShare={() => {
           setShareWorkspaceId(null);
