@@ -39,12 +39,6 @@ export default function ShareWorkspaceModal(props: {
   workspaceName: string;
   workspaceDetail?: string | null;
   fields: ShareField[];
-  remoteAccess?: {
-    enabled: boolean;
-    busy: boolean;
-    error?: string | null;
-    onSave: (enabled: boolean) => void | Promise<void>;
-  };
   note?: string | null;
   publisherBaseUrl?: string;
   onShareWorkspaceProfile?: () => void;
@@ -66,7 +60,6 @@ export default function ShareWorkspaceModal(props: {
   const [revealedByIndex, setRevealedByIndex] = createSignal<Record<number, boolean>>({});
   const [copiedKey, setCopiedKey] = createSignal<string | null>(null);
   const [collaboratorExpanded, setCollaboratorExpanded] = createSignal(false);
-  const [remoteAccessEnabled, setRemoteAccessEnabled] = createSignal(false);
 
   const title = createMemo(() => props.title ?? "Share workspace");
   const note = createMemo(() => props.note?.trim() ?? "");
@@ -85,18 +78,6 @@ export default function ShareWorkspaceModal(props: {
         setRevealedByIndex({});
         setCopiedKey(null);
         setCollaboratorExpanded(false);
-        setRemoteAccessEnabled(props.remoteAccess?.enabled === true);
-      },
-    ),
-  );
-
-  createEffect(
-    on(
-      () => props.remoteAccess?.enabled,
-      (enabled, previous) => {
-        if (!props.open) return;
-        if (enabled === previous) return;
-        setRemoteAccessEnabled(enabled === true);
       },
     ),
   );
@@ -303,68 +284,9 @@ export default function ShareWorkspaceModal(props: {
                 <div class="rounded-md border border-amber-6/40 bg-amber-3/30 px-3 py-2 text-[12px] text-amber-11 flex items-start gap-2">
                   <span class="mt-0.5">⚠️</span>
                   <span class="leading-relaxed">
-                    <Show
-                      when={props.remoteAccess}
-                      fallback={
-                        "Share with trusted people only. These credentials grant live access to this workspace."
-                      }
-                    >
-                      These credentials grant live access to this workspace. Sharing this workspace remotely may allow anyone with access to your network to control your worker.
-                    </Show>
+                    Share with trusted people only. These credentials grant live access to this workspace.
                   </span>
                 </div>
-
-                <Show when={props.remoteAccess}>
-                  {(remoteAccess) => {
-                    const hasPendingChange = () =>
-                      remoteAccessEnabled() !== remoteAccess().enabled;
-                    return (
-                      <div class="rounded-[20px] border border-dls-border bg-dls-surface/30 px-4 py-4 space-y-4">
-                        <div class="flex items-start justify-between gap-3">
-                          <div>
-                            <h3 class="text-[13px] font-medium text-dls-text">Remote access</h3>
-                            <p class="text-[12px] text-dls-secondary mt-0.5 leading-relaxed">
-                              Off by default. Turn this on only when you want this worker reachable from another machine.
-                            </p>
-                          </div>
-                          <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input
-                              type="checkbox"
-                              class="sr-only peer"
-                              checked={remoteAccessEnabled()}
-                              onInput={(event) =>
-                                setRemoteAccessEnabled(event.currentTarget.checked)}
-                              disabled={remoteAccess().busy}
-                            />
-                            <div class="w-11 h-6 rounded-full bg-dls-active transition-colors peer-checked:bg-amber-8 peer-disabled:opacity-50 after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5" />
-                          </label>
-                        </div>
-
-                        <div class="flex items-center justify-between gap-3">
-                          <div class="text-[12px] text-dls-secondary">
-                            {remoteAccess().enabled
-                              ? "Remote access is currently enabled."
-                              : "Remote access is currently disabled."}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => remoteAccess().onSave(remoteAccessEnabled())}
-                            disabled={remoteAccess().busy || !hasPendingChange()}
-                            class="px-3 py-1.5 bg-dls-surface hover:bg-dls-hover rounded-md text-[12px] font-medium text-dls-text transition-colors disabled:opacity-50"
-                          >
-                            {remoteAccess().busy ? "Saving..." : "Save"}
-                          </button>
-                        </div>
-
-                        <Show when={remoteAccess().error?.trim()}>
-                          <div class="rounded-md border border-red-6/40 bg-red-3/30 px-3 py-2 text-[12px] text-red-11">
-                            {remoteAccess().error}
-                          </div>
-                        </Show>
-                      </div>
-                    );
-                  }}
-                </Show>
 
                 <div class="flex items-center justify-between gap-3 rounded-[20px] border border-dls-border bg-dls-surface/30 px-3 py-3">
                   <div class="flex items-center gap-2 min-w-0">
@@ -386,7 +308,7 @@ export default function ShareWorkspaceModal(props: {
                 <div class="space-y-4">
                   <Show when={primaryAccessFields().length > 0} fallback={
                     <div class="rounded-[20px] border border-dls-border bg-dls-surface/20 px-4 py-4 text-[12px] text-dls-secondary leading-relaxed">
-                      Enable remote access and click Save to restart the worker and reveal the live connection details for this workspace.
+                      Connection details for this workspace will appear here once the local worker is ready.
                     </div>
                   }>
                   <For each={primaryAccessFields()}>

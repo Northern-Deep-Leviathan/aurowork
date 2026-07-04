@@ -33,7 +33,6 @@ import { launchLog, markLaunchComplete } from "../lib/launch-log";
 import ModelPickerModal from "./components/model-picker-modal";
 import ResetModal from "./components/reset-modal";
 import WorkspaceSwitchOverlay from "./components/workspace-switch-overlay";
-import CreateRemoteWorkspaceModal from "./components/create-remote-workspace-modal";
 import CreateWorkspaceModal from "./components/create-workspace-modal";
 import RenameWorkspaceModal from "./components/rename-workspace-modal";
 import McpAuthModal from "./components/mcp-auth-modal";
@@ -261,14 +260,6 @@ import {
   type AuroworkWorkspaceExport,
   AuroworkServerError,
 } from "./lib/aurowork-server";
-
-type RemoteWorkspaceDefaults = {
-  auroworkHostUrl?: string | null;
-  auroworkToken?: string | null;
-  directory?: string | null;
-  displayName?: string | null;
-  autoConnect?: boolean;
-};
 
 type SharedSkillItem = {
   name: string;
@@ -655,54 +646,6 @@ function stripSharedBundleQuery(rawUrl: string): string | null {
   return `${url.pathname}${search ? `?${search}` : ""}${url.hash}`;
 }
 
-function parseRemoteConnectDeepLink(rawUrl: string): RemoteWorkspaceDefaults | null {
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    return null;
-  }
-
-  const protocol = url.protocol.toLowerCase();
-  if (!isSupportedDeepLinkProtocol(protocol)) {
-    return null;
-  }
-
-  const routeHost = url.hostname.toLowerCase();
-  const routePath = url.pathname.replace(/^\/+/, "").toLowerCase();
-  const routeSegments = routePath.split("/").filter(Boolean);
-  const routeTail = routeSegments[routeSegments.length - 1] ?? "";
-  if (routeHost !== "connect-remote" && routePath !== "connect-remote" && routeTail !== "connect-remote") {
-    return null;
-  }
-
-  const hostUrlRaw = url.searchParams.get("auroworkHostUrl") ?? url.searchParams.get("auroworkUrl") ?? "";
-  const tokenRaw = url.searchParams.get("auroworkToken") ?? url.searchParams.get("accessToken") ?? "";
-  const normalizedHostUrl = normalizeAuroworkServerUrl(hostUrlRaw);
-  const token = tokenRaw.trim();
-  if (!normalizedHostUrl || !token) {
-    return null;
-  }
-
-  const workerName = url.searchParams.get("workerName")?.trim() ?? "";
-  const workerId = url.searchParams.get("workerId")?.trim() ?? "";
-  const displayName = workerName || (workerId ? `Worker ${workerId.slice(0, 8)}` : "");
-  const autoConnectRaw =
-    url.searchParams.get("autoConnect") ??
-    url.searchParams.get("bypassModal") ??
-    url.searchParams.get("bypassAddWorkerModal") ??
-    "";
-  const autoConnect = ["1", "true", "yes", "on"].includes(autoConnectRaw.trim().toLowerCase());
-
-  return {
-    auroworkHostUrl: normalizedHostUrl,
-    auroworkToken: token,
-    directory: null,
-    displayName: displayName || null,
-    autoConnect,
-  };
-}
-
 function normalizeDebugDeepLinkInput(rawValue: string): string {
   const trimmed = rawValue.trim();
   if (!trimmed) return "";
@@ -715,7 +658,6 @@ function normalizeDebugDeepLinkInput(rawValue: string): string {
 
 function parseDebugDeepLinkInput(rawValue: string):
   | { kind: "bundle"; link: SharedBundleDeepLink }
-  | { kind: "remote"; link: RemoteWorkspaceDefaults }
   | null {
   const normalized = normalizeDebugDeepLinkInput(rawValue);
   if (!normalized) return null;
@@ -725,47 +667,7 @@ function parseDebugDeepLinkInput(rawValue: string):
     return { kind: "bundle", link: sharedBundleLink };
   }
 
-  const remoteConnectLink = parseRemoteConnectDeepLink(normalized);
-  if (remoteConnectLink) {
-    return { kind: "remote", link: remoteConnectLink };
-  }
-
   return null;
-}
-
-function stripRemoteConnectQuery(rawUrl: string): string | null {
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    return null;
-  }
-
-  let changed = false;
-  for (const key of [
-    "auroworkHostUrl",
-    "auroworkUrl",
-    "auroworkToken",
-    "accessToken",
-    "workerId",
-    "workerName",
-    "autoConnect",
-    "bypassModal",
-    "bypassAddWorkerModal",
-    "source",
-  ]) {
-    if (url.searchParams.has(key)) {
-      url.searchParams.delete(key);
-      changed = true;
-    }
-  }
-
-  if (!changed) {
-    return null;
-  }
-
-  const search = url.searchParams.toString();
-  return `${url.pathname}${search ? `?${search}` : ""}${url.hash}`;
 }
 
 export default function App() {
@@ -879,8 +781,6 @@ export default function App() {
   const [clientDirectory, setClientDirectory] = createSignal("");
 
   const [auroworkServerSettings, setAuroworkServerSettings] = createSignal<AuroworkServerSettings>({});
-  const [shareRemoteAccessBusy, setShareRemoteAccessBusy] = createSignal(false);
-  const [shareRemoteAccessError, setShareRemoteAccessError] = createSignal<string | null>(null);
   const [auroworkServerUrl, setAuroworkServerUrl] = createSignal("");
   const [auroworkServerStatus, setAuroworkServerStatus] = createSignal<AuroworkServerStatus>("disconnected");
   const [auroworkServerCapabilities, setAuroworkServerCapabilities] = createSignal<AuroworkServerCapabilities | null>(null);
@@ -961,11 +861,6 @@ export default function App() {
 
       const next = writeAuroworkServerSettings(merged);
       setAuroworkServerSettings(next);
-
-      if (invite.startup === "server" && untrack(onboardingStep) === "welcome") {
-        setStartupPreference("server");
-        setOnboardingStep("server");
-      }
     }
 
     if (bundleInvite?.bundleUrl) {
@@ -977,16 +872,6 @@ export default function App() {
         label: bundleInvite.label,
       });
       setSharedBundleNoticeShown(false);
-    }
-
-    if (invite?.autoConnect) {
-      setPendingRemoteConnectDeepLink({
-        auroworkHostUrl: invite.url,
-        auroworkToken: invite.token ?? null,
-        directory: null,
-        displayName: null,
-        autoConnect: true,
-      });
     }
 
     const cleanedConnect = stripAuroworkConnectInviteFromUrl(window.location.href);
@@ -1053,7 +938,7 @@ export default function App() {
   createEffect(() => {
     const pref = startupPreference();
     const info = auroworkServerHostInfo();
-    const hostUrl = info?.connectUrl ?? info?.lanUrl ?? info?.mdnsUrl ?? info?.baseUrl ?? "";
+    const hostUrl = info?.baseUrl ?? "";
     const settingsUrl = normalizeAuroworkServerUrl(auroworkServerSettings().urlOverride ?? "") ?? "";
 
     if (pref === "local") {
@@ -2496,7 +2381,7 @@ export default function App() {
     }
     try {
       const cachedMethods = providerAuthMethods();
-      const workerType = selectedWorkspaceDisplay().workspaceType === "remote" ? "remote" : "local";
+      const workerType = "local" as const;
       const authMethods = Object.keys(cachedMethods).length
         ? cachedMethods
         : await loadProviderAuthMethods(workerType);
@@ -2848,7 +2733,7 @@ export default function App() {
     returnFocusTarget?: PromptFocusReturnTarget;
     preferredProviderId?: string;
   }) {
-    const workerType = selectedWorkspaceDisplay().workspaceType === "remote" ? "remote" : "local";
+    const workerType = "local" as const;
     setProviderAuthReturnFocusTarget(options?.returnFocusTarget ?? "none");
     setProviderAuthPreferredProviderId(options?.preferredProviderId?.trim() || null);
     setProviderAuthBusy(true);
@@ -3352,7 +3237,6 @@ export default function App() {
       selectedWorkspaceId: selectedWorkspaceId || null,
       activeWorkspaceType: activeWorkspace?.workspaceType ?? null,
       selectedWorkspacePath: activeWorkspace?.path?.trim() ?? null,
-      activeWorkspaceDirectory: activeWorkspace?.directory?.trim() ?? null,
       selectedWorkspaceRoot: selectedWorkspaceRoot || null,
       activeWorkspaceScope: describeDirectoryScope(selectedWorkspaceRoot),
       clientDirectory: clientDirectory().trim() || null,
@@ -3408,38 +3292,16 @@ export default function App() {
     const workspace = workspaceStore.workspaces().find((entry) => entry.id === workspaceId) ?? null;
     if (!workspace) return null;
 
-    if (workspace.workspaceType === "local") {
-      const info = workspaceStore.engine();
-      const baseUrl = info?.baseUrl?.trim() ?? "";
-      const directory = toSessionTransportDirectory(workspace.path?.trim() ?? "");
-      const username = info?.auroUsername?.trim() ?? "";
-      const password = info?.auroPassword?.trim() ?? "";
-      const auth: AuroAuth | undefined = username && password ? { username, password } : undefined;
-      return {
-        baseUrl,
-        directory,
-        auth,
-      };
-    }
-
-    const baseUrl = workspace.baseUrl?.trim() ?? "";
-    const directory = workspace.directory?.trim() ?? "";
-    if (workspace.remoteType === "aurowork") {
-      // Sidebar session listing should be per-workspace and should not implicitly depend on
-      // global AuroWork server settings, otherwise switching between remotes can cause other
-      // workspace task lists to appear/disappear.
-      const token = workspace.auroworkToken?.trim() ?? "";
-      const auth: AuroAuth | undefined = token ? { token, mode: "aurowork" } : undefined;
-      return {
-        baseUrl,
-        directory,
-        auth,
-      };
-    }
+    const info = workspaceStore.engine();
+    const baseUrl = info?.baseUrl?.trim() ?? "";
+    const directory = toSessionTransportDirectory(workspace.path?.trim() ?? "");
+    const username = info?.auroUsername?.trim() ?? "";
+    const password = info?.auroPassword?.trim() ?? "";
+    const auth: AuroAuth | undefined = username && password ? { username, password } : undefined;
     return {
       baseUrl,
       directory,
-      auth: undefined as AuroAuth | undefined,
+      auth,
     };
   };
 
@@ -3592,11 +3454,8 @@ export default function App() {
     const workspaceKey = workspaceStore
       .workspaces()
       .map((ws) => {
-        const root = ws.workspaceType === "local" ? ws.path?.trim() ?? "" : ws.directory?.trim() ?? "";
-        const base = ws.workspaceType === "local" ? "" : ws.baseUrl?.trim() ?? "";
-        const remoteType = ws.workspaceType === "remote" ? (ws.remoteType ?? "") : "";
-        const token = ws.remoteType === "aurowork" ? (ws.auroworkToken?.trim() ?? "") : "";
-        return [ws.id, ws.workspaceType, remoteType, root, base, token].join("|");
+        const root = ws.path?.trim() ?? "";
+        return [ws.id, ws.workspaceType, root].join("|");
       })
       .join(";");
 
@@ -3654,11 +3513,7 @@ export default function App() {
     // Only sync if sidebar is already in 'ready' state (not during initial load)
     if (status === "ready") {
       const activeWorkspace = workspaceStore.workspaces().find((workspace) => workspace.id === wsId) ?? null;
-      const selectedWorkspaceRoot = normalizeDirectoryPath(
-        activeWorkspace?.workspaceType === "local"
-          ? activeWorkspace.path
-          : activeWorkspace?.directory ?? activeWorkspace?.path,
-      );
+      const selectedWorkspaceRoot = normalizeDirectoryPath(activeWorkspace?.path);
       if (
         !shouldApplyScopedSessionLoad({
           loadedScopeRoot: loadedSessionScopeRoot(),
@@ -3755,45 +3610,7 @@ export default function App() {
     const sessionsById = sidebarSessionsByWorkspaceId();
     const statusById = sidebarSessionStatusByWorkspaceId();
     const errorById = sidebarSessionErrorByWorkspaceId();
-    const dedupedWorkspaces: typeof workspaces = [];
-    const dedupeKeyToIndex = new Map<string, number>();
-    for (const workspace of workspaces) {
-      if (workspace.workspaceType !== "remote") {
-        dedupedWorkspaces.push(workspace);
-        continue;
-      }
-      const hostKey =
-        normalizeAuroworkServerUrl(workspace.auroworkHostUrl?.trim() ?? "") ??
-        normalizeAuroworkServerUrl(workspace.baseUrl?.trim() ?? "") ??
-        "";
-      const workspaceIdKey =
-        workspace.auroworkWorkspaceId?.trim() ||
-        parseAuroworkWorkspaceIdFromUrl(workspace.auroworkHostUrl ?? "") ||
-        parseAuroworkWorkspaceIdFromUrl(workspace.baseUrl ?? "") ||
-        "";
-      const directoryKey = normalizeDirectoryPath(workspace.directory?.trim() ?? workspace.path?.trim() ?? "");
-      const identityKey = workspaceIdKey ? `id:${workspaceIdKey}` : (directoryKey ? `dir:${directoryKey}` : "");
-      if (!hostKey || !identityKey) {
-        dedupedWorkspaces.push(workspace);
-        continue;
-      }
-      const dedupeKey = `${workspace.remoteType ?? ""}|${hostKey}|${identityKey}`;
-      const existingIndex = dedupeKeyToIndex.get(dedupeKey);
-      if (existingIndex === undefined) {
-        dedupeKeyToIndex.set(dedupeKey, dedupedWorkspaces.length);
-        dedupedWorkspaces.push(workspace);
-        continue;
-      }
-      const existingWorkspace = dedupedWorkspaces[existingIndex];
-      const existingIsPriority =
-        existingWorkspace.id === selectedWorkspaceId || existingWorkspace.id === connectingWorkspaceId;
-      const currentIsPriority =
-        workspace.id === selectedWorkspaceId || workspace.id === connectingWorkspaceId;
-      if (currentIsPriority && !existingIsPriority) {
-        dedupedWorkspaces[existingIndex] = workspace;
-      }
-    }
-    return dedupedWorkspaces.map((workspace) => {
+    return workspaces.map((workspace) => {
       const groupSessions = sessionsById[workspace.id] ?? [];
       if (developerMode()) {
         console.log("[sidebar-groups] workspace group", {
@@ -3801,7 +3618,6 @@ export default function App() {
           workspaceName: workspace.name,
           workspaceType: workspace.workspaceType,
           workspacePath: workspace.path,
-          workspaceDirectory: workspace.directory,
           sessionCount: groupSessions.length,
           sessions: groupSessions.map((session) => ({
             id: session.id,
@@ -3863,70 +3679,26 @@ export default function App() {
       return;
     }
 
-    if (connectedWorkspace.workspaceType === "remote" && connectedWorkspace.remoteType === "aurowork") {
-      const inferredWorkspaceId =
-        parseAuroworkWorkspaceIdFromUrl(connectedWorkspace.auroworkHostUrl ?? "") ??
-        parseAuroworkWorkspaceIdFromUrl(connectedWorkspace.baseUrl ?? "") ??
-        envAuroworkWorkspaceId;
-      const storedId = connectedWorkspace.auroworkWorkspaceId?.trim() || inferredWorkspaceId || null;
-      if (storedId) {
-        setRuntimeWorkspaceId(storedId);
-        return;
+    let cancelled = false;
+    const resolveWorkspace = async () => {
+      try {
+        const response = await client.listWorkspaces();
+        if (cancelled) return;
+        const items = Array.isArray(response.items) ? response.items : [];
+        const activeMatch = response.activeId ? items.find((entry) => entry.id === response.activeId) : null;
+        const pathMatch = items.find(
+          (entry) => normalizeDirectoryPath(entry.path) === normalizeDirectoryPath(connectedWorkspace.path),
+        );
+        setRuntimeWorkspaceId(activeMatch?.id ?? pathMatch?.id ?? response.activeId ?? null);
+      } catch {
+        if (!cancelled) setRuntimeWorkspaceId(null);
       }
+    };
 
-      let cancelled = false;
-      const resolveWorkspace = async () => {
-        try {
-          const response = await client.listWorkspaces();
-          if (cancelled) return;
-          const items = Array.isArray(response.items) ? response.items : [];
-          const directoryHint = normalizeDirectoryPath(
-            connectedWorkspace.directory?.trim() ?? connectedWorkspace.path?.trim() ?? "",
-          );
-          const match = directoryHint
-            ? items.find((entry) => {
-                const entryPath = normalizeDirectoryPath((entry.opencode?.directory ?? entry.directory ?? entry.path ?? "").trim());
-                return Boolean(entryPath && entryPath === directoryHint);
-              })
-            : (response.activeId ? items.find((entry) => entry.id === response.activeId) : null) ?? items[0];
-          setRuntimeWorkspaceId(match?.id ?? response.activeId ?? null);
-        } catch {
-          if (!cancelled) setRuntimeWorkspaceId(null);
-        }
-      };
-
-      void resolveWorkspace();
-      onCleanup(() => {
-        cancelled = true;
-      });
-      return;
-    }
-
-    if (connectedWorkspace.workspaceType === "local") {
-      let cancelled = false;
-      const resolveWorkspace = async () => {
-        try {
-          const response = await client.listWorkspaces();
-          if (cancelled) return;
-          const items = Array.isArray(response.items) ? response.items : [];
-          const activeMatch = response.activeId ? items.find((entry) => entry.id === response.activeId) : null;
-          const pathMatch = items.find(
-            (entry) => normalizeDirectoryPath(entry.path) === normalizeDirectoryPath(connectedWorkspace.path),
-          );
-          setRuntimeWorkspaceId(activeMatch?.id ?? pathMatch?.id ?? response.activeId ?? null);
-        } catch {
-          if (!cancelled) setRuntimeWorkspaceId(null);
-        }
-      };
-
-      void resolveWorkspace();
-      onCleanup(() => {
-        cancelled = true;
-      });
-      return;
-    }
-
-    setRuntimeWorkspaceId(null);
+    void resolveWorkspace();
+    onCleanup(() => {
+      cancelled = true;
+    });
   });
 
   const resolveSharedBundleWorkerTarget = () => {
@@ -3968,38 +3740,15 @@ export default function App() {
 
   const isSharedBundleImportWorkspace = (workspace: WorkspaceDisplay | WorkspaceInfo | null) => {
     if (!workspace?.id?.trim()) return false;
-    if (workspace.workspaceType === "local") {
-      return Boolean(workspace.path?.trim());
-    }
-    return Boolean(
-      workspace.remoteType === "aurowork" ||
-        workspace.auroworkHostUrl?.trim() ||
-        workspace.auroworkWorkspaceId?.trim()
-    );
+    return Boolean(workspace.path?.trim());
   };
 
   const resolveSharedBundleImportTargetForWorkspace = (
     workspace: WorkspaceDisplay | WorkspaceInfo | null,
   ): SharedBundleImportTarget | undefined => {
     if (!workspace) return undefined;
-    if (workspace.workspaceType === "local") {
-      const localRoot = workspace.path?.trim() ?? "";
-      return localRoot ? { localRoot } : undefined;
-    }
-
-    const workspaceId =
-      workspace.auroworkWorkspaceId?.trim() ||
-      parseAuroworkWorkspaceIdFromUrl(workspace.auroworkHostUrl ?? "") ||
-      parseAuroworkWorkspaceIdFromUrl(workspace.baseUrl ?? "") ||
-      null;
-    const directoryHint = workspace.directory?.trim() || workspace.path?.trim() || null;
-    if (workspaceId || directoryHint) {
-      return {
-        workspaceId,
-        directoryHint,
-      };
-    }
-    return undefined;
+    const localRoot = workspace.path?.trim() ?? "";
+    return localRoot ? { localRoot } : undefined;
   };
 
   const findSharedBundleImportWorkspaceId = (
@@ -4031,19 +3780,7 @@ export default function App() {
   };
 
   const resolveActiveSharedBundleImportTarget = (): SharedBundleImportTarget => {
-    const active = workspaceStore.selectedWorkspaceDisplay();
-    if (active.workspaceType === "local") {
-      return { localRoot: workspaceStore.selectedWorkspaceRoot().trim() };
-    }
-
-    return {
-      workspaceId:
-        active.auroworkWorkspaceId?.trim() ||
-        parseAuroworkWorkspaceIdFromUrl(active.auroworkHostUrl ?? "") ||
-        parseAuroworkWorkspaceIdFromUrl(active.baseUrl ?? "") ||
-        null,
-      directoryHint: active.directory?.trim() || active.path?.trim() || null,
-    };
+    return { localRoot: workspaceStore.selectedWorkspaceRoot().trim() };
   };
 
   const waitForSharedBundleImportTarget = async (timeoutMs = 20_000, target?: SharedBundleImportTarget) => {
@@ -4111,27 +3848,8 @@ export default function App() {
     }
   };
 
-  const createWorkerForSharedBundle = async (request: SharedBundleDeepLink, bundle: SharedBundleV1) => {
-    const target = resolveSharedBundleWorkerTarget();
-    const hostUrl = target.hostUrl.trim();
-    const token = target.token.trim();
-    if (!hostUrl || !token) {
-      throw new Error("Share link detected. Configure an AuroWork worker host and token, then open the link again.");
-    }
-
-    const label = (request.label?.trim() || bundle.name?.trim() || "Shared setup").slice(0, 80);
-    const ok = await workspaceStore.createRemoteWorkspaceFlow({
-      auroworkHostUrl: hostUrl,
-      auroworkToken: token,
-      directory: null,
-      displayName: label,
-      manageBusy: false,
-      closeModal: false,
-    });
-
-    if (!ok) {
-      throw new Error("Failed to create a worker from this share link.");
-    }
+  const createWorkerForSharedBundle = async (_request: SharedBundleDeepLink, _bundle: SharedBundleV1) => {
+    throw new Error("Creating a new worker from a share link is no longer supported. Import into the current workspace instead.");
   };
 
   const startWorkspaceFromTemplate = async (folder: string | null) => {
@@ -4354,25 +4072,6 @@ export default function App() {
     setAuroworkAuditError(null);
   });
 
-  createEffect(() => {
-    const active = workspaceStore.selectedWorkspaceDisplay();
-    if (active.workspaceType !== "remote" || active.remoteType !== "aurowork") {
-      return;
-    }
-    const hostUrl = active.auroworkHostUrl?.trim() ?? "";
-    if (!hostUrl) return;
-    const token = active.auroworkToken?.trim() ?? "";
-    const settings = auroworkServerSettings();
-    if (settings.urlOverride?.trim() === hostUrl && (!token || settings.token?.trim() === token)) {
-      return;
-    }
-    updateAuroworkServerSettings({
-      ...settings,
-      urlOverride: hostUrl,
-      token: token || settings.token,
-    });
-  });
-
   const auroworkServerReady = createMemo(() => auroworkServerStatus() === "connected");
   const auroworkServerWorkspaceReady = createMemo(() => Boolean(runtimeWorkspaceId()));
   const resolvedAuroworkCapabilities = createMemo(() => auroworkServerCapabilities());
@@ -4407,50 +4106,11 @@ export default function App() {
     setAuroworkServerSettings(stored);
   }
 
-  const saveShareRemoteAccess = async (enabled: boolean) => {
-    if (shareRemoteAccessBusy()) return;
-    const previous = auroworkServerSettings();
-    const next: AuroworkServerSettings = {
-      ...previous,
-      remoteAccessEnabled: enabled,
-    };
-
-    setShareRemoteAccessBusy(true);
-    setShareRemoteAccessError(null);
-    updateAuroworkServerSettings(next);
-
-    try {
-      if (isTauriRuntime() && workspaceStore.selectedWorkspaceDisplay().workspaceType === "local") {
-        const restarted = await restartLocalServer();
-        if (!restarted) {
-          throw new Error("Failed to restart the local worker with the updated sharing setting.");
-        }
-        await reconnectAuroworkServer();
-      }
-    } catch (error) {
-      updateAuroworkServerSettings(previous);
-      setShareRemoteAccessError(
-        error instanceof Error
-          ? error.message
-          : "Failed to update remote access.",
-      );
-      return;
-    } finally {
-      setShareRemoteAccessBusy(false);
-    }
-  };
-
   const resetAuroworkServerSettings = () => {
     clearAuroworkServerSettings();
     setAuroworkServerSettings({});
   };
 
-  const [editRemoteWorkspaceOpen, setEditRemoteWorkspaceOpen] = createSignal(false);
-  const [editRemoteWorkspaceId, setEditRemoteWorkspaceId] = createSignal<string | null>(null);
-  const [editRemoteWorkspaceError, setEditRemoteWorkspaceError] = createSignal<string | null>(null);
-  const [deepLinkRemoteWorkspaceDefaults, setDeepLinkRemoteWorkspaceDefaults] = createSignal<RemoteWorkspaceDefaults | null>(null);
-  const [pendingRemoteConnectDeepLink, setPendingRemoteConnectDeepLink] = createSignal<RemoteWorkspaceDefaults | null>(null);
-  const [autoConnectRemoteWorkspaceOverlayOpen, setAutoConnectRemoteWorkspaceOverlayOpen] = createSignal(false);
   const [pendingSharedBundleInvite, setPendingSharedBundleInvite] = createSignal<SharedBundleDeepLink | null>(null);
   const [sharedTemplateStartRequest, setSharedTemplateStartRequest] =
     createSignal<SharedTemplateStartRequest | null>(null);
@@ -4516,19 +4176,13 @@ export default function App() {
         if (b.id === activeId && a.id !== activeId) return 1;
         const aLabel =
           a.displayName?.trim() ||
-          a.auroworkWorkspaceName?.trim() ||
           a.name?.trim() ||
-          a.directory?.trim() ||
           a.path?.trim() ||
-          a.baseUrl?.trim() ||
           "";
         const bLabel =
           b.displayName?.trim() ||
-          b.auroworkWorkspaceName?.trim() ||
           b.name?.trim() ||
-          b.directory?.trim() ||
           b.path?.trim() ||
-          b.baseUrl?.trim() ||
           "";
         return aLabel.localeCompare(bLabel, undefined, { sensitivity: "base" });
       });
@@ -4536,51 +4190,9 @@ export default function App() {
 
   const describeWorkspaceForToasts = (workspace: WorkspaceDisplay | WorkspaceInfo | null) =>
     workspace?.displayName?.trim() ||
-    workspace?.auroworkWorkspaceName?.trim() ||
     workspace?.name?.trim() ||
-    workspace?.directory?.trim() ||
     workspace?.path?.trim() ||
-    workspace?.baseUrl?.trim() ||
     "the selected worker";
-
-  const queueRemoteConnectDeepLink = (rawUrl: string): boolean => {
-    const parsed = parseRemoteConnectDeepLink(rawUrl);
-    if (!parsed) {
-      return false;
-    }
-    setPendingRemoteConnectDeepLink(parsed);
-    return true;
-  };
-
-  const completeRemoteConnectDeepLink = async (pending: RemoteWorkspaceDefaults) => {
-    const input = {
-      auroworkHostUrl: pending.auroworkHostUrl,
-      auroworkToken: pending.auroworkToken,
-      directory: pending.directory,
-      displayName: pending.displayName,
-    };
-
-    if (!pending.autoConnect) {
-      setDeepLinkRemoteWorkspaceDefaults(input);
-      workspaceStore.setCreateRemoteWorkspaceOpen(true);
-      return;
-    }
-
-    setError(null);
-    setAutoConnectRemoteWorkspaceOverlayOpen(true);
-    try {
-      const ok = await workspaceStore.createRemoteWorkspaceFlow(input);
-      if (ok) {
-        setDeepLinkRemoteWorkspaceDefaults(null);
-        return;
-      }
-
-      setDeepLinkRemoteWorkspaceDefaults(input);
-      workspaceStore.setCreateRemoteWorkspaceOpen(true);
-    } finally {
-      setAutoConnectRemoteWorkspaceOverlayOpen(false);
-    }
-  };
 
   const queueSharedBundleDeepLink = (rawUrl: string): boolean => {
     const parsed = parseSharedBundleDeepLink(rawUrl);
@@ -4606,8 +4218,7 @@ export default function App() {
       return;
     }
 
-    const remoteStripped = stripRemoteConnectQuery(rawUrl) ?? rawUrl;
-    const bundleStripped = stripSharedBundleQuery(remoteStripped) ?? remoteStripped;
+    const bundleStripped = stripSharedBundleQuery(rawUrl) ?? rawUrl;
     if (bundleStripped !== rawUrl) {
       window.history.replaceState({}, "", bundleStripped);
     }
@@ -4636,9 +4247,8 @@ export default function App() {
         continue;
       }
 
-      const matchedRemote = queueRemoteConnectDeepLink(url);
-      const matchedBundle = !matchedRemote && queueSharedBundleDeepLink(url);
-      const claimed = matchedRemote || matchedBundle;
+      const matchedBundle = queueSharedBundleDeepLink(url);
+      const claimed = matchedBundle;
       if (!claimed) {
         continue;
       }
@@ -4690,9 +4300,7 @@ export default function App() {
         setSharedBundleImportBusy(false);
       }
     }
-    setPendingRemoteConnectDeepLink(parsed.kind === "remote" ? parsed.link : null);
-    setTab("skills");
-    return { ok: true, message: "Queued remote worker link. AuroWork should move into the connect flow." };
+    return { ok: false, message: "That link is not a recognized AuroWork deep link or share URL." };
   };
 
   const closeSharedBundleImportChoice = () => {
@@ -4712,30 +4320,16 @@ export default function App() {
     const items = workspaceStore.workspaces().map((workspace) => {
         let disabledReason: string | null = null;
         if (!resolveSharedBundleImportTargetForWorkspace(workspace)) {
-          disabledReason =
-            workspace.workspaceType === "remote" && workspace.remoteType !== "aurowork"
-            ? "Only AuroWork-connected workers support direct shared bundle imports."
-            : "This worker is missing the info AuroWork needs to import the bundle.";
+          disabledReason = "This worker is missing the info AuroWork needs to import the bundle.";
         }
 
       const label =
         workspace.displayName?.trim() ||
-        workspace.auroworkWorkspaceName?.trim() ||
         workspace.name?.trim() ||
         workspace.path?.trim() ||
         "Worker";
-      const badge =
-        workspace.workspaceType === "remote"
-          ? workspace.sandboxBackend === "docker" ||
-            Boolean(workspace.sandboxRunId?.trim()) ||
-            Boolean(workspace.sandboxContainerName?.trim())
-            ? "Sandbox"
-            : "Remote"
-          : "Local";
-      const detail =
-        workspace.workspaceType === "local"
-          ? workspace.path?.trim() || "Local worker"
-          : workspace.directory?.trim() || workspace.baseUrl?.trim() || workspace.auroworkHostUrl?.trim() || "Remote worker";
+      const badge = "Local";
+      const detail = workspace.path?.trim() || "Local worker";
 
       return {
         id: workspace.id,
@@ -4832,52 +4426,12 @@ export default function App() {
     }
   };
 
-  createEffect(() => {
-    const pending = pendingRemoteConnectDeepLink();
-    if (!pending || booting()) {
-      return;
-    }
-
-    if (pending.autoConnect) {
-      setView("session");
-    } else {
-      setView("dashboard");
-      setTab("skills");
-    }
-    setPendingRemoteConnectDeepLink(null);
-    void completeRemoteConnectDeepLink(pending);
-  });
-
-  createEffect(() => {
-    if (workspaceStore.createRemoteWorkspaceOpen()) {
-      return;
-    }
-    if (!deepLinkRemoteWorkspaceDefaults()) {
-      return;
-    }
-    setDeepLinkRemoteWorkspaceDefaults(null);
-  });
-
-  const editRemoteWorkspaceDefaults = createMemo(() => {
-    const workspaceId = editRemoteWorkspaceId();
-    if (!workspaceId) return null;
-    const workspace = workspaceStore.workspaces().find((item) => item.id === workspaceId) ?? null;
-    if (!workspace || workspace.workspaceType !== "remote") return null;
-    return {
-      auroworkHostUrl: workspace.auroworkHostUrl ?? workspace.baseUrl ?? "",
-      auroworkToken: workspace.auroworkToken ?? auroworkServerSettings().token ?? "",
-      directory: workspace.directory ?? "",
-      displayName: workspace.displayName ?? "",
-    };
-  });
-
   const openRenameWorkspace = (workspaceId: string) => {
     const workspace = workspaceStore.workspaces().find((item) => item.id === workspaceId) ?? null;
     if (!workspace) return;
     setRenameWorkspaceId(workspaceId);
     setRenameWorkspaceName(
       workspace.displayName?.trim() ||
-        workspace.auroworkWorkspaceName?.trim() ||
         workspace.name?.trim() ||
         ""
     );
@@ -4927,18 +4481,6 @@ export default function App() {
     setAuroworkServerCapabilities(result.capabilities);
     setAuroworkServerCheckedAt(Date.now());
     const ok = result.status === "connected" || result.status === "limited";
-    if (ok && !isTauriRuntime()) {
-      const active = workspaceStore.selectedWorkspaceDisplay();
-      const shouldAttach = !client() || active.workspaceType !== "remote" || active.remoteType !== "aurowork";
-      if (shouldAttach) {
-        await workspaceStore
-          .createRemoteWorkspaceFlow({
-            auroworkHostUrl: derived,
-            auroworkToken: next.token ?? null,
-          })
-          .catch(() => undefined);
-      }
-    }
     return ok;
   };
 
@@ -5009,9 +4551,7 @@ export default function App() {
     }
 
     try {
-      hostInfo = await auroworkServerRestart({
-        remoteAccessEnabled: auroworkServerSettings().remoteAccessEnabled === true,
-      });
+      hostInfo = await auroworkServerRestart();
       setAuroworkServerHostInfo(hostInfo);
     } catch {
       return null;
@@ -5050,20 +4590,7 @@ export default function App() {
     return workspaceStore.startHost({ workspacePath, navigate: false });
   };
 
-  const auroWorkspaceConnectionSettings = (workspaceId: string) => {
-    const workspace = workspaceStore.workspaces().find((item) => item.id === workspaceId) ?? null;
-    if (workspace?.workspaceType === "remote" && workspace.remoteType === "aurowork") {
-      setEditRemoteWorkspaceId(workspace.id);
-      setEditRemoteWorkspaceError(null);
-      setEditRemoteWorkspaceOpen(true);
-      return;
-    }
-    if (workspace?.workspaceType === "remote") {
-      setEditRemoteWorkspaceId(workspace.id);
-      setEditRemoteWorkspaceError(null);
-      setEditRemoteWorkspaceOpen(true);
-      return;
-    }
+  const auroWorkspaceConnectionSettings = (_workspaceId: string) => {
     setTab("config");
     setView("dashboard");
   };
@@ -5073,36 +4600,14 @@ export default function App() {
 
   const canReloadWorkspace = createMemo(() => {
     if (canReloadLocalEngine()) return true;
-    if (workspaceStore.selectedWorkspaceDisplay().workspaceType !== "remote") return false;
-    return auroworkServerStatus() === "connected" && Boolean(auroworkServerClient() && runtimeWorkspaceId());
+    return false;
   });
 
   const reloadWorkspaceEngineFromUi = async () => {
     if (canReloadLocalEngine()) {
       return workspaceStore.reloadWorkspaceEngine();
     }
-
-    if (workspaceStore.selectedWorkspaceDisplay().workspaceType !== "remote") {
-      return false;
-    }
-
-    const client = auroworkServerClient();
-    const workspaceId = runtimeWorkspaceId();
-    if (!client || !workspaceId || auroworkServerStatus() !== "connected") {
-      setError("Connect to this worker before applying runtime changes.");
-      return false;
-    }
-
-    try {
-      await client.reloadEngine(workspaceId);
-      await workspaceStore.activateWorkspace(workspaceStore.selectedWorkspaceId());
-      await refreshMcpServers();
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to apply runtime changes.";
-      setError(message);
-      return false;
-    }
+    return false;
   };
 
   const systemState = createSystemState({
@@ -5590,19 +5095,6 @@ export default function App() {
     return busy();
   });
 
-  createEffect(() => {
-    if (isTauriRuntime()) return;
-    if (autoConnectAttempted()) return;
-    if (client()) return;
-    if (auroworkServerStatus() !== "connected") return;
-
-    const settings = auroworkServerSettings();
-    if (!settings.urlOverride || !settings.token) return;
-
-    setAutoConnectAttempted(true);
-    void workspaceStore.onConnectClient();
-  });
-
   const isModelStillAvailable = (ref: ModelRef): boolean => {
     if (!providerConnectedIds().includes(ref.providerID)) return false;
     const provider = providers().find((p) => p.id === ref.providerID);
@@ -5937,8 +5429,6 @@ export default function App() {
     };
 
     const projectDir = workspaceProjectDir().trim();
-    const isRemoteWorkspace = workspaceStore.selectedWorkspaceDisplay().workspaceType === "remote";
-    const isLocalWorkspace = !isRemoteWorkspace;
     const auroworkClient = auroworkServerClient();
     const auroworkWorkspaceId = runtimeWorkspaceId();
     const auroworkCapabilities = resolvedAuroworkCapabilities();
@@ -5948,48 +5438,7 @@ export default function App() {
       auroworkWorkspaceId &&
       auroworkCapabilities?.mcp?.read;
 
-    if (isRemoteWorkspace) {
-      if (!canUseAuroworkServer) {
-        setMcpStatus("AuroWork server unavailable. MCP config is read-only.");
-        setMcpServers([]);
-        setMcpStatuses({});
-        return;
-      }
-
-      try {
-        setMcpStatus(null);
-        const response = await auroworkClient.listMcp(auroworkWorkspaceId);
-        const next = response.items.map((entry) => ({
-          name: entry.name,
-          config: entry.config as McpServerEntry["config"],
-        }));
-        setMcpServers(next);
-        setMcpLastUpdatedAt(Date.now());
-
-        const activeClient = client();
-        if (activeClient && projectDir) {
-          try {
-            const status = unwrap(await activeClient.mcp.status({ directory: projectDir }));
-            setMcpStatuses(filterConfiguredStatuses(status as McpStatusMap, next));
-          } catch {
-            setMcpStatuses({});
-          }
-        } else {
-          setMcpStatuses({});
-        }
-
-        if (!next.length) {
-          setMcpStatus("No MCP servers configured yet.");
-        }
-      } catch (e) {
-        setMcpServers([]);
-        setMcpStatuses({});
-        setMcpStatus(e instanceof Error ? e.message : "Failed to load MCP servers");
-      }
-      return;
-    }
-
-    if (isLocalWorkspace && canUseAuroworkServer) {
+    if (canUseAuroworkServer) {
       try {
         setMcpStatus(null);
         const response = await auroworkClient.listMcp(auroworkWorkspaceId);
@@ -6092,9 +5541,7 @@ export default function App() {
 
   async function connectMcp(entry: (typeof MCP_QUICK_CONNECT)[number]) {
     const startedAt = perfNow();
-    const isRemoteWorkspace =
-      workspaceStore.selectedWorkspaceDisplay().workspaceType === "remote" ||
-      (!isTauriRuntime() && auroworkServerStatus() === "connected");
+    const isRemoteWorkspace = !isTauriRuntime() && auroworkServerStatus() === "connected";
     const projectDir = workspaceProjectDir().trim();
     const entryType = entry.type ?? "remote";
 
@@ -6350,9 +5797,7 @@ export default function App() {
   }
 
   async function logoutMcpAuth(name: string) {
-    const isRemoteWorkspace =
-      workspaceStore.selectedWorkspaceDisplay().workspaceType === "remote" ||
-      (!isTauriRuntime() && auroworkServerStatus() === "connected");
+    const isRemoteWorkspace = !isTauriRuntime() && auroworkServerStatus() === "connected";
     const projectDir = workspaceProjectDir().trim();
 
     const auroworkClient = auroworkServerClient();
@@ -6674,7 +6119,9 @@ export default function App() {
     const startupPref = readStartupPreference();
     if (startupPref) {
       setRememberStartupChoice(true);
-      setStartupPreference(startupPref);
+      // Legacy installs may have persisted a "server" preference from the removed
+      // remote-workspace flow; coerce it to the local default so no reader breaks.
+      setStartupPreference(startupPref === "server" ? "local" : startupPref);
     }
     mark("step1 startup pref");
 
@@ -7468,7 +6915,6 @@ export default function App() {
     onImportWorkspaceConfig: workspaceStore.importWorkspaceConfig,
     importingWorkspaceConfig: workspaceStore.importingWorkspaceConfig(),
     onAttachHost: workspaceStore.onAttachHost,
-    onConnectClient: workspaceStore.onConnectClient,
     onBackToWelcome: workspaceStore.onBackToWelcome,
     onSetAuthorizedDir: workspaceStore.setNewAuthorizedDir,
     onAddAuthorizedDir: workspaceStore.addAuthorizedDir,
@@ -7498,36 +6944,14 @@ export default function App() {
   });
 
   const dashboardProps = () => {
-    const workspaceType = selectedWorkspaceDisplay().workspaceType;
-    const isRemoteWorkspace = workspaceType === "remote";
-    const providerAuthWorkerType: "local" | "remote" = isRemoteWorkspace ? "remote" : "local";
+    const providerAuthWorkerType: "local" | "remote" = "local";
     const auroworkStatus = auroworkServerStatus();
-    const canUseDesktopTools = isTauriRuntime() && !isRemoteWorkspace;
-    const canInstallSkillCreator = isRemoteWorkspace
-      ? auroworkServerCanWriteSkills()
-      : isTauriRuntime();
-    const canEditPlugins = isRemoteWorkspace
-      ? auroworkServerCanWritePlugins()
-      : isTauriRuntime();
-    const canUseGlobalPluginScope = !isRemoteWorkspace && isTauriRuntime();
-    const skillsAccessHint = isRemoteWorkspace
-      ? auroworkStatus === "disconnected"
-        ? "AuroWork server unavailable. Add the server URL/token in Advanced to manage skills."
-        : auroworkStatus === "limited"
-          ? "AuroWork server needs a host token to install/update skills. Add it in Advanced and reconnect."
-          : auroworkServerCanWriteSkills()
-            ? null
-            : "AuroWork server is read-only for skills. Add a host token in Advanced to enable installs."
-      : null;
-    const pluginsAccessHint = isRemoteWorkspace
-      ? auroworkStatus === "disconnected"
-        ? "AuroWork server unavailable. Plugins are read-only."
-        : auroworkStatus === "limited"
-          ? "AuroWork server needs a token to edit plugins."
-          : auroworkServerCanWritePlugins()
-            ? null
-            : "AuroWork server is read-only for plugins."
-      : null;
+    const canUseDesktopTools = isTauriRuntime();
+    const canInstallSkillCreator = isTauriRuntime();
+    const canEditPlugins = isTauriRuntime();
+    const canUseGlobalPluginScope = isTauriRuntime();
+    const skillsAccessHint = null;
+    const pluginsAccessHint = null;
 
     return {
       tab: tab(),
@@ -7568,9 +6992,6 @@ export default function App() {
       reconnectAuroworkServer,
       auroworkServerSettings: auroworkServerSettings(),
       auroworkServerHostInfo: auroworkServerHostInfo(),
-      shareRemoteAccessBusy: shareRemoteAccessBusy(),
-      shareRemoteAccessError: shareRemoteAccessError(),
-      saveShareRemoteAccess,
       auroworkServerCapabilities: devtoolsCapabilities(),
       auroworkServerDiagnostics: auroworkServerDiagnostics(),
       runtimeWorkspaceId: runtimeWorkspaceId(),
@@ -7607,8 +7028,6 @@ export default function App() {
       openCreateWorkspace: () => workspaceStore.setCreateWorkspaceOpen(true),
       getStartedWorkspace: workspaceStore.quickStartWorkspaceFlow,
       pickFolderWorkspace: workspaceStore.createWorkspaceFromPickedFolder,
-      openCreateRemoteWorkspace: () => workspaceStore.setCreateRemoteWorkspaceOpen(true),
-      connectRemoteWorkspace: workspaceStore.createRemoteWorkspaceFlow,
       importWorkspaceConfig: workspaceStore.importWorkspaceConfig,
       importingWorkspaceConfig: workspaceStore.importingWorkspaceConfig(),
       exportWorkspaceConfig: workspaceStore.exportWorkspaceConfig,
@@ -7622,7 +7041,6 @@ export default function App() {
       openRenameWorkspace,
       editWorkspaceConnection: auroWorkspaceConnectionSettings,
       forgetWorkspace: workspaceStore.forgetWorkspace,
-      stopSandbox: workspaceStore.stopSandbox,
       scheduledJobs: scheduledJobs(),
       scheduledJobsSource: scheduledJobsSource(),
       scheduledJobsSourceReady: scheduledJobsSourceReady(),
@@ -7634,7 +7052,6 @@ export default function App() {
         refreshScheduledJobs(options).catch(() => undefined),
       deleteScheduledJob,
       selectedWorkspaceRoot: workspaceStore.selectedWorkspaceRoot().trim(),
-      isRemoteWorkspace: workspaceStore.selectedWorkspaceDisplay().workspaceType === "remote",
       refreshSkills: (options?: { force?: boolean }) => refreshSkills(options).catch(() => undefined),
       refreshHubSkills: (options?: { force?: boolean }) => refreshHubSkills(options).catch(() => undefined),
       refreshPlugins: (scopeOverride?: PluginScope) =>
@@ -7741,8 +7158,6 @@ export default function App() {
       pendingPermissions: pendingPermissions(),
       events: events(),
       workspaceDebugEvents: workspaceStore.workspaceDebugEvents(),
-      sandboxCreateProgress: workspaceStore.sandboxCreateProgress(),
-      sandboxCreateProgressLast: workspaceStore.lastSandboxCreateProgress(),
       clearWorkspaceDebugEvents: workspaceStore.clearWorkspaceDebugEvents,
       safeStringify,
       repairOpencodeMigration: workspaceStore.repairOpencodeMigration,
@@ -7830,9 +7245,7 @@ export default function App() {
   };
 
   const sessionProps = () => ({
-    providerAuthWorkerType: (selectedWorkspaceDisplay().workspaceType === "remote" ? "remote" : "local") as
-      | "remote"
-      | "local",
+    providerAuthWorkerType: "local" as "remote" | "local",
     selectedSessionId: activeSessionId(),
     setView,
     tab: tab(),
@@ -7856,7 +7269,6 @@ export default function App() {
     openCreateWorkspace: () => workspaceStore.setCreateWorkspaceOpen(true),
     getStartedWorkspace: workspaceStore.quickStartWorkspaceFlow,
     pickFolderWorkspace: workspaceStore.createWorkspaceFromPickedFolder,
-    openCreateRemoteWorkspace: () => workspaceStore.setCreateRemoteWorkspaceOpen(true),
     importWorkspaceConfig: workspaceStore.importWorkspaceConfig,
     importingWorkspaceConfig: workspaceStore.importingWorkspaceConfig(),
     exportWorkspaceConfig: workspaceStore.exportWorkspaceConfig,
@@ -7867,9 +7279,6 @@ export default function App() {
     auroworkServerDiagnostics: auroworkServerDiagnostics(),
     auroworkServerSettings: auroworkServerSettings(),
     auroworkServerHostInfo: auroworkServerHostInfo(),
-    shareRemoteAccessBusy: shareRemoteAccessBusy(),
-    shareRemoteAccessError: shareRemoteAccessError(),
-    saveShareRemoteAccess,
     runtimeWorkspaceId: runtimeWorkspaceId(),
     engineInfo: workspaceStore.engine(),
     engineDoctorVersion: workspaceStore.engineDoctorResult()?.version ?? null,
@@ -8161,7 +7570,6 @@ export default function App() {
         reloadRequired={mcpAuthNeedsReload()}
         reloadBlocked={activeReloadBlockingSessions().length > 0}
         activeSessions={activeReloadBlockingSessions()}
-        isRemoteWorkspace={selectedWorkspaceDisplay().workspaceType === "remote"}
         onForceStopSession={(sessionID) => abortSession(sessionID)}
         onClose={() => {
           setMcpAuthModalOpen(false);
@@ -8181,7 +7589,6 @@ export default function App() {
         open={workspaceStore.createWorkspaceOpen()}
         onClose={() => {
           workspaceStore.setCreateWorkspaceOpen(false);
-          workspaceStore.clearSandboxCreateProgress?.();
           setSharedBundleCreateWorkerRequest(null);
         }}
         onPickFolder={workspaceStore.pickWorkspaceFolder}
@@ -8216,51 +7623,6 @@ export default function App() {
         })()}
       />
 
-      <CreateRemoteWorkspaceModal
-        open={workspaceStore.createRemoteWorkspaceOpen()}
-        onClose={() => {
-          workspaceStore.setCreateRemoteWorkspaceOpen(false);
-          setDeepLinkRemoteWorkspaceDefaults(null);
-        }}
-        onConfirm={(input) => workspaceStore.createRemoteWorkspaceFlow(input)}
-        initialValues={deepLinkRemoteWorkspaceDefaults() ?? undefined}
-        submitting={
-          busy() &&
-          (busyLabel() === "status.creating_workspace" || busyLabel() === "status.connecting")
-        }
-      />
-
-      <Show when={autoConnectRemoteWorkspaceOverlayOpen()}>
-        <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div
-            role="status"
-            aria-live="polite"
-            class="w-full max-w-lg overflow-hidden rounded-2xl border border-dls-border bg-dls-hover shadow-[var(--dls-shell-shadow)]"
-          >
-            <div class="border-b border-dls-border bg-dls-surface px-6 py-5">
-              <div class="inline-flex items-center rounded-full border border-dls-border bg-dls-hover px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-dls-secondary">
-                Remote worker
-              </div>
-              <h3 class="mt-4 text-lg font-semibold text-dls-text">Adding your worker</h3>
-              <p class="mt-1 text-sm text-dls-secondary">
-                Connecting your AuroWork worker now. This usually takes a moment.
-              </p>
-            </div>
-            <div class="flex items-center gap-4 px-6 py-6">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-dls-border bg-dls-surface/50">
-                <div class="h-5 w-5 rounded-full border-2 border-dls-secondary border-t-dls-text animate-spin" />
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="text-sm font-medium text-dls-text">Preparing your session</div>
-                <div class="mt-1 text-xs leading-relaxed text-dls-secondary">
-                  We are adding the remote worker in the background so you can land directly in the chat view.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Show>
-
       <div class="pointer-events-none fixed right-4 top-4 z-50 flex w-[min(24rem,calc(100vw-1.5rem))] max-w-full flex-col gap-3 sm:right-6 sm:top-6">
         <div class="pointer-events-auto">
           <StatusToast
@@ -8285,42 +7647,6 @@ export default function App() {
         onTitleChange={setRenameWorkspaceName}
       />
 
-      <CreateRemoteWorkspaceModal
-        open={editRemoteWorkspaceOpen()}
-        onClose={() => {
-          setEditRemoteWorkspaceOpen(false);
-          setEditRemoteWorkspaceId(null);
-          setEditRemoteWorkspaceError(null);
-        }}
-        onConfirm={(input) => {
-          const workspaceId = editRemoteWorkspaceId();
-          if (!workspaceId) return;
-          setEditRemoteWorkspaceError(null);
-          void (async () => {
-            try {
-              const ok = await workspaceStore.updateRemoteWorkspaceFlow(workspaceId, input);
-              if (ok) {
-                setEditRemoteWorkspaceOpen(false);
-                setEditRemoteWorkspaceId(null);
-                setEditRemoteWorkspaceError(null);
-              } else {
-                setEditRemoteWorkspaceError(error() || "Connection failed. Check the URL and token.");
-                setError(null);
-              }
-            } catch (e) {
-              const message = e instanceof Error ? e.message : "Connection failed";
-              setEditRemoteWorkspaceError(message);
-              setError(null);
-            }
-          })();
-        }}
-        initialValues={editRemoteWorkspaceDefaults() ?? undefined}
-        submitting={busy() && busyLabel() === "status.connecting"}
-        error={editRemoteWorkspaceError()}
-        title={t("dashboard.edit_remote_workspace_title", currentLocale())}
-        subtitle={t("dashboard.edit_remote_workspace_subtitle", currentLocale())}
-        confirmLabel={t("dashboard.edit_remote_workspace_confirm", currentLocale())}
-      />
       <LaunchDiagnosticToast />
     </>
   );

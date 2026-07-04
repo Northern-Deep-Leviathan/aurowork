@@ -22,21 +22,19 @@ export type WorkspaceLandingDecision = {
   /**
    * Whether to fire a fresh `loadSessions(root)` for the workspace root so
    * downstream guards see an up-to-date scope. Returns the normalized root
-   * to load when present, or `null` if there is no root to load (which only
-   * happens for remote workspaces or invalid input).
+   * to load when present, or `null` if there is no root to load (invalid
+   * input).
    */
   loadSessionsRoot: string | null;
 };
 
 export function decideWorkspaceLanding(input: {
   workspaceRoot?: string | null;
-  workspaceType?: "local" | "remote" | null;
 }): WorkspaceLandingDecision {
   const root = (input.workspaceRoot ?? "").trim();
-  const isRemote = input.workspaceType === "remote";
   return {
     clearSessionState: true,
-    loadSessionsRoot: !isRemote && root.length > 0 ? root : null,
+    loadSessionsRoot: root.length > 0 ? root : null,
   };
 }
 

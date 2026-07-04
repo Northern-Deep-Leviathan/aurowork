@@ -1,17 +1,12 @@
 import { normalizeDirectoryPath } from "../utils";
 import { normalizeDirectoryQueryPath } from "../utils";
 
-type WorkspaceType = "local" | "remote";
-
 export function resolveScopedClientDirectory(input: {
   directory?: string | null;
   targetRoot?: string | null;
-  workspaceType?: WorkspaceType | null;
 }) {
   const directory = toSessionTransportDirectory(input.directory);
   if (directory) return directory;
-
-  if (input.workspaceType === "remote") return "";
 
   return toSessionTransportDirectory(input.targetRoot);
 }

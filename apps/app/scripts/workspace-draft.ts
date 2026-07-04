@@ -33,7 +33,6 @@ try {
     assert.deepEqual(
       decideWorkspaceLanding({
         workspaceRoot: "/Users/me/AuroWork/starter",
-        workspaceType: "local",
       }),
       {
         clearSessionState: true,
@@ -49,44 +48,29 @@ try {
     // never silently keeps stale session state.
     const a = decideWorkspaceLanding({
       workspaceRoot: "/Users/me/AuroWork/starter",
-      workspaceType: "local",
     });
     const b = decideWorkspaceLanding({
       workspaceRoot: "/Users/me/AuroWork/starter",
-      workspaceType: "local",
     });
     assert.deepEqual(a, b);
     assert.equal(a.clearSessionState, true);
   });
 
-  await step("remote workspace skips loadSessions but still clears", () => {
-    assert.deepEqual(
-      decideWorkspaceLanding({
-        workspaceRoot: "/ignored/remote/path",
-        workspaceType: "remote",
-      }),
-      {
-        clearSessionState: true,
-        loadSessionsRoot: null,
-      },
-    );
-  });
-
   await step("missing or blank root yields null loadSessionsRoot", () => {
     assert.equal(
-      decideWorkspaceLanding({ workspaceRoot: "", workspaceType: "local" }).loadSessionsRoot,
+      decideWorkspaceLanding({ workspaceRoot: "" }).loadSessionsRoot,
       null,
     );
     assert.equal(
-      decideWorkspaceLanding({ workspaceRoot: "   ", workspaceType: "local" }).loadSessionsRoot,
+      decideWorkspaceLanding({ workspaceRoot: "   " }).loadSessionsRoot,
       null,
     );
     assert.equal(
-      decideWorkspaceLanding({ workspaceRoot: null, workspaceType: "local" }).loadSessionsRoot,
+      decideWorkspaceLanding({ workspaceRoot: null }).loadSessionsRoot,
       null,
     );
     assert.equal(
-      decideWorkspaceLanding({ workspaceRoot: undefined, workspaceType: null }).loadSessionsRoot,
+      decideWorkspaceLanding({ workspaceRoot: undefined }).loadSessionsRoot,
       null,
     );
   });

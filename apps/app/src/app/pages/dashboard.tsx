@@ -117,13 +117,10 @@ export type DashboardViewProps = {
   reconnectAuroworkServer: () => Promise<boolean>;
   auroworkServerSettings: AuroworkServerSettings;
   auroworkServerHostInfo: AuroworkServerInfo | null;
-  shareRemoteAccessBusy: boolean;
-  shareRemoteAccessError: string | null;
-  saveShareRemoteAccess: (enabled: boolean) => Promise<void>;
   auroworkServerCapabilities: AuroworkServerCapabilities | null;
   auroworkServerDiagnostics: AuroworkServerDiagnostics | null;
   runtimeWorkspaceId: string | null;
-  activeWorkspaceType: "local" | "remote";
+  activeWorkspaceType: "local";
   opencodeConnectStatus: OpencodeConnectStatus | null;
   engineInfo: EngineInfo | null;
   engineDoctorVersion: string | null;
@@ -147,16 +144,7 @@ export type DashboardViewProps = {
   workspaceConnectionStateById: Record<string, WorkspaceConnectionState>;
   selectWorkspace: (workspaceId: string) => Promise<boolean> | boolean | void;
   ensureWorkspaceActivated: (workspaceId: string) => Promise<boolean> | boolean | void;
-  testWorkspaceConnection: (workspaceId: string) => Promise<boolean> | boolean;
-  recoverWorkspace: (workspaceId: string) => Promise<boolean> | boolean;
   openCreateWorkspace: () => void;
-  openCreateRemoteWorkspace: () => void;
-  connectRemoteWorkspace: (input: {
-    auroworkHostUrl?: string | null;
-    auroworkToken?: string | null;
-    directory?: string | null;
-    displayName?: string | null;
-  }) => Promise<boolean>;
   importWorkspaceConfig: () => void;
   importingWorkspaceConfig: boolean;
   exportWorkspaceConfig: (workspaceId?: string) => void;
@@ -164,11 +152,8 @@ export type DashboardViewProps = {
   workspaceSessionGroups: WorkspaceSessionGroup[];
   selectedSessionId: string | null;
   openRenameWorkspace: (workspaceId: string) => void;
-  editWorkspaceConnection: (workspaceId: string) => void;
   forgetWorkspace: (workspaceId: string) => void;
-  stopSandbox: (workspaceId: string) => void;
   selectedWorkspaceRoot: string;
-  isRemoteWorkspace: boolean;
   refreshSkills: (options?: { force?: boolean }) => void;
   refreshHubSkills: (options?: { force?: boolean }) => void;
   refreshPlugins: (scopeOverride?: PluginScope) => void;
@@ -288,8 +273,6 @@ export type DashboardViewProps = {
   pendingPermissions: unknown;
   events: unknown;
   workspaceDebugEvents: unknown;
-  sandboxCreateProgress: unknown;
-  sandboxCreateProgressLast: unknown;
   clearWorkspaceDebugEvents: () => void;
   safeStringify: (value: unknown) => string;
   repairOpencodeMigration: () => void;
@@ -379,18 +362,10 @@ export default function DashboardView(props: DashboardViewProps) {
 
   const workspaceLabel = (workspace: WorkspaceInfo) =>
     workspace.displayName?.trim() ||
-    workspace.auroworkWorkspaceName?.trim() ||
     workspace.name?.trim() ||
     workspace.path?.trim() ||
     "Workspace";
-  const workspaceKindLabel = (workspace: WorkspaceInfo) =>
-    workspace.workspaceType === "remote"
-      ? workspace.sandboxBackend === "docker" ||
-        Boolean(workspace.sandboxRunId?.trim()) ||
-        Boolean(workspace.sandboxContainerName?.trim())
-        ? "Sandbox"
-        : "Remote"
-      : "Local";
+  const workspaceKindLabel = (_workspace: WorkspaceInfo) => "Local";
 
   const openSessionFromList = (workspaceId: string, sessionId: string) => {
     void (async () => {
@@ -574,14 +549,6 @@ export default function DashboardView(props: DashboardViewProps) {
   const shareWorkspaceDetail = createMemo(() => {
     const ws = shareWorkspace();
     if (!ws) return "";
-    if (ws.workspaceType === "remote") {
-      if (ws.remoteType === "aurowork") {
-        const hostUrl = ws.auroworkHostUrl?.trim() || ws.baseUrl?.trim() || "";
-        const mounted = buildAuroworkWorkspaceBaseUrl(hostUrl, ws.auroworkWorkspaceId);
-        return mounted || hostUrl;
-      }
-      return ws.baseUrl?.trim() || "";
-    }
     return ws.path?.trim() || "";
   });
 
@@ -640,102 +607,16 @@ export default function DashboardView(props: DashboardViewProps) {
     });
   });
 
-  const shareFields = createMemo(() => {
-    const ws = shareWorkspace();
-    if (!ws) {
-      return [] as Array<{
+  const shareFields = createMemo(
+    () =>
+      [] as Array<{
         label: string;
         value: string;
         secret?: boolean;
         placeholder?: string;
         hint?: string;
-      }>;
-    }
-
-    if (ws.workspaceType !== "remote") {
-      if (props.auroworkServerHostInfo?.remoteAccessEnabled !== true) {
-        return [];
-      }
-      const hostUrl =
-        props.auroworkServerHostInfo?.connectUrl?.trim() ||
-        props.auroworkServerHostInfo?.lanUrl?.trim() ||
-        props.auroworkServerHostInfo?.mdnsUrl?.trim() ||
-        props.auroworkServerHostInfo?.baseUrl?.trim() ||
-        "";
-      const mountedUrl = shareLocalAuroworkWorkspaceId()
-        ? buildAuroworkWorkspaceBaseUrl(hostUrl, shareLocalAuroworkWorkspaceId())
-        : null;
-      const url = mountedUrl || hostUrl;
-      const ownerToken = props.auroworkServerHostInfo?.ownerToken?.trim() || "";
-      const collaboratorToken = props.auroworkServerHostInfo?.clientToken?.trim() || "";
-      return [
-        {
-          label: "Worker URL",
-          value: url,
-          placeholder: !isTauriRuntime() ? "Desktop app required" : "Starting server...",
-          hint: mountedUrl
-            ? "Use on phones or laptops connecting to this worker."
-            : hostUrl
-              ? "Worker URL is resolving; host URL shown as fallback."
-              : undefined,
-        },
-        {
-          label: "Password",
-          value: ownerToken,
-          secret: true,
-          placeholder: isTauriRuntime() ? "-" : "Desktop app required",
-          hint: mountedUrl
-            ? "Use on phones or laptops connecting to this worker."
-            : "Use when the remote client must answer permission prompts.",
-        },
-        {
-          label: "Collaborator token",
-          value: collaboratorToken,
-          secret: true,
-          placeholder: isTauriRuntime() ? "-" : "Desktop app required",
-          hint: mountedUrl
-            ? "Routine remote access when you do not need owner-only actions."
-            : "Routine remote access to this host without owner-only actions.",
-        },
-      ];
-    }
-
-    if (ws.remoteType === "aurowork") {
-      const hostUrl = ws.auroworkHostUrl?.trim() || ws.baseUrl?.trim() || "";
-      const url = buildAuroworkWorkspaceBaseUrl(hostUrl, ws.auroworkWorkspaceId) || hostUrl;
-      const token =
-        ws.auroworkToken?.trim() ||
-        props.auroworkServerSettings.token?.trim() ||
-        "";
-      return [
-        {
-          label: "Worker URL",
-          value: url,
-        },
-        {
-          label: "Password",
-          value: token,
-          secret: true,
-          placeholder: token ? undefined : "Set token in Advanced",
-          hint: "This workspace is currently connected with this password.",
-        },
-      ];
-    }
-
-    const baseUrl = ws.baseUrl?.trim() || ws.path?.trim() || "";
-    const directory = ws.directory?.trim() || "";
-    return [
-      {
-        label: "OpenCode base URL",
-        value: baseUrl,
-      },
-      {
-        label: "Directory",
-        value: directory,
-        placeholder: "(auto)",
-      },
-    ];
-  });
+      }>,
+  );
 
   const shareNote = createMemo(() => {
     const ws = shareWorkspace();
@@ -749,23 +630,13 @@ export default function DashboardView(props: DashboardViewProps) {
   const shareServiceDisabledReason = createMemo(() => {
     const ws = shareWorkspace();
     if (!ws) return "Select a workspace first.";
-    if (ws.workspaceType === "remote" && ws.remoteType !== "aurowork") {
-      return "Share service links are available for AuroWork workers.";
-    }
-    if (ws.workspaceType !== "remote") {
-      const baseUrl = props.auroworkServerHostInfo?.baseUrl?.trim() ?? "";
-      const token =
-        props.auroworkServerHostInfo?.ownerToken?.trim() ||
-        props.auroworkServerHostInfo?.clientToken?.trim() ||
-        "";
-      if (!baseUrl || !token) {
-        return "Local AuroWork host is not ready yet.";
-      }
-    } else {
-      const hostUrl = ws.auroworkHostUrl?.trim() || ws.baseUrl?.trim() || "";
-      const token = ws.auroworkToken?.trim() || props.auroworkServerSettings.token?.trim() || "";
-      if (!hostUrl) return "Missing AuroWork host URL.";
-      if (!token) return "Missing AuroWork token.";
+    const baseUrl = props.auroworkServerHostInfo?.baseUrl?.trim() ?? "";
+    const token =
+      props.auroworkServerHostInfo?.ownerToken?.trim() ||
+      props.auroworkServerHostInfo?.clientToken?.trim() ||
+      "";
+    if (!baseUrl || !token) {
+      return "Local AuroWork host is not ready yet.";
     }
     return null;
   });
@@ -780,69 +651,28 @@ export default function DashboardView(props: DashboardViewProps) {
       throw new Error("Select a workspace first.");
     }
 
-    if (ws.workspaceType !== "remote") {
-      const baseUrl = props.auroworkServerHostInfo?.baseUrl?.trim() ?? "";
-      const token =
-        props.auroworkServerHostInfo?.ownerToken?.trim() ||
-        props.auroworkServerHostInfo?.clientToken?.trim() ||
-        "";
-      if (!baseUrl || !token) {
-        throw new Error("Local AuroWork host is not ready yet.");
-      }
-      const client = createAuroworkServerClient({ baseUrl, token });
-
-      let workspaceId = shareLocalAuroworkWorkspaceId()?.trim() ?? "";
-      if (!workspaceId) {
-        const response = await client.listWorkspaces();
-        const items = Array.isArray(response.items) ? response.items : [];
-        const targetPath = normalizeDirectoryPath(ws.path?.trim() ?? "");
-        const match = items.find((entry) => normalizeDirectoryPath(entry.path) === targetPath);
-        workspaceId = (match?.id ?? "").trim();
-        setShareLocalAuroworkWorkspaceId(workspaceId || null);
-      }
-
-      if (!workspaceId) {
-        throw new Error("Could not resolve this workspace on the local AuroWork host.");
-      }
-
-      return { client, workspaceId, workspace: ws };
-    }
-
-    if (ws.remoteType !== "aurowork") {
-      throw new Error("Share service links are available for AuroWork workers.");
-    }
-
-    const hostUrl = ws.auroworkHostUrl?.trim() || ws.baseUrl?.trim() || "";
-    const token = ws.auroworkToken?.trim() || props.auroworkServerSettings.token?.trim() || "";
-    if (!hostUrl || !token) {
-      throw new Error("AuroWork host URL and token are required.");
-    }
-
-    const client = createAuroworkServerClient({ baseUrl: hostUrl, token });
-    let workspaceId =
-      ws.auroworkWorkspaceId?.trim() ||
-      parseAuroworkWorkspaceIdFromUrl(ws.auroworkHostUrl ?? "") ||
-      parseAuroworkWorkspaceIdFromUrl(ws.baseUrl ?? "") ||
+    const baseUrl = props.auroworkServerHostInfo?.baseUrl?.trim() ?? "";
+    const token =
+      props.auroworkServerHostInfo?.ownerToken?.trim() ||
+      props.auroworkServerHostInfo?.clientToken?.trim() ||
       "";
+    if (!baseUrl || !token) {
+      throw new Error("Local AuroWork host is not ready yet.");
+    }
+    const client = createAuroworkServerClient({ baseUrl, token });
 
+    let workspaceId = shareLocalAuroworkWorkspaceId()?.trim() ?? "";
     if (!workspaceId) {
       const response = await client.listWorkspaces();
       const items = Array.isArray(response.items) ? response.items : [];
-      const directoryHint = normalizeDirectoryPath(ws.directory?.trim() ?? ws.path?.trim() ?? "");
-      const match = directoryHint
-        ? items.find((entry) => {
-            const entryPath = normalizeDirectoryPath(
-              (entry.opencode?.directory ?? entry.directory ?? entry.path ?? "").trim(),
-            );
-            return Boolean(entryPath && entryPath === directoryHint);
-          })
-        : (response.activeId ? items.find((entry) => entry.id === response.activeId) : null) ??
-          items[0];
+      const targetPath = normalizeDirectoryPath(ws.path?.trim() ?? "");
+      const match = items.find((entry) => normalizeDirectoryPath(entry.path) === targetPath);
       workspaceId = (match?.id ?? "").trim();
+      setShareLocalAuroworkWorkspaceId(workspaceId || null);
     }
 
     if (!workspaceId) {
-      throw new Error("Could not resolve this workspace on the AuroWork host.");
+      throw new Error("Could not resolve this workspace on the local AuroWork host.");
     }
 
     return { client, workspaceId, workspace: ws };
@@ -881,7 +711,6 @@ export default function DashboardView(props: DashboardViewProps) {
   const exportDisabledReason = createMemo(() => {
     const ws = shareWorkspace();
     if (!ws) return "Export is available for local workers in the desktop app.";
-    if (ws.workspaceType === "remote") return "Export is only supported for local workers.";
     if (!isTauriRuntime()) return "Export is available in the desktop app.";
     if (props.exportWorkspaceBusy) return "Export is already running.";
     return null;
@@ -1048,9 +877,6 @@ export default function DashboardView(props: DashboardViewProps) {
             onOpenRenameWorkspace={props.openRenameWorkspace}
             onShareWorkspace={(workspaceId) => setShareWorkspaceId(workspaceId)}
             onRevealWorkspace={revealWorkspaceInFinder}
-            onRecoverWorkspace={props.recoverWorkspace}
-            onTestWorkspaceConnection={props.testWorkspaceConnection}
-            onEditWorkspaceConnection={props.editWorkspaceConnection}
             onForgetWorkspace={props.forgetWorkspace}
             onOpenCreateWorkspace={props.openCreateWorkspace}
           />
@@ -1166,7 +992,6 @@ export default function DashboardView(props: DashboardViewProps) {
                   setDashboardTab={props.setTab}
                   busy={props.busy}
                   selectedWorkspaceRoot={props.selectedWorkspaceRoot}
-                  isRemoteWorkspace={props.isRemoteWorkspace}
                   refreshMcpServers={props.refreshMcpServers}
                   mcpServers={props.mcpServers}
                   mcpStatus={props.mcpStatus}
@@ -1311,8 +1136,6 @@ export default function DashboardView(props: DashboardViewProps) {
                   pendingPermissions={props.pendingPermissions}
                   events={props.events}
                   workspaceDebugEvents={props.workspaceDebugEvents}
-                  sandboxCreateProgress={props.sandboxCreateProgress}
-                  sandboxCreateProgressLast={props.sandboxCreateProgressLast}
                   clearWorkspaceDebugEvents={props.clearWorkspaceDebugEvents}
                   safeStringify={props.safeStringify}
                   repairOpencodeMigration={props.repairOpencodeMigration}
@@ -1406,7 +1229,6 @@ export default function DashboardView(props: DashboardViewProps) {
                   canReloadWorkspace={props.canReloadWorkspace}
                   reloadWorkspaceEngine={props.reloadWorkspaceEngine}
                   reloadBusy={props.reloadBusy}
-                  connectRemoteWorkspace={props.connectRemoteWorkspace}
               />
 
             </Match>
@@ -1469,14 +1291,6 @@ export default function DashboardView(props: DashboardViewProps) {
           workspaceName={shareWorkspaceName()}
           workspaceDetail={shareWorkspaceDetail()}
           fields={shareFields()}
-          remoteAccess={shareWorkspace()?.workspaceType === "local"
-            ? {
-                enabled: props.auroworkServerHostInfo?.remoteAccessEnabled === true,
-                busy: props.shareRemoteAccessBusy,
-                error: props.shareRemoteAccessError,
-                onSave: props.saveShareRemoteAccess,
-              }
-            : undefined}
           note={shareNote()}
           onShareWorkspaceProfile={publishWorkspaceProfileLink}
           shareWorkspaceProfileBusy={shareWorkspaceProfileBusy()}

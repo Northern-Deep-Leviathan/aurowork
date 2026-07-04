@@ -1,5 +1,5 @@
 import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
-import { Check, ChevronDown, GripVertical, Loader2, Plus, RefreshCcw, Settings, Square, Trash2 } from "lucide-solid";
+import { Check, ChevronDown, GripVertical, Loader2, Plus, Trash2 } from "lucide-solid";
 
 import type { TodoItem, WorkspaceConnectionState } from "../../types";
 import type { WorkspaceInfo } from "../../lib/tauri";
@@ -35,10 +35,7 @@ export type SidebarProps = {
   workspaceConnectionStateById: Record<string, WorkspaceConnectionState>;
   onSelectWorkspace: (workspaceId: string) => void;
   onCreateWorkspace: () => void;
-  onEditWorkspace: (workspaceId: string) => void;
-  onTestWorkspaceConnection: (workspaceId: string) => void;
   onForgetWorkspace: (workspaceId: string) => void;
-  onStopSandbox?: (workspaceId: string) => void;
   onReorderWorkspace: (fromId: string, toId: string | null) => void;
   onSelectSession: (workspaceId: string, sessionId: string) => void;
   selectedSessionId: string | null;
@@ -81,30 +78,15 @@ export default function SessionSidebar(props: SidebarProps) {
 
   const workspaceLabel = (workspace: WorkspaceInfo) =>
     workspace.displayName?.trim() ||
-    workspace.auroworkWorkspaceName?.trim() ||
     workspace.name?.trim() ||
     workspace.path?.trim() ||
     "Worker";
 
   const workspacePathLabel = (workspace: WorkspaceInfo) => {
-    if (workspace.workspaceType === "remote") {
-      if (workspace.remoteType === "aurowork") {
-        return (
-          workspace.auroworkHostUrl?.trim() ||
-          workspace.baseUrl?.trim() ||
-          workspace.path?.trim() ||
-          ""
-        );
-      }
-      return workspace.baseUrl?.trim() || workspace.path?.trim() || "";
-    }
     return workspace.path?.trim() || "";
   };
 
-  const workspaceDetailLabel = (workspace: WorkspaceInfo) => {
-    if (workspace.workspaceType !== "remote") return "";
-    return workspace.auroworkWorkspaceName?.trim() || workspace.directory?.trim() || "";
-  };
+  const workspaceDetailLabel = (_workspace: WorkspaceInfo) => "";
 
   const toggleWorkspaceCollapse = (workspaceId: string) => {
     setCollapsedById((prev) => {
@@ -291,11 +273,6 @@ export default function SessionSidebar(props: SidebarProps) {
                   const isConnecting = () => props.connectingWorkspaceId === group.workspace.id;
                   const pathLabel = () => workspacePathLabel(group.workspace);
                   const detailLabel = () => workspaceDetailLabel(group.workspace);
-                  const isSandboxWorkspace = () =>
-                    group.workspace.workspaceType === "remote" &&
-                    (group.workspace.sandboxBackend === "docker" ||
-                      Boolean(group.workspace.sandboxRunId?.trim()) ||
-                      Boolean(group.workspace.sandboxContainerName?.trim()));
                   const sessions = () => group.sessions;
                   const connectionState = () => props.workspaceConnectionStateById[group.workspace.id];
                   const connectionStatus = () => connectionState()?.status ?? "idle";
@@ -355,11 +332,6 @@ export default function SessionSidebar(props: SidebarProps) {
                                 <span class="text-xs font-semibold truncate">
                                   {workspaceLabel(group.workspace)}
                                 </span>
-                                <Show when={group.workspace.workspaceType === "remote"}>
-                                  <span class="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-dls-hover text-dls-secondary">
-                                    {isSandboxWorkspace() ? "Sandbox" : "Remote"}
-                                  </span>
-                                </Show>
                               </div>
                               <Show when={pathLabel()}>
                                 <div class="text-[9px] text-dls-secondary/80 font-mono truncate">{pathLabel()}</div>
@@ -417,37 +389,6 @@ export default function SessionSidebar(props: SidebarProps) {
                             </div>
                           </Show>
                           <div class="flex flex-wrap gap-2 px-3 pb-1">
-                            <Show when={group.workspace.workspaceType === "remote"}>
-                              <button
-                                type="button"
-                                class="inline-flex items-center gap-1.5 rounded-md border border-dls-border px-2 py-1 text-[10px] text-dls-secondary hover:text-dls-text hover:border-dls-border hover:bg-dls-hover transition-colors"
-                                onClick={() => props.onEditWorkspace(group.workspace.id)}
-                                disabled={isActivelyConnecting()}
-                              >
-                                <Settings size={12} />
-                                Edit connection
-                              </button>
-                              <button
-                                type="button"
-                                class="inline-flex items-center gap-1.5 rounded-md border border-dls-border px-2 py-1 text-[10px] text-dls-secondary hover:text-dls-text hover:border-dls-border hover:bg-dls-hover transition-colors"
-                                onClick={() => props.onTestWorkspaceConnection(group.workspace.id)}
-                                disabled={isActivelyConnecting()}
-                              >
-                                <RefreshCcw size={12} class={connectionStatus() === "connecting" ? "animate-spin" : ""} />
-                                Test connection
-                              </button>
-                            </Show>
-                            <Show when={group.workspace.sandboxContainerName?.trim() && props.onStopSandbox}>
-                              <button
-                                type="button"
-                                class="inline-flex items-center gap-1.5 rounded-md border border-dls-border px-2 py-1 text-[10px] text-dls-secondary hover:text-dls-text hover:border-dls-border hover:bg-dls-hover transition-colors"
-                                onClick={() => props.onStopSandbox?.(group.workspace.id)}
-                                disabled={isActivelyConnecting()}
-                              >
-                                <Square size={12} />
-                                Stop sandbox
-                              </button>
-                            </Show>
                             <button
                               type="button"
                               class="inline-flex items-center gap-1.5 rounded-md border border-dls-border px-2 py-1 text-[10px] text-dls-secondary hover:text-dls-text hover:border-dls-border hover:bg-dls-hover transition-colors"

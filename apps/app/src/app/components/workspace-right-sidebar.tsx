@@ -21,7 +21,7 @@ type Props = {
   settingsTab?: SettingsTab;
   developerMode: boolean;
   activeWorkspaceLabel: string;
-  activeWorkspaceType: "local" | "remote";
+  activeWorkspaceType: "local";
   auroworkServerClient: AuroworkServerClient | null;
   runtimeWorkspaceId: string | null;
   inboxId: string;
@@ -119,17 +119,6 @@ export default function WorkspaceRightSidebar(props: Props) {
             )}
           </Show>
         </div>
-
-        <Show when={props.expanded && props.activeWorkspaceType === "remote"}>
-          <div class="rounded-[20px] border border-dls-border bg-dls-surface p-3 shadow-[var(--dls-card-shadow)]">
-            <InboxPanel
-              id={props.inboxId}
-              client={props.auroworkServerClient}
-              workspaceId={props.runtimeWorkspaceId}
-              onToast={props.onInboxToast}
-            />
-          </div>
-        </Show>
       </div>
 
       <div class={`pt-3 ${props.expanded ? "mt-3 border-t border-dls-border/70" : "mt-2"}`}>

@@ -46,21 +46,16 @@ async function step(name: string, fn: () => void | Promise<void>) {
 try {
   await step("local connect prefers explicit target root", () => {
     assert.equal(
-      resolveScopedClientDirectory({ workspaceType: "local", targetRoot: starterRoot }),
+      resolveScopedClientDirectory({ targetRoot: starterRoot }),
       starterRoot,
     );
     assert.equal(
       resolveScopedClientDirectory({
-        workspaceType: "local",
         directory: otherRoot,
         targetRoot: starterRoot,
       }),
       otherRoot,
     );
-  });
-
-  await step("remote connect still waits for remote discovery", () => {
-    assert.equal(resolveScopedClientDirectory({ workspaceType: "remote", targetRoot: starterRoot }), "");
   });
 
   await step("scope matching is stable on desktop-style paths", () => {
@@ -103,8 +98,8 @@ try {
     const transport = toSessionTransportDirectory(winRoot);
 
     assert.equal(transport, winRoot);
-    assert.equal(resolveScopedClientDirectory({ workspaceType: "local", targetRoot: winRoot }), transport);
-    assert.equal(resolveScopedClientDirectory({ workspaceType: "local", directory: winRoot }), transport);
+    assert.equal(resolveScopedClientDirectory({ targetRoot: winRoot }), transport);
+    assert.equal(resolveScopedClientDirectory({ directory: winRoot }), transport);
 
     const uncRoot = String.raw`\\?\UNC\server\share\starter`;
     assert.equal(toSessionTransportDirectory(uncRoot), String.raw`\\server\share\starter`);

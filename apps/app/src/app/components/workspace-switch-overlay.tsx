@@ -13,21 +13,9 @@ export default function WorkspaceSwitchOverlay(props: {
 
   const workspaceName = createMemo(() => {
     if (!props.workspace) return "";
-    if (props.workspace.workspaceType === "remote" && props.workspace.remoteType === "aurowork") {
-      return (
-        props.workspace.auroworkWorkspaceName?.trim() ||
-        props.workspace.displayName?.trim() ||
-        props.workspace.name?.trim() ||
-        props.workspace.auroworkHostUrl?.trim() ||
-        props.workspace.baseUrl?.trim() ||
-        props.workspace.path?.trim() ||
-        ""
-      );
-    }
     return (
       props.workspace.displayName?.trim() ||
       props.workspace.name?.trim() ||
-      props.workspace.baseUrl?.trim() ||
       props.workspace.path?.trim() ||
       ""
     );
@@ -48,22 +36,7 @@ export default function WorkspaceSwitchOverlay(props: {
 
   const metaPrimary = createMemo(() => {
     if (!props.workspace) return "";
-    if (props.workspace.workspaceType === "remote") {
-      if (props.workspace.remoteType === "aurowork") {
-        return props.workspace.auroworkHostUrl?.trim() ?? props.workspace.baseUrl?.trim() ?? "";
-      }
-      return props.workspace.baseUrl?.trim() ?? "";
-    }
     return props.workspace.path?.trim() ?? "";
-  });
-
-  const metaSecondary = createMemo(() => {
-    if (!props.workspace || props.workspace.workspaceType !== "remote") return "";
-    return (
-      props.workspace.directory?.trim() ||
-      props.workspace.auroworkWorkspaceName?.trim() ||
-      ""
-    );
   });
 
   return (
@@ -94,16 +67,6 @@ export default function WorkspaceSwitchOverlay(props: {
             <div class="space-y-2">
               <div class="flex items-center justify-center gap-2">
                 <h2 class="text-2xl font-semibold tracking-tight">{title()}</h2>
-                <Show when={props.workspace?.workspaceType === "remote"}>
-                  <span class="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-dls-active text-dls-secondary">
-                    {translate("dashboard.remote")}
-                  </span>
-                  <span class="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-dls-hover text-dls-secondary">
-                    {props.workspace?.remoteType === "aurowork"
-                      ? translate("dashboard.remote_connection_aurowork")
-                      : translate("dashboard.remote_connection_direct")}
-                  </span>
-                </Show>
               </div>
               <p class="text-sm text-dls-secondary">{subtitle()}</p>
             </div>
@@ -127,9 +90,6 @@ export default function WorkspaceSwitchOverlay(props: {
             <div class="space-y-1 text-[11px] text-dls-secondary font-mono">
               <Show when={metaPrimary()}>
                 <div class="truncate max-w-[22rem]">{metaPrimary()}</div>
-              </Show>
-              <Show when={metaSecondary()}>
-                <div class="truncate max-w-[22rem] text-dls-border">{metaSecondary()}</div>
               </Show>
             </div>
           </div>

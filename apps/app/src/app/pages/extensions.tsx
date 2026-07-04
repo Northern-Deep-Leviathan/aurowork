@@ -131,7 +131,6 @@ export default function ExtensionsView(props: ExtensionsViewProps) {
             showHeader={false}
             busy={props.busy}
             selectedWorkspaceRoot={props.selectedWorkspaceRoot}
-            isRemoteWorkspace={props.isRemoteWorkspace}
             mcpServers={props.mcpServers}
             mcpStatus={props.mcpStatus}
             mcpLastUpdatedAt={props.mcpLastUpdatedAt}

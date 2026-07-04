@@ -53,7 +53,6 @@ export type OnboardingViewProps = {
   onImportWorkspaceConfig: () => void;
   importingWorkspaceConfig: boolean;
   onAttachHost: () => void;
-  onConnectClient: () => void;
   onBackToWelcome: () => void;
   onSetAuthorizedDir: (value: string) => void;
   onAddAuthorizedDir: () => void;
@@ -511,99 +510,6 @@ export default function OnboardingView(props: OnboardingViewProps) {
         </div>
       </Match>
 
-      <Match when={props.onboardingStep === "server"}>
-        <div class="min-h-screen flex flex-col items-center justify-center bg-dls-surface text-dls-text p-6 relative">
-          <div class="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-dls-hover to-transparent opacity-20 pointer-events-none" />
-
-          <div class="max-w-md w-full z-10 space-y-8">
-              <div class="text-center space-y-2">
-                <div class="w-12 h-12 bg-dls-hover rounded-2xl mx-auto flex items-center justify-center border border-dls-border mb-6">
-                  <Globe size={20} class="text-dls-secondary" />
-                </div>
-                <h2 class="text-2xl font-bold tracking-tight">{translate("onboarding.remote_workspace_title")}</h2>
-              <p class="text-dls-secondary text-sm leading-relaxed">
-                  {translate("onboarding.remote_workspace_description")}
-              </p>
-            </div>
-
-            <div class="space-y-4">
-              <div class="rounded-2xl border border-dls-border bg-dls-surface/50 px-4 py-3">
-                <div class="text-xs font-semibold text-dls-secondary uppercase tracking-wider">
-                  {translate("onboarding.remote_workspace_title")}
-                </div>
-                <div class="mt-1 text-sm text-dls-text">{translate("onboarding.remote_workspace_description")}</div>
-              </div>
-
-              <div class="space-y-4">
-                <TextInput
-                  label={translate("dashboard.aurowork_host_label")}
-                  placeholder={translate("dashboard.aurowork_host_placeholder")}
-                  value={props.auroworkHostUrl}
-                  onInput={(e) => props.onAuroworkHostUrlChange(e.currentTarget.value)}
-                  hint={translate("dashboard.aurowork_host_hint")}
-                />
-                <label class="block">
-                  <div class="mb-1 text-xs font-medium text-dls-secondary">{translate("dashboard.aurowork_host_token_label")}</div>
-                  <div class="flex items-center gap-2">
-                    <input
-                      type={auroworkTokenVisible() ? "text" : "password"}
-                      value={props.auroworkToken}
-                      onInput={(e) => props.onAuroworkTokenChange(e.currentTarget.value)}
-                      placeholder={translate("dashboard.aurowork_host_token_placeholder")}
-                      disabled={props.busy}
-                      class="w-full rounded-xl bg-dls-hover/60 px-3 py-2 text-sm text-dls-text placeholder:text-dls-secondary shadow-[0_0_0_1px_rgba(255,255,255,0.08)] focus:outline-none focus:ring-2 focus:ring-dls-border/20"
-                    />
-                    <Button
-                      variant="outline"
-                      class="text-xs h-9 px-3 shrink-0"
-                      onClick={() => setAuroworkTokenVisible((prev) => !prev)}
-                      disabled={props.busy}
-                    >
-                      {auroworkTokenVisible() ? translate("common.hide") : translate("common.show")}
-                    </Button>
-                  </div>
-                  <div class="mt-1 text-xs text-dls-secondary">{translate("dashboard.aurowork_host_token_hint")}</div>
-                </label>
-                <TextInput
-                  label={translate("dashboard.remote_directory_label")}
-                  placeholder={translate("dashboard.remote_directory_placeholder")}
-                  value={props.clientDirectory}
-                  onInput={(e) => props.onClientDirectoryChange(e.currentTarget.value)}
-                  hint={translate("dashboard.remote_directory_hint")}
-                />
-              </div>
-
-              <Button
-                onClick={props.onConnectClient}
-                disabled={props.busy || !props.auroworkHostUrl.trim()}
-                class="w-full py-3 text-base"
-              >
-                {translate("onboarding.remote_workspace_action")}
-              </Button>
-
-              <Button
-                variant="secondary"
-                onClick={props.onOpenSettings}
-                disabled={props.busy}
-                class="w-full"
-              >
-                {translate("onboarding.open_settings")}
-              </Button>
-
-              <Button variant="ghost" onClick={props.onBackToWelcome} disabled={props.busy} class="w-full">
-                {translate("onboarding.back")}
-              </Button>
-
-              <Show when={props.error}>
-                <div class="rounded-2xl bg-red-1/40 px-5 py-4 text-sm text-red-12 border border-red-7/20">
-                  {props.error}
-                </div>
-              </Show>
-            </div>
-          </div>
-        </div>
-      </Match>
-
       <Match when={true}>
         <div class="min-h-screen flex flex-col items-center justify-center bg-dls-surface text-dls-text p-6 relative">
           <div class="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-dls-hover to-transparent opacity-20 pointer-events-none" />
@@ -657,23 +563,6 @@ export default function OnboardingView(props: OnboardingViewProps) {
                   </Button>
                 </div>
               </Show>
-
-              <button
-                onClick={() => props.onSelectStartup("server")}
-                class="group w-full relative bg-dls-hover hover:bg-dls-active border border-dls-border hover:border-dls-border p-6 md:p-8 rounded-3xl text-left transition-all duration-300 hover:shadow-2xl hover:shadow-dls-text/10 hover:-translate-y-0.5 flex items-start gap-6"
-              >
-                <div class="shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-dls-border/20 to-dls-active/10 flex items-center justify-center border border-dls-border group-hover:border-dls-border transition-colors">
-                  <Globe size={18} class="text-dls-secondary" />
-                </div>
-                <div>
-                  <h3 class="text-xl font-medium text-dls-text mb-2">
-                    {translate("onboarding.remote_workspace_card_title")}
-                  </h3>
-                  <p class="text-dls-secondary text-sm leading-relaxed mb-4">
-                    {translate("onboarding.remote_workspace_card_description")}
-                  </p>
-                </div>
-              </button>
 
               <div class="flex items-center gap-2 px-2 py-1">
                 <button

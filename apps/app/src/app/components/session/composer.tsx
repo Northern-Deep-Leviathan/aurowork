@@ -53,8 +53,6 @@ type ComposerProps = {
   listAgents: () => Promise<Agent[]>;
   recentFiles: string[];
   searchFiles: (query: string) => Promise<string[]>;
-  isRemoteWorkspace: boolean;
-  isSandboxWorkspace: boolean;
   onUploadInboxFiles?: (
     files: File[],
     options?: { notify?: boolean },
@@ -1294,20 +1292,6 @@ export default function Composer(props: ComposerProps) {
         void insertUnsupportedFileLinks(unsupported, links);
       }
       return;
-    }
-
-    const plainForCheck = clipboard.getData("text/plain") ?? "";
-    const trimmedForCheck = plainForCheck.trim();
-    if (trimmedForCheck && (props.isSandboxWorkspace || props.isRemoteWorkspace)) {
-      const hasFileUrl = /file:\/\//i.test(trimmedForCheck);
-      const hasAbsolutePosix = /(^|\s)\/(Users|home|var|etc|opt|tmp|private|Volumes|Applications)\//.test(trimmedForCheck);
-      const hasAbsoluteWindows = /(^|\s)[a-zA-Z]:\\/.test(trimmedForCheck);
-      if (hasFileUrl || hasAbsolutePosix || hasAbsoluteWindows) {
-        props.onToast(
-            "This is a remote worker. Sandboxes are remote too. To share files with it, upload them to the Shared folder in the sidebar.",
-          );
-        setShowInboxUploadAction(Boolean(props.onUploadInboxFiles));
-      }
     }
 
     const plain = clipboard.getData("text/plain") || clipboard.getData("text") || "";

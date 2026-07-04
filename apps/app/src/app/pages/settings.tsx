@@ -114,7 +114,7 @@ export type SettingsViewProps = {
   auroworkServerDiagnostics: AuroworkServerDiagnostics | null;
   runtimeWorkspaceId: string | null;
   selectedWorkspaceRoot: string;
-  activeWorkspaceType: "local" | "remote";
+  activeWorkspaceType: "local";
   auroworkAuditEntries: AuroworkAuditEntry[];
   auroworkAuditStatus: "idle" | "loading" | "error";
   auroworkAuditError: string | null;
@@ -172,8 +172,6 @@ export type SettingsViewProps = {
   pendingPermissions: unknown;
   events: unknown;
   workspaceDebugEvents: unknown;
-  sandboxCreateProgress: unknown;
-  sandboxCreateProgressLast: unknown;
   clearWorkspaceDebugEvents: () => void;
   safeStringify: (value: unknown) => string;
   repairOpencodeMigration: () => void;
@@ -276,12 +274,6 @@ export type SettingsViewProps = {
   reloadMcpEngine: () => void;
   createSessionAndOpen: () => void;
   setPrompt: (value: string) => void;
-  connectRemoteWorkspace: (input: {
-    auroworkHostUrl?: string | null;
-    auroworkToken?: string | null;
-    directory?: string | null;
-    displayName?: string | null;
-  }) => Promise<boolean>;
 };
 
 const DISCORD_INVITE_URL = "https://discord.gg/VEhNQXxYMB";
@@ -295,7 +287,7 @@ export default function SettingsView(props: SettingsViewProps) {
   const engineCustomBinPathLabel = () =>
     props.engineCustomBinPath.trim() || "No binary selected.";
   const canPickAuthorizedFolder = createMemo(
-    () => isTauriRuntime() && props.authorizedFoldersEditable && props.activeWorkspaceType === "local",
+    () => isTauriRuntime() && props.authorizedFoldersEditable,
   );
   const workspaceRootFolder = createMemo(() => props.selectedWorkspaceRoot.trim());
   const visibleAuthorizedFolders = createMemo(() => {
@@ -774,10 +766,7 @@ export default function SettingsView(props: SettingsViewProps) {
     setAuroworkServerRestarting(true);
     setAuroworkServerRestartError(null);
     try {
-      await auroworkServerRestart({
-        remoteAccessEnabled:
-          props.auroworkServerSettings.remoteAccessEnabled === true,
-      });
+      await auroworkServerRestart();
       await props.reconnectAuroworkServer();
     } catch (e) {
       setAuroworkServerRestartError(e instanceof Error ? e.message : String(e));
@@ -793,8 +782,6 @@ export default function SettingsView(props: SettingsViewProps) {
     try {
       await engineRestart({
         auroEnableExa: props.auroEnableExa,
-        auroworkRemoteAccess:
-          props.auroworkServerSettings.remoteAccessEnabled === true,
       });
       await props.reconnectAuroworkServer();
     } catch (e) {
@@ -1028,12 +1015,6 @@ export default function SettingsView(props: SettingsViewProps) {
   >(null);
   const [revealConfigBusy, setRevealConfigBusy] = createSignal(false);
   const [resetConfigBusy, setResetConfigBusy] = createSignal(false);
-  const [sandboxProbeBusy, setSandboxProbeBusy] = createSignal(false);
-  const [sandboxProbeStatus, setSandboxProbeStatus] = createSignal<
-    string | null
-  >(null);
-  const [sandboxProbeResult, setSandboxProbeResult] =
-    createSignal<unknown>(null);
   const [nukeConfigBusy, setNukeConfigBusy] = createSignal(false);
   const [nukeConfigStatus, setNukeConfigStatus] = createSignal<
     string | null
@@ -1047,43 +1028,6 @@ export default function SettingsView(props: SettingsViewProps) {
   const opencodeDevModeEnabled = createMemo(() =>
     Boolean(buildInfo()?.auroworkDevMode),
   );
-
-  const sandboxCreateSummary = createMemo(() => {
-    const raw = (props.sandboxCreateProgress ??
-      props.sandboxCreateProgressLast) as
-      | {
-          runId?: string;
-          stage?: string;
-          error?: string | null;
-          logs?: string[];
-          startedAt?: number;
-        }
-      | null
-      | undefined;
-    if (!raw || typeof raw !== "object") {
-      return {
-        runId: null,
-        stage: null,
-        error: null,
-        logs: [] as string[],
-        startedAt: null,
-      };
-    }
-    return {
-      runId:
-        typeof raw.runId === "string" && raw.runId.trim() ? raw.runId : null,
-      stage:
-        typeof raw.stage === "string" && raw.stage.trim() ? raw.stage : null,
-      error:
-        typeof raw.error === "string" && raw.error.trim() ? raw.error : null,
-      startedAt: typeof raw.startedAt === "number" ? raw.startedAt : null,
-      logs: Array.isArray(raw.logs)
-        ? raw.logs
-            .filter((line) => typeof line === "string" && line.trim())
-            .slice(-400)
-        : [],
-    };
-  });
 
   const workspaceConfigPath = createMemo(() => {
     const root = props.selectedWorkspaceRoot.trim();
@@ -1152,13 +1096,6 @@ export default function SettingsView(props: SettingsViewProps) {
     pendingPermissions: props.pendingPermissions,
     recentEvents: props.events,
     workspaceDebugEvents: props.workspaceDebugEvents,
-    sandboxCreateProgress: {
-      ...sandboxCreateSummary(),
-      lastRunAt: sandboxCreateSummary().startedAt
-        ? new Date(sandboxCreateSummary().startedAt!).toISOString()
-        : null,
-    },
-    sandboxProbe: sandboxProbeResult(),
   }));
 
   const runtimeDebugReportJson = createMemo(
@@ -1301,11 +1238,6 @@ export default function SettingsView(props: SettingsViewProps) {
       );
       setNukeConfigBusy(false);
     }
-  };
-
-  const runSandboxDebugProbe = async () => {
-    // Sandbox debug probe removed
-    setSandboxProbeStatus(translate("settings.sandbox_not_available"));
   };
 
   const submitDebugDeepLink = async () => {
@@ -1904,7 +1836,6 @@ export default function SettingsView(props: SettingsViewProps) {
               showHeader={false}
               busy={props.busy}
               selectedWorkspaceRoot={props.selectedWorkspaceRoot}
-              isRemoteWorkspace={props.activeWorkspaceType === "remote"}
               refreshMcpServers={props.refreshMcpServers}
               mcpServers={props.mcpServers}
               mcpStatus={props.mcpStatus}
