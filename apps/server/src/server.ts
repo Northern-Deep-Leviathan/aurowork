@@ -3679,17 +3679,9 @@ function serializeWorkspaceConfigEntry(workspace: WorkspaceInfo): Record<string,
     name: workspace.name,
     preset: workspace.preset,
     workspaceType: workspace.workspaceType,
-    ...(workspace.remoteType ? { remoteType: workspace.remoteType } : {}),
     ...(workspace.baseUrl ? { baseUrl: workspace.baseUrl } : {}),
     ...(workspace.directory ? { directory: workspace.directory } : {}),
     ...(workspace.displayName ? { displayName: workspace.displayName } : {}),
-    ...(workspace.auroworkHostUrl ? { auroworkHostUrl: workspace.auroworkHostUrl } : {}),
-    ...(workspace.auroworkToken ? { auroworkToken: workspace.auroworkToken } : {}),
-    ...(workspace.auroworkWorkspaceId ? { auroworkWorkspaceId: workspace.auroworkWorkspaceId } : {}),
-    ...(workspace.auroworkWorkspaceName ? { auroworkWorkspaceName: workspace.auroworkWorkspaceName } : {}),
-    ...(workspace.sandboxBackend ? { sandboxBackend: workspace.sandboxBackend } : {}),
-    ...(workspace.sandboxRunId ? { sandboxRunId: workspace.sandboxRunId } : {}),
-    ...(workspace.sandboxContainerName ? { sandboxContainerName: workspace.sandboxContainerName } : {}),
     ...(workspace.auroUsername ? { auroUsername: workspace.auroUsername } : {}),
     ...(workspace.auroPassword ? { auroPassword: workspace.auroPassword } : {}),
   };
@@ -4599,8 +4591,7 @@ async function readAuroworkConfig(workspaceRoot: string): Promise<Record<string,
 function resolveAuroDirectory(workspace: WorkspaceInfo): string | null {
   const explicit = workspace.directory?.trim() ?? "";
   if (explicit) return explicit;
-  if (workspace.workspaceType === "local") return workspace.path;
-  return null;
+  return workspace.path;
 }
 
 function buildOpencodeReloadUrl(baseUrl: string, directory?: string | null): string {

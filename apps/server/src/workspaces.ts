@@ -11,60 +11,26 @@ export function workspaceIdForPath(path: string): string {
   return workspaceIdForKey(path);
 }
 
-export function workspaceIdForRemote(baseUrl: string, directory?: string | null): string {
-  const normalizedBaseUrl = baseUrl.trim();
-  const normalizedDirectory = directory?.trim() ?? "";
-  const key = normalizedDirectory
-    ? `remote::${normalizedBaseUrl}::${normalizedDirectory}`
-    : `remote::${normalizedBaseUrl}`;
-  return workspaceIdForKey(key);
-}
-
-export function workspaceIdForAurowork(hostUrl: string, workspaceId?: string | null): string {
-  const normalizedHostUrl = hostUrl.trim();
-  const normalizedWorkspaceId = workspaceId?.trim() ?? "";
-  const key = normalizedWorkspaceId
-    ? `aurowork::${normalizedHostUrl}::${normalizedWorkspaceId}`
-    : `aurowork::${normalizedHostUrl}`;
-  return workspaceIdForKey(key);
-}
-
 export function buildWorkspaceInfos(
   workspaces: WorkspaceConfig[],
   cwd: string,
 ): WorkspaceInfo[] {
   return workspaces.map((workspace) => {
     const rawPath = workspace.path?.trim() ?? "";
-    const workspaceType = workspace.workspaceType ?? "local";
     const resolvedPath = rawPath ? resolve(cwd, rawPath) : "";
-    const remoteType = workspace.remoteType;
-    const id = workspace.id?.trim()
-      || (workspaceType === "remote"
-        ? remoteType === "aurowork"
-          ? workspaceIdForAurowork(workspace.auroworkHostUrl ?? workspace.baseUrl ?? "", workspace.auroworkWorkspaceId)
-          : workspaceIdForRemote(workspace.baseUrl ?? "", workspace.directory)
-        : workspaceIdForPath(resolvedPath));
+    const id = workspace.id?.trim() || workspaceIdForPath(resolvedPath);
     const name = workspace.name?.trim()
       || workspace.displayName?.trim()
-      || workspace.auroworkWorkspaceName?.trim()
       || basename(resolvedPath || workspace.directory?.trim() || workspace.baseUrl?.trim() || "Workspace");
     return {
       id,
       name,
       path: resolvedPath,
-      preset: workspace.preset?.trim() || (workspaceType === "remote" ? "remote" : "starter"),
-      workspaceType,
-      remoteType,
+      preset: workspace.preset?.trim() || "starter",
+      workspaceType: "local",
       baseUrl: workspace.baseUrl,
       directory: workspace.directory,
       displayName: workspace.displayName,
-      auroworkHostUrl: workspace.auroworkHostUrl,
-      auroworkToken: workspace.auroworkToken,
-      auroworkWorkspaceId: workspace.auroworkWorkspaceId,
-      auroworkWorkspaceName: workspace.auroworkWorkspaceName,
-      sandboxBackend: workspace.sandboxBackend,
-      sandboxRunId: workspace.sandboxRunId,
-      sandboxContainerName: workspace.sandboxContainerName,
       auroUsername: workspace.auroUsername,
       auroPassword: workspace.auroPassword,
     };

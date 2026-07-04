@@ -635,7 +635,7 @@ export function startOrchestratorTui(options: TuiOptions): TuiHandle {
                 <text fg={theme.text} attributes={TextAttributes.BOLD}>
                   Connect
                 </text>
-                <text fg={theme.textMuted}>AuroWork URL (LAN)</text>
+                <text fg={theme.textMuted}>AuroWork URL</text>
                 <text fg={theme.text}>{state.connect.auroworkUrl}</text>
                 <text fg={theme.textMuted}>AuroWork Collaborator Token</text>
                 <text fg={theme.text}>{state.connect.auroworkToken}</text>
