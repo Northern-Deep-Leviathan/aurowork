@@ -9,6 +9,8 @@ const strict = args.includes("--strict");
 
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 const readText = (path) => readFileSync(path, "utf8");
+const readTextIfExists = (path) =>
+  existsSync(path) ? readFileSync(path, "utf8") : "";
 
 const readCargoVersion = (path) => {
   const content = readText(path);
@@ -144,6 +146,109 @@ if (existsSync(sidecarManifestPath)) {
 if (!process.env.SOURCE_DATE_EPOCH) {
   addWarning(
     "SOURCE_DATE_EPOCH is not set (sidecar manifests will include current time).",
+  );
+}
+
+const rootPkg = readJson(resolve(root, "package.json"));
+const rootScripts = rootPkg.scripts ?? {};
+const requiredRootScripts = [
+  "setup:doctor",
+  "setup:doctor:json",
+  "docs:check",
+  "docs:index:check",
+  "docs:claims:check",
+  "debug:report",
+  "verify:fast",
+  "verify:full",
+  "verify:release",
+  "test:server",
+  "test:desktop",
+  "test:scripts",
+  "eval:local-desktop",
+];
+
+for (const scriptName of requiredRootScripts) {
+  const command = rootScripts[scriptName];
+  addCheck(
+    `Root script exists: ${scriptName}`,
+    typeof command === "string" && command.trim().length > 0,
+    command ?? "missing",
+  );
+}
+
+const buildScriptPath = resolve(root, "scripts", "build.mjs");
+const buildScript = readTextIfExists(buildScriptPath);
+addCheck(
+  "Default build targets desktop package",
+  buildScript.includes("@aurowork/desktop") && !buildScript.includes("apps/share"),
+  "scripts/build.mjs should build @aurowork/desktop and avoid apps/share",
+);
+
+const verifyWorkflowPath = resolve(
+  root,
+  ".github",
+  "workflows",
+  "verify-local-desktop.yml",
+);
+const verifyWorkflow = readTextIfExists(verifyWorkflowPath);
+addCheck(
+  "Local desktop verification workflow exists",
+  Boolean(verifyWorkflow),
+  ".github/workflows/verify-local-desktop.yml",
+);
+if (verifyWorkflow) {
+  const requiredVerifyWorkflowCommands = [
+    "pnpm setup:doctor",
+    "pnpm docs:check",
+    "pnpm debug:report",
+    "pnpm verify:fast",
+    "pnpm eval:local-desktop",
+  ];
+  for (const command of requiredVerifyWorkflowCommands) {
+    addCheck(
+      `Local desktop workflow runs ${command}`,
+      verifyWorkflow.includes(command),
+      ".github/workflows/verify-local-desktop.yml",
+    );
+  }
+}
+
+const desktopReleaseWorkflowPath = resolve(
+  root,
+  ".github",
+  "workflows",
+  "build-desktop.yml",
+);
+const desktopReleaseWorkflow = readTextIfExists(desktopReleaseWorkflowPath);
+addCheck(
+  "Desktop release workflow exists",
+  Boolean(desktopReleaseWorkflow),
+  ".github/workflows/build-desktop.yml",
+);
+if (desktopReleaseWorkflow) {
+  addCheck(
+    "Desktop release workflow has quality job",
+    /^\s{2}quality:\s*$/m.test(desktopReleaseWorkflow),
+    ".github/workflows/build-desktop.yml",
+  );
+  addCheck(
+    "Desktop release workflow runs verify:release",
+    desktopReleaseWorkflow.includes("pnpm verify:release"),
+    ".github/workflows/build-desktop.yml",
+  );
+  addCheck(
+    "Desktop release creation waits for quality",
+    /create-release:[\s\S]*?needs:\s*\[prepare,\s*quality\]/m.test(
+      desktopReleaseWorkflow,
+    ),
+    ".github/workflows/build-desktop.yml",
+  );
+  addCheck(
+    "Desktop packaging waits for quality",
+    /build:[\s\S]*?needs:\s*\[prepare,\s*quality,\s*create-release\]/m.test(
+      desktopReleaseWorkflow,
+    ),
+    ".github/workflows/build-desktop.yml",
   );
 }
 

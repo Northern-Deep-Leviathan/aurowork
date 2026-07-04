@@ -23,15 +23,15 @@ use commands::aurowork_server::{aurowork_server_info, aurowork_server_restart};
 use commands::command_files::{auro_command_delete, auro_command_list, auro_command_write};
 use commands::config::{read_auro_config, write_auro_config};
 use commands::debug_log::{debug_log_append, debug_log_clear};
+use commands::engine::{
+    engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
+};
+use commands::fs::{fs_close_file, fs_read_dir, fs_read_file, fs_write_file};
 use commands::launch_log::{
     dev_mode_info, get_developer_mode_persistent, launch_log_append, launch_log_append_batch,
     launch_log_mark_complete, launch_log_path, launch_log_status, launch_log_summary,
     open_launch_log_folder, set_developer_mode_persistent,
 };
-use commands::engine::{
-    engine_doctor, engine_info, engine_install, engine_restart, engine_start, engine_stop,
-};
-use commands::fs::{fs_close_file, fs_read_dir, fs_read_file, fs_write_file};
 use commands::misc::{
     app_build_info, auro_db_migrate, auro_mcp_auth, nuke_aurowork_and_auro_config_and_exit,
     reset_auro_cache, reset_aurowork_state,
@@ -41,16 +41,17 @@ use commands::orchestrator::{
     orchestrator_instance_dispose, orchestrator_start_detached, orchestrator_status,
     orchestrator_workspace_activate,
 };
-use commands::skills::{list_local_skills, read_local_skill, uninstall_skill, write_local_skill};
+use commands::skills::{
+    install_skill_template, list_local_skills, read_local_skill, uninstall_skill, write_local_skill,
+};
 use commands::spreadsheet::WorkbookCache;
 use commands::updater::updater_environment;
 use commands::window::set_window_decorations;
 use commands::workspace::{
     workspace_add_authorized_root, workspace_aurowork_read, workspace_aurowork_write,
-    workspace_bootstrap, workspace_check_folder, workspace_create, workspace_create_remote,
-    workspace_export_config, workspace_forget, workspace_import_config, workspace_register,
-    workspace_set_active, workspace_set_runtime_active, workspace_set_selected,
-    workspace_update_display_name, workspace_update_remote,
+    workspace_bootstrap, workspace_check_folder, workspace_create, workspace_export_config,
+    workspace_forget, workspace_import_config, workspace_register, workspace_set_active,
+    workspace_set_runtime_active, workspace_set_selected, workspace_update_display_name,
 };
 use engine::manager::EngineManager;
 use launch_log::format::Level;
@@ -271,10 +272,8 @@ pub fn run() {
             workspace_set_active,
             workspace_check_folder,
             workspace_create,
-            workspace_create_remote,
             workspace_register,
             workspace_update_display_name,
-            workspace_update_remote,
             workspace_forget,
             workspace_add_authorized_root,
             workspace_export_config,
@@ -286,6 +285,7 @@ pub fn run() {
             workspace_aurowork_write,
             opkg_install,
             import_skill,
+            install_skill_template,
             list_local_skills,
             read_local_skill,
             uninstall_skill,

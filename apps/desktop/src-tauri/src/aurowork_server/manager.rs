@@ -13,13 +13,9 @@ pub struct AuroworkServerManager {
 pub struct AuroworkServerState {
     pub child: Option<CommandChild>,
     pub child_exited: bool,
-    pub remote_access_enabled: bool,
     pub host: Option<String>,
     pub port: Option<u16>,
     pub base_url: Option<String>,
-    pub connect_url: Option<String>,
-    pub mdns_url: Option<String>,
-    pub lan_url: Option<String>,
     pub client_token: Option<String>,
     pub owner_token: Option<String>,
     pub host_token: Option<String>,
@@ -40,13 +36,9 @@ impl AuroworkServerManager {
 
         AuroworkServerInfo {
             running,
-            remote_access_enabled: state.remote_access_enabled,
             host: state.host.clone(),
             port: state.port,
             base_url: state.base_url.clone(),
-            connect_url: state.connect_url.clone(),
-            mdns_url: state.mdns_url.clone(),
-            lan_url: state.lan_url.clone(),
             client_token: state.client_token.clone(),
             owner_token: state.owner_token.clone(),
             host_token: state.host_token.clone(),
@@ -61,13 +53,9 @@ impl AuroworkServerManager {
             let _ = child.kill();
         }
         state.child_exited = true;
-        state.remote_access_enabled = false;
         state.host = None;
         state.port = None;
         state.base_url = None;
-        state.connect_url = None;
-        state.mdns_url = None;
-        state.lan_url = None;
         state.client_token = None;
         state.owner_token = None;
         state.host_token = None;

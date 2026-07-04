@@ -49,13 +49,6 @@ type Props = {
   onOpenRenameWorkspace: (workspaceId: string) => void;
   onShareWorkspace: (workspaceId: string) => void;
   onRevealWorkspace: (workspaceId: string) => void;
-  onRecoverWorkspace: (
-    workspaceId: string,
-  ) => Promise<boolean> | boolean | void;
-  onTestWorkspaceConnection: (
-    workspaceId: string,
-  ) => Promise<boolean> | boolean | void;
-  onEditWorkspaceConnection: (workspaceId: string) => void;
   onForgetWorkspace: (workspaceId: string) => void;
   onOpenCreateWorkspace: () => void;
 };
@@ -160,19 +153,11 @@ const flattenSessionRows = (
 
 const workspaceLabel = (workspace: WorkspaceInfo) =>
   workspace.displayName?.trim() ||
-  workspace.auroworkWorkspaceName?.trim() ||
   workspace.name?.trim() ||
   workspace.path?.trim() ||
   "Workspace";
 
-const workspaceKindLabel = (workspace: WorkspaceInfo) =>
-  workspace.workspaceType === "remote"
-    ? workspace.sandboxBackend === "docker" ||
-      Boolean(workspace.sandboxRunId?.trim()) ||
-      Boolean(workspace.sandboxContainerName?.trim())
-      ? "Sandbox"
-      : "Remote"
-    : "Local";
+const workspaceKindLabel = (_workspace: WorkspaceInfo) => "Local";
 
 const WORKSPACE_COLORS = [
   { name: "Terracotta", light: "#C4745B", dark: "#D98B6E" },
@@ -713,9 +698,6 @@ export default function WorkspaceSessionList(props: Props) {
               };
             const isConnectionActionBusy = () =>
               isConnecting() || connectionState().status === "connecting";
-            const canRecover = () =>
-              workspace().workspaceType === "remote" &&
-              connectionState().status === "error";
             const isMenuOpen = () => workspaceMenuId() === workspace().id;
             const taskLoadError = () =>
               getWorkspaceTaskLoadErrorDisplay(workspace(), group.error);
@@ -728,9 +710,7 @@ export default function WorkspaceSessionList(props: Props) {
             };
             const statusTone = () => {
               if (group.status === "error") {
-                return taskLoadError().tone === "offline"
-                  ? "text-amber-11"
-                  : "text-red-11";
+                return "text-red-11";
               }
               return "text-dls-secondary";
             };
@@ -849,47 +829,6 @@ export default function WorkspaceSessionList(props: Props) {
                           {revealLabel}
                         </button>
                       </Show>
-                      <Show when={workspace().workspaceType === "remote"}>
-                        <Show when={canRecover()}>
-                          <button
-                            type="button"
-                            class="w-full rounded-xl px-3 py-2 text-left text-sm text-dls-secondary transition-colors hover:bg-dls-hover"
-                            onClick={() => {
-                              void Promise.resolve(
-                                props.onRecoverWorkspace(workspace().id),
-                              );
-                              setWorkspaceMenuId(null);
-                            }}
-                            disabled={isConnectionActionBusy()}
-                          >
-                            Recover
-                          </button>
-                        </Show>
-                        <button
-                          type="button"
-                          class="w-full rounded-xl px-3 py-2 text-left text-sm text-dls-secondary transition-colors hover:bg-dls-hover"
-                          onClick={() => {
-                            void Promise.resolve(
-                              props.onTestWorkspaceConnection(workspace().id),
-                            );
-                            setWorkspaceMenuId(null);
-                          }}
-                          disabled={isConnectionActionBusy()}
-                        >
-                          Test connection
-                        </button>
-                        <button
-                          type="button"
-                          class="w-full rounded-xl px-3 py-2 text-left text-sm text-dls-secondary transition-colors hover:bg-dls-hover"
-                          onClick={() => {
-                            props.onEditWorkspaceConnection(workspace().id);
-                            setWorkspaceMenuId(null);
-                          }}
-                          disabled={isConnectionActionBusy()}
-                        >
-                          Edit connection
-                        </button>
-                      </Show>
                       <button
                         type="button"
                         class="w-full rounded-xl px-3 py-2 text-left text-sm text-red-11 transition-colors hover:bg-red-1/40"
@@ -919,11 +858,7 @@ export default function WorkspaceSessionList(props: Props) {
                             fallback={
                               <Show when={group.status === "error"}>
                                 <div
-                                  class={`w-full rounded-[15px] border px-3 py-2.5 text-left text-[11px] ${
-                                    taskLoadError().tone === "offline"
-                                      ? "border-amber-7/35 bg-amber-2/50 text-amber-11"
-                                      : "border-red-7/35 bg-red-1/40 text-red-11"
-                                  }`}
+                                  class="w-full rounded-[15px] border px-3 py-2.5 text-left text-[11px] border-red-7/35 bg-red-1/40 text-red-11"
                                   title={taskLoadError().title}
                                 >
                                   {taskLoadError().message}

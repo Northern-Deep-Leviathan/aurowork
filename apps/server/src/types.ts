@@ -1,6 +1,4 @@
-export type WorkspaceType = "local" | "remote";
-
-export type RemoteType = "opencode" | "aurowork";
+export type WorkspaceType = "local";
 
 export type ApprovalMode = "manual" | "auto";
 
@@ -18,17 +16,9 @@ export interface WorkspaceConfig {
   name?: string;
   preset?: string;
   workspaceType?: WorkspaceType;
-  remoteType?: RemoteType;
   baseUrl?: string;
   directory?: string;
   displayName?: string;
-  auroworkHostUrl?: string;
-  auroworkToken?: string;
-  auroworkWorkspaceId?: string;
-  auroworkWorkspaceName?: string;
-  sandboxBackend?: string;
-  sandboxRunId?: string;
-  sandboxContainerName?: string;
   auroUsername?: string;
   auroPassword?: string;
 }
@@ -39,17 +29,9 @@ export interface WorkspaceInfo {
   path: string;
   preset: string;
   workspaceType: WorkspaceType;
-  remoteType?: RemoteType;
   baseUrl?: string;
   directory?: string;
   displayName?: string;
-  auroworkHostUrl?: string;
-  auroworkToken?: string;
-  auroworkWorkspaceId?: string;
-  auroworkWorkspaceName?: string;
-  sandboxBackend?: string;
-  sandboxRunId?: string;
-  sandboxContainerName?: string;
   auroUsername?: string;
   auroPassword?: string;
   opencode?: {

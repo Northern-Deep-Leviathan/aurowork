@@ -22,7 +22,7 @@ import {
 import { readdirSync, statSync } from "node:fs";
 import { createServer as createNetServer } from "node:net";
 import { createServer as createHttpServer } from "node:http";
-import { homedir, hostname, networkInterfaces, tmpdir } from "node:os";
+import { homedir, hostname, tmpdir } from "node:os";
 import {
   basename,
   delimiter,
@@ -235,15 +235,11 @@ type WorkerActivityHeartbeatConfig = {
   activeWindowMs: number;
 };
 
-type RouterWorkspaceType = "local" | "remote";
-
 type RouterWorkspace = {
   id: string;
   name: string;
   path: string;
-  workspaceType: RouterWorkspaceType;
-  baseUrl?: string;
-  directory?: string;
+  workspaceType: "local";
   createdAt: number;
   lastUsedAt?: number;
 };
@@ -740,41 +736,6 @@ function isCompiledBunBinary(): boolean {
   }
 }
 
-function resolveLanIp(): string | null {
-  const interfaces = networkInterfaces();
-  for (const key of Object.keys(interfaces)) {
-    const entries = interfaces[key];
-    if (!entries) continue;
-    for (const entry of entries) {
-      if (entry.family !== "IPv4" || entry.internal) continue;
-      return entry.address;
-    }
-  }
-  return null;
-}
-
-function resolveConnectUrl(
-  port: number,
-  overrideHost?: string,
-): { connectUrl?: string; lanUrl?: string; mdnsUrl?: string } {
-  if (overrideHost) {
-    const trimmed = overrideHost.trim();
-    if (trimmed) {
-      const url = `http://${trimmed}:${port}`;
-      return { connectUrl: url, lanUrl: url };
-    }
-  }
-
-  const host = hostname().trim();
-  const mdnsUrl = host
-    ? `http://${host.replace(/\.local$/, "")}.local:${port}`
-    : undefined;
-  const lanIp = resolveLanIp();
-  const lanUrl = lanIp ? `http://${lanIp}:${port}` : undefined;
-  const connectUrl = lanUrl ?? mdnsUrl;
-  return { connectUrl, lanUrl, mdnsUrl };
-}
-
 function encodeBasicAuth(username: string, password: string): string {
   return Buffer.from(`${username}:${password}`, "utf8").toString("base64");
 }
@@ -881,27 +842,6 @@ function resolveManagedOpencodeHost(requestedHost?: string): string {
     );
   }
   return normalized === "localhost" ? "127.0.0.1" : normalized;
-}
-
-function resolveAuroworkRemoteAccess(args: ParsedArgs): boolean {
-  const explicitHost =
-    readFlag(args.flags, "aurowork-host") ?? process.env.AUROWORK_HOST;
-  const remoteAccessRequested =
-    readBool(args.flags, "remote-access", false, "AUROWORK_REMOTE_ACCESS") ||
-    explicitHost?.trim() === "0.0.0.0";
-
-  if (explicitHost) {
-    const normalized = explicitHost.trim();
-    if (!normalized) return remoteAccessRequested;
-    if (normalized === "0.0.0.0") return true;
-    if (!isLoopbackHost(normalized)) {
-      throw new Error(
-        `Unsupported --aurowork-host value: ${normalized}. Use loopback by default or --remote-access for shared access.`,
-      );
-    }
-  }
-
-  return remoteAccessRequested;
 }
 
 function unwrap<T>(result: FieldsResult<T>): T {
@@ -2363,14 +2303,6 @@ function workspaceIdForLocal(path: string): string {
   return `ws-${createHash("sha1").update(path).digest("hex").slice(0, 12)}`;
 }
 
-function workspaceIdForRemote(
-  baseUrl: string,
-  directory?: string | null,
-): string {
-  const key = directory ? `${baseUrl}::${directory}` : baseUrl;
-  return `ws-${createHash("sha1").update(key).digest("hex").slice(0, 12)}`;
-}
-
 async function ensureOpencodeManagedTools(configDir: string): Promise<void> {
   const toolsDir = join(configDir, "tools");
   await mkdir(toolsDir, { recursive: true });
@@ -2494,7 +2426,6 @@ function printHelp(): void {
     "  --opencode-password <p>   Internal-only override for managed OpenCode auth password",
     "  --aurowork-host <host>    Bind host for aurowork-server (default: 127.0.0.1)",
     "  --aurowork-port <port>    Port for aurowork-server (default: 8787)",
-    "  --remote-access           Expose AuroWork on 0.0.0.0 for remote sharing",
     "  --aurowork-token <token>  Client token for aurowork-server",
     "  --aurowork-host-token <t> Host token for approvals",
     "  --workspace-id <id>       Workspace id for file session commands",
@@ -2515,7 +2446,6 @@ function printHelp(): void {
     "  --approval-timeout <ms>   Approval timeout in ms",
     "  --read-only               Start AuroWork server in read-only mode",
     "  --cors <origins>          Comma-separated CORS origins or *",
-    "  --connect-host <host>     Override LAN host used for pairing URLs",
     "  --aurowork-server-bin <p> Path to aurowork-server binary (requires --allow-external)",
     "  --allow-external          Allow external sidecar binaries (dev only, required for custom bins)",
     "  --sidecar-dir <path>      Cache directory for downloaded sidecars",
@@ -3545,18 +3475,6 @@ async function runWorkspaceCommand(args: ParsedArgs) {
       outputResult({ ok: true, ...result }, outputJson);
       return;
     }
-    if (subcommand === "add-remote") {
-      if (!id) throw new Error("baseUrl is required");
-      const directory = readFlag(args.flags, "directory");
-      const name = readFlag(args.flags, "name");
-      const result = await requestRouter(args, "POST", "/workspaces/remote", {
-        baseUrl: id,
-        directory: directory ?? null,
-        name: name ?? null,
-      });
-      outputResult({ ok: true, ...result }, outputJson);
-      return;
-    }
     if (subcommand === "list") {
       const result = await requestRouter(args, "GET", "/workspaces");
       outputResult({ ok: true, ...result }, outputJson);
@@ -3592,7 +3510,7 @@ async function runWorkspaceCommand(args: ParsedArgs) {
       outputResult({ ok: true, ...result }, outputJson);
       return;
     }
-    throw new Error("workspace requires add|add-remote|list|switch|info|path");
+    throw new Error("workspace requires add|list|switch|info|path");
   } catch (error) {
     outputError(error, outputJson);
     process.exitCode = 1;
@@ -3977,43 +3895,6 @@ async function runRouterDaemon(args: ParsedArgs) {
         return;
       }
 
-      if (req.method === "POST" && url.pathname === "/workspaces/remote") {
-        const body = await readBody();
-        const baseUrl =
-          typeof body?.baseUrl === "string" ? body.baseUrl.trim() : "";
-        if (
-          !baseUrl ||
-          (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
-        ) {
-          send(400, { error: "baseUrl must start with http:// or https://" });
-          return;
-        }
-        const directory =
-          typeof body?.directory === "string" ? body.directory.trim() : "";
-        const id = workspaceIdForRemote(baseUrl, directory || undefined);
-        const name =
-          typeof body?.name === "string" && body.name.trim()
-            ? body.name.trim()
-            : baseUrl;
-        const existing = state.workspaces.find((entry) => entry.id === id);
-        const entry: RouterWorkspace = {
-          id,
-          name,
-          path: directory,
-          workspaceType: "remote",
-          baseUrl,
-          directory: directory || undefined,
-          createdAt: existing?.createdAt ?? nowMs(),
-          lastUsedAt: nowMs(),
-        };
-        state.workspaces = state.workspaces.filter((item) => item.id !== id);
-        state.workspaces.push(entry);
-        if (!state.activeId) state.activeId = id;
-        await saveRouterState(statePath, state);
-        send(200, { activeId: state.activeId, workspace: entry });
-        return;
-      }
-
       if (
         parts[0] === "workspaces" &&
         parts.length === 2 &&
@@ -4066,17 +3947,12 @@ async function runRouterDaemon(args: ParsedArgs) {
           send(404, { error: "workspace not found" });
           return;
         }
-        const isRemote = workspace.workspaceType === "remote";
-        const baseUrl = isRemote
-          ? (workspace.baseUrl ?? "")
-          : (await ensureOpencode()).baseUrl;
+        const baseUrl = (await ensureOpencode()).baseUrl;
         if (!baseUrl) {
           send(400, { error: "workspace baseUrl missing" });
           return;
         }
-        const directory = isRemote
-          ? (workspace.directory ?? "")
-          : workspace.path;
+        const directory = workspace.path;
         const client = createOpencodeClient({
           baseUrl,
           directory: directory ? directory : undefined,
@@ -4103,17 +3979,12 @@ async function runRouterDaemon(args: ParsedArgs) {
           send(404, { error: "workspace not found" });
           return;
         }
-        const isRemote = workspace.workspaceType === "remote";
-        const baseUrl = isRemote
-          ? (workspace.baseUrl ?? "")
-          : (await ensureOpencode()).baseUrl;
+        const baseUrl = (await ensureOpencode()).baseUrl;
         if (!baseUrl) {
           send(400, { error: "workspace baseUrl missing" });
           return;
         }
-        const directory = isRemote
-          ? (workspace.directory ?? "")
-          : workspace.path;
+        const directory = workspace.path;
         const response = await fetch(
           `${baseUrl.replace(/\/$/, "")}/instance/dispose?directory=${encodeURIComponent(directory)}`,
           { method: "POST", headers: authHeaders },
@@ -4769,8 +4640,7 @@ async function runStart(args: ParsedArgs) {
   const opencodeUsername = opencodeCredentials.username;
   const opencodePassword = opencodeCredentials.password;
 
-  const remoteAccessEnabled = resolveAuroworkRemoteAccess(args);
-  const auroworkHost = remoteAccessEnabled ? "0.0.0.0" : "127.0.0.1";
+  const auroworkHost = "127.0.0.1";
   const auroworkPort = await resolvePort(
     readNumber(args.flags, "aurowork-port", undefined, "AUROWORK_PORT"),
     "127.0.0.1",
@@ -4802,7 +4672,6 @@ async function runStart(args: ParsedArgs) {
   const corsValue =
     readFlag(args.flags, "cors") ?? process.env.AUROWORK_CORS_ORIGINS ?? "*";
   const corsOrigins = parseList(corsValue);
-  const connectHost = readFlag(args.flags, "connect-host");
 
   const manifest = await readVersionManifest();
   const allowExternal = readBool(
@@ -4847,10 +4716,7 @@ async function runStart(args: ParsedArgs) {
   );
 
   const auroworkBaseUrl = `http://127.0.0.1:${auroworkPort}`;
-  const auroworkConnect = remoteAccessEnabled
-    ? resolveConnectUrl(auroworkPort, connectHost)
-    : {};
-  const auroworkConnectUrl = auroworkConnect.connectUrl ?? auroworkBaseUrl;
+  const auroworkConnectUrl = auroworkBaseUrl;
 
   const opencodeBaseUrl = `http://127.0.0.1:${opencodePort}`;
   const opencodeConnectUrl = opencodeBaseUrl;
@@ -5589,11 +5455,10 @@ async function runStart(args: ParsedArgs) {
       console.log(
         `AuroWork Collaborator Token: ${payload.aurowork.collaboratorToken}`,
       );
-      console.log("  Routine remote access for shared workers.");
       if (payload.aurowork.ownerToken) {
         console.log(`AuroWork Owner Token: ${payload.aurowork.ownerToken}`);
         console.log(
-          "  Use this when the remote client must answer permission prompts.",
+          "  Use this when the client must answer permission prompts.",
         );
       }
       console.log(`AuroWork Host Admin Token: ${payload.aurowork.hostToken}`);

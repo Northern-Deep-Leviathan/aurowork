@@ -17,13 +17,9 @@ export type EngineInfo = {
 
 export type AuroworkServerInfo = {
   running: boolean;
-  remoteAccessEnabled: boolean;
   host: string | null;
   port: number | null;
   baseUrl: string | null;
-  connectUrl: string | null;
-  mdnsUrl: string | null;
-  lanUrl: string | null;
   clientToken: string | null;
   ownerToken: string | null;
   hostToken: string | null;
@@ -109,22 +105,8 @@ export type WorkspaceInfo = {
   name: string;
   path: string;
   preset: string;
-  workspaceType: "local" | "remote";
-  remoteType?: "aurowork" | "opencode" | null;
-  baseUrl?: string | null;
-  directory?: string | null;
+  workspaceType: "local";
   displayName?: string | null;
-  auroworkHostUrl?: string | null;
-  auroworkToken?: string | null;
-  auroworkClientToken?: string | null;
-  auroworkHostToken?: string | null;
-  auroworkWorkspaceId?: string | null;
-  auroworkWorkspaceName?: string | null;
-
-  // Sandbox lifecycle metadata (desktop-managed)
-  sandboxBackend?: "docker" | null;
-  sandboxRunId?: string | null;
-  sandboxContainerName?: string | null;
 };
 
 export type WorkspaceList = {
@@ -157,7 +139,6 @@ export async function engineStart(
     workspacePaths?: string[];
     auroBinPath?: string | null;
     auroEnableExa?: boolean;
-    auroworkRemoteAccess?: boolean;
   },
 ): Promise<EngineInfo> {
   return invoke<EngineInfo>("engine_start", {
@@ -165,7 +146,6 @@ export async function engineStart(
     preferSidecar: options?.preferSidecar ?? false,
     auroBinPath: options?.auroBinPath ?? null,
     auroEnableExa: options?.auroEnableExa ?? null,
-    auroworkRemoteAccess: options?.auroworkRemoteAccess ?? null,
     runtime: options?.runtime ?? null,
     workspacePaths: options?.workspacePaths ?? null,
   });
@@ -212,76 +192,6 @@ export async function workspaceRegister(input: {
   return invoke<WorkspaceList>("workspace_register", {
     folderPath: input.folderPath,
     name: input.name,
-  });
-}
-
-export async function workspaceCreateRemote(input: {
-  baseUrl: string;
-  directory?: string | null;
-  displayName?: string | null;
-  remoteType?: "aurowork" | "opencode" | null;
-  auroworkHostUrl?: string | null;
-  auroworkToken?: string | null;
-  auroworkClientToken?: string | null;
-  auroworkHostToken?: string | null;
-  auroworkWorkspaceId?: string | null;
-  auroworkWorkspaceName?: string | null;
-
-  // Sandbox lifecycle metadata (desktop-managed)
-  sandboxBackend?: "docker" | null;
-  sandboxRunId?: string | null;
-  sandboxContainerName?: string | null;
-}): Promise<WorkspaceList> {
-  return invoke<WorkspaceList>("workspace_create_remote", {
-    baseUrl: input.baseUrl,
-    directory: input.directory ?? null,
-    displayName: input.displayName ?? null,
-    remoteType: input.remoteType ?? null,
-    auroworkHostUrl: input.auroworkHostUrl ?? null,
-    auroworkToken: input.auroworkToken ?? null,
-    auroworkClientToken: input.auroworkClientToken ?? null,
-    auroworkHostToken: input.auroworkHostToken ?? null,
-    auroworkWorkspaceId: input.auroworkWorkspaceId ?? null,
-    auroworkWorkspaceName: input.auroworkWorkspaceName ?? null,
-    sandboxBackend: input.sandboxBackend ?? null,
-    sandboxRunId: input.sandboxRunId ?? null,
-    sandboxContainerName: input.sandboxContainerName ?? null,
-  });
-}
-
-export async function workspaceUpdateRemote(input: {
-  workspaceId: string;
-  baseUrl?: string | null;
-  directory?: string | null;
-  displayName?: string | null;
-  remoteType?: "aurowork" | "opencode" | null;
-  auroworkHostUrl?: string | null;
-  auroworkToken?: string | null;
-  auroworkClientToken?: string | null;
-  auroworkHostToken?: string | null;
-  auroworkWorkspaceId?: string | null;
-  auroworkWorkspaceName?: string | null;
-
-  // Sandbox lifecycle metadata (desktop-managed)
-  sandboxBackend?: "docker" | null;
-  sandboxRunId?: string | null;
-  sandboxContainerName?: string | null;
-}): Promise<WorkspaceList> {
-  return invoke<WorkspaceList>("workspace_update_remote", {
-    workspaceId: input.workspaceId,
-    baseUrl: input.baseUrl ?? null,
-    directory: input.directory ?? null,
-    displayName: input.displayName ?? null,
-    remoteType: input.remoteType ?? null,
-    auroworkHostUrl: input.auroworkHostUrl ?? null,
-    auroworkToken: input.auroworkToken ?? null,
-    auroworkClientToken: input.auroworkClientToken ?? null,
-    auroworkHostToken: input.auroworkHostToken ?? null,
-    auroworkWorkspaceId: input.auroworkWorkspaceId ?? null,
-    auroworkWorkspaceName: input.auroworkWorkspaceName ?? null,
-    sandboxBackend: input.sandboxBackend ?? null,
-    sandboxRunId: input.sandboxRunId ?? null,
-    sandboxContainerName: input.sandboxContainerName ?? null,
   });
 }
 
@@ -443,11 +353,9 @@ export async function engineStop(): Promise<EngineInfo> {
 
 export async function engineRestart(options?: {
   auroEnableExa?: boolean;
-  auroworkRemoteAccess?: boolean;
 }): Promise<EngineInfo> {
   return invoke<EngineInfo>("engine_restart", {
     auroEnableExa: options?.auroEnableExa ?? null,
-    auroworkRemoteAccess: options?.auroworkRemoteAccess ?? null,
   });
 }
 
@@ -484,43 +392,12 @@ export async function nukeAuroworkAndAuroConfigAndExit(): Promise<void> {
   return invoke<void>("nuke_aurowork_and_auro_config_and_exit");
 }
 
-export type OrchestratorDetachedHost = {
-  auroworkUrl: string;
-  token: string;
-  ownerToken?: string | null;
-  hostToken: string;
-  port: number;
-  sandboxBackend?: "docker" | null;
-  sandboxRunId?: string | null;
-  sandboxContainerName?: string | null;
-};
-
-export async function orchestratorStartDetached(input: {
-  workspacePath: string;
-  sandboxBackend?: "none" | "docker" | null;
-  runId?: string | null;
-  auroworkToken?: string | null;
-  auroworkHostToken?: string | null;
-}): Promise<OrchestratorDetachedHost> {
-  return invoke<OrchestratorDetachedHost>("orchestrator_start_detached", {
-    workspacePath: input.workspacePath,
-    sandboxBackend: input.sandboxBackend ?? null,
-    runId: input.runId ?? null,
-    auroworkToken: input.auroworkToken ?? null,
-    auroworkHostToken: input.auroworkHostToken ?? null,
-  });
-}
-
 export async function auroworkServerInfo(): Promise<AuroworkServerInfo> {
   return invoke<AuroworkServerInfo>("aurowork_server_info");
 }
 
-export async function auroworkServerRestart(options?: {
-  remoteAccessEnabled?: boolean;
-}): Promise<AuroworkServerInfo> {
-  return invoke<AuroworkServerInfo>("aurowork_server_restart", {
-    remoteAccessEnabled: options?.remoteAccessEnabled ?? null,
-  });
+export async function auroworkServerRestart(): Promise<AuroworkServerInfo> {
+  return invoke<AuroworkServerInfo>("aurowork_server_restart", {});
 }
 
 export async function engineInfo(): Promise<EngineInfo> {

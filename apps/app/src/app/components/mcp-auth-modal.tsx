@@ -22,7 +22,6 @@ export type McpAuthModalProps = {
   reloadRequired?: boolean;
   reloadBlocked?: boolean;
   activeSessions?: Array<{ id: string; title: string }>;
-  isRemoteWorkspace?: boolean;
   client: Client | null;
   entry: McpDirectoryInfo | null;
   projectDir: string;
@@ -187,8 +186,6 @@ export default function McpAuthModal(props: McpAuthModalProps) {
 
     if (!entry || !client) return;
 
-    const isRemoteWorkspace = !!props.isRemoteWorkspace;
-
     let slug = "";
     try {
       slug = resolveSlug(entry.name);
@@ -237,52 +234,35 @@ export default function McpAuthModal(props: McpAuthModalProps) {
         return;
       }
 
-      if (!isRemoteWorkspace) {
-        const result = await client.mcp.auth.authenticate({
-          name: slug,
-          directory,
-        });
-        const status = unwrap(result) as { status?: string; error?: string };
-
-        if (status.status === "connected") {
-          setAlreadyConnected(true);
-          await props.onComplete();
-          return;
-        }
-
-        if (status.status === "needs_client_registration") {
-          setError(status.error ?? translate("mcp.auth.client_registration_required"));
-        } else if (status.status === "disabled") {
-          setError(translate("mcp.auth.server_disabled"));
-        } else if (status.status === "failed") {
-          setError(status.error ?? translate("mcp.auth.oauth_failed"));
-        } else {
-          setError(translate("mcp.auth.authorization_still_required"));
-        }
-        return;
-      }
-
-      const authResult = await client.mcp.auth.start({
+      const result = await client.mcp.auth.authenticate({
         name: slug,
         directory,
       });
-      const auth = unwrap(authResult) as { authorizationUrl?: string };
+      const status = unwrap(result) as { status?: string; error?: string };
 
-      if (!auth.authorizationUrl) {
+      if (status.status === "connected") {
         setAlreadyConnected(true);
+        await props.onComplete();
         return;
       }
 
-      setAuthorizationUrl(auth.authorizationUrl);
-      await openAuthorizationUrl(auth.authorizationUrl);
-      startStatusPolling(slug);
+      if (status.status === "needs_client_registration") {
+        setError(status.error ?? translate("mcp.auth.client_registration_required"));
+      } else if (status.status === "disabled") {
+        setError(translate("mcp.auth.server_disabled"));
+      } else if (status.status === "failed") {
+        setError(status.error ?? translate("mcp.auth.oauth_failed"));
+      } else {
+        setError(translate("mcp.auth.authorization_still_required"));
+      }
+      return;
     } catch (err) {
       const message = err instanceof Error ? err.message : translate("mcp.auth.failed_to_start_oauth");
 
       if (message.toLowerCase().includes("does not support oauth")) {
         const serverSlug = props.entry?.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") ?? "server";
         const canAutoReload =
-          allowAutoReload && !props.isRemoteWorkspace && !props.reloadBlocked && Boolean(props.onReloadEngine);
+          allowAutoReload && !props.reloadBlocked && Boolean(props.onReloadEngine);
 
         if (canAutoReload && props.onReloadEngine) {
           await props.onReloadEngine();
@@ -328,7 +308,6 @@ export default function McpAuthModal(props: McpAuthModalProps) {
   const handleCliReauth = async () => {
     const entry = props.entry;
     if (!entry || cliAuthBusy()) return;
-    if (props.isRemoteWorkspace) return;
     if (!isTauriRuntime()) return;
 
     setCliAuthBusy(true);
@@ -425,10 +404,6 @@ export default function McpAuthModal(props: McpAuthModalProps) {
 
   const handleReloadAndRetry = async () => {
     if (!props.onReloadEngine) return;
-    if (props.isRemoteWorkspace && typeof window !== "undefined") {
-      const proceed = window.confirm(translate("mcp.auth.reload_remote_confirm"));
-      if (!proceed) return;
-    }
     await props.onReloadEngine();
     startAuth(true);
   };
@@ -763,27 +738,20 @@ export default function McpAuthModal(props: McpAuthModalProps) {
                 <Show when={isInvalidRefreshToken()}>
                   <div class="pt-2 space-y-2">
                     <p class="text-xs text-red-11">{translate("mcp.auth.invalid_refresh_token")}</p>
-                    <Show when={!props.isRemoteWorkspace}>
-                      <Show when={isTauriRuntime()}>
-                        <Button variant="secondary" onClick={handleCliReauth} disabled={cliAuthBusy()}>
-                          <Show
-                            when={cliAuthBusy()}
-                            fallback={translate("mcp.auth.reauth_action")}
-                          >
-                            <Loader2 size={14} class="animate-spin" />
-                            {translate("mcp.auth.reauth_running")}
-                          </Show>
-                        </Button>
-                      </Show>
-                      <Show when={!isTauriRuntime()}>
-                        <div class="text-[11px] text-red-10">
-                          {translate("mcp.auth.reauth_cli_hint", { server: serverName() })}
-                        </div>
-                      </Show>
+                    <Show when={isTauriRuntime()}>
+                      <Button variant="secondary" onClick={handleCliReauth} disabled={cliAuthBusy()}>
+                        <Show
+                          when={cliAuthBusy()}
+                          fallback={translate("mcp.auth.reauth_action")}
+                        >
+                          <Loader2 size={14} class="animate-spin" />
+                          {translate("mcp.auth.reauth_running")}
+                        </Show>
+                      </Button>
                     </Show>
-                    <Show when={props.isRemoteWorkspace}>
+                    <Show when={!isTauriRuntime()}>
                       <div class="text-[11px] text-red-10">
-                        {translate("mcp.auth.reauth_remote_hint")}
+                        {translate("mcp.auth.reauth_cli_hint", { server: serverName() })}
                       </div>
                     </Show>
                     <Show when={cliAuthResult()}>
@@ -791,56 +759,6 @@ export default function McpAuthModal(props: McpAuthModalProps) {
                     </Show>
                   </div>
                 </Show>
-              </div>
-            </Show>
-
-            <Show when={!isBusy() && authorizationUrl() && props.isRemoteWorkspace && !alreadyConnected()}>
-              <div class="rounded-xl border border-dls-border bg-dls-surface/40 p-4 space-y-3">
-                <div class="text-xs font-medium text-dls-text">
-                  {translate("mcp.auth.manual_finish_title")}
-                </div>
-                <div class="text-xs text-dls-secondary">
-                  {translate("mcp.auth.manual_finish_hint")}
-                </div>
-                <div class="rounded-xl border border-dls-border bg-dls-surface/40 px-3 py-2 flex items-center gap-3">
-                  <div class="flex-1 min-w-0">
-                    <div class="text-[10px] uppercase tracking-wide text-dls-secondary/60">Authorization link</div>
-                    <div class="text-[11px] text-dls-secondary font-mono truncate">
-                      {authorizationUrl()}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    class="text-xs"
-                    onClick={handleCopyAuthorizationUrl}
-                  >
-                    {authUrlCopied() ? "Copied" : "Copy link"}
-                  </Button>
-                </div>
-                <TextInput
-                  label={translate("mcp.auth.callback_label")}
-                  placeholder={translate("mcp.auth.callback_placeholder")}
-                  value={callbackInput()}
-                  onInput={(event) => setCallbackInput(event.currentTarget.value)}
-                />
-                <div class="text-[11px] text-dls-secondary">
-                  {translate("mcp.auth.port_forward_hint")}
-                </div>
-                <div class="flex justify-end">
-                  <Button
-                    variant="secondary"
-                    onClick={handleManualComplete}
-                    disabled={manualAuthBusy() || !callbackInput().trim()}
-                  >
-                    <Show
-                      when={manualAuthBusy()}
-                      fallback={translate("mcp.auth.complete_connection")}
-                    >
-                      <Loader2 size={14} class="animate-spin" />
-                      {translate("mcp.auth.complete_connection")}
-                    </Show>
-                  </Button>
-                </div>
               </div>
             </Show>
 

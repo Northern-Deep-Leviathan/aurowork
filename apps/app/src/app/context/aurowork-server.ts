@@ -104,7 +104,7 @@ export function createAuroworkServerStore(options: {
   createEffect(() => {
     const pref = options.startupPreference();
     const info = hostInfo();
-    const hostUrl = info?.connectUrl ?? info?.lanUrl ?? info?.mdnsUrl ?? info?.baseUrl ?? "";
+    const hostUrl = info?.baseUrl ?? "";
     const settingsUrl = normalizeAuroworkServerUrl(settings().urlOverride ?? "") ?? "";
 
     if (pref === "local") {

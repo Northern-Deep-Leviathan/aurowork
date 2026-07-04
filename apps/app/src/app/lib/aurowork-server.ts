@@ -105,7 +105,6 @@ export type AuroworkServerSettings = {
   urlOverride?: string;
   portOverride?: number;
   token?: string;
-  remoteAccessEnabled?: boolean;
 };
 
 export type AuroworkWorkspaceInfo = WorkspaceInfo & {
@@ -348,7 +347,6 @@ export const DEFAULT_AUROWORK_SERVER_PORT = 8787;
 const STORAGE_URL_OVERRIDE = "aurowork.server.urlOverride";
 const STORAGE_PORT_OVERRIDE = "aurowork.server.port";
 const STORAGE_TOKEN = "aurowork.server.token";
-const STORAGE_REMOTE_ACCESS = "aurowork.server.remoteAccessEnabled";
 
 export function normalizeAuroworkServerUrl(input: string) {
   const trimmed = input.trim();
@@ -673,13 +671,10 @@ export function readAuroworkServerSettings(): AuroworkServerSettings {
     const portRaw = window.localStorage.getItem(STORAGE_PORT_OVERRIDE) ?? "";
     const portOverride = portRaw ? Number(portRaw) : undefined;
     const token = window.localStorage.getItem(STORAGE_TOKEN) ?? undefined;
-    const remoteAccessRaw =
-      window.localStorage.getItem(STORAGE_REMOTE_ACCESS) ?? "";
     return {
       urlOverride: urlOverride ?? undefined,
       portOverride: Number.isNaN(portOverride) ? undefined : portOverride,
       token: token?.trim() || undefined,
-      remoteAccessEnabled: remoteAccessRaw === "1",
     };
   } catch {
     return {};
@@ -695,7 +690,6 @@ export function writeAuroworkServerSettings(
     const portOverride =
       typeof next.portOverride === "number" ? next.portOverride : undefined;
     const token = next.token?.trim() || undefined;
-    const remoteAccessEnabled = next.remoteAccessEnabled === true;
 
     if (urlOverride) {
       window.localStorage.setItem(STORAGE_URL_OVERRIDE, urlOverride);
@@ -713,12 +707,6 @@ export function writeAuroworkServerSettings(
       window.localStorage.setItem(STORAGE_TOKEN, token);
     } else {
       window.localStorage.removeItem(STORAGE_TOKEN);
-    }
-
-    if (remoteAccessEnabled) {
-      window.localStorage.setItem(STORAGE_REMOTE_ACCESS, "1");
-    } else {
-      window.localStorage.removeItem(STORAGE_REMOTE_ACCESS);
     }
 
     return readAuroworkServerSettings();
@@ -782,7 +770,6 @@ export function clearAuroworkServerSettings() {
     window.localStorage.removeItem(STORAGE_URL_OVERRIDE);
     window.localStorage.removeItem(STORAGE_PORT_OVERRIDE);
     window.localStorage.removeItem(STORAGE_TOKEN);
-    window.localStorage.removeItem(STORAGE_REMOTE_ACCESS);
   } catch {
     // ignore
   }
@@ -1108,39 +1095,6 @@ export function createAuroworkServerClient(options: {
   return {
     baseUrl,
     token,
-    fetchBundle: async (_url: string): Promise<unknown> => {
-      throw new Error("AuroWork server fetchBundle is not implemented");
-    },
-    publishBundle: async (
-      _payload: unknown,
-      _kind: string,
-      _opts?: { name?: string; baseUrl?: string; workspaceId?: string },
-    ): Promise<{ url: string }> => {
-      throw new Error("AuroWork server publishBundle is not implemented");
-    },
-    listAudit: async (
-      _workspaceId: string,
-      _limit: number,
-    ): Promise<{ items: AuroworkAuditEntry[] }> => {
-      throw new Error("AuroWork server listAudit is not implemented");
-    },
-    listScheduledJobs: async (
-      _workspaceId: string,
-    ): Promise<{
-      items: Array<{ id: string; cron: string; nextRunAt: number | null }>;
-    }> => {
-      throw new Error("AuroWork server listScheduledJobs is not implemented");
-    },
-    materializeBlueprintSessions: async (
-      _workspaceId: string,
-    ): Promise<{
-      created: Array<{ sessionId: string; templateId?: string | null }>;
-      openSessionId?: string | null;
-    }> => {
-      throw new Error(
-        "AuroWork server materializeBlueprintSessions is not implemented",
-      );
-    },
     health: () =>
       requestJson<{ ok: boolean; version: string; uptimeMs: number }>(
         baseUrl,

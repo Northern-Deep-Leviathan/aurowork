@@ -4,12 +4,11 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::{
-    ExecResult, RemoteType, WorkspaceAuroworkConfig, WorkspaceInfo, WorkspaceList, WorkspaceType,
+    ExecResult, WorkspaceAuroworkConfig, WorkspaceInfo, WorkspaceList, WorkspaceType,
 };
 use crate::workspace::files::ensure_workspace_files;
 use crate::workspace::state::{
-    load_workspace_state, normalize_local_workspace_path, save_workspace_state,
-    stable_workspace_id, stable_workspace_id_for_aurowork, stable_workspace_id_for_remote,
+    load_workspace_state, normalize_local_workspace_path, save_workspace_state, stable_workspace_id,
 };
 use crate::workspace::watch::{update_workspace_watch, WorkspaceWatchState};
 use serde::Serialize;
@@ -271,19 +270,7 @@ pub fn workspace_register(
         path: folder,
         preset,
         workspace_type: WorkspaceType::Local,
-        remote_type: None,
-        base_url: None,
-        directory: None,
         display_name: None,
-        aurowork_host_url: None,
-        aurowork_token: None,
-        aurowork_client_token: None,
-        aurowork_host_token: None,
-        aurowork_workspace_id: None,
-        aurowork_workspace_name: None,
-        sandbox_backend: None,
-        sandbox_run_id: None,
-        sandbox_container_name: None,
     });
 
     state.selected_workspace_id = id.clone();
@@ -400,19 +387,7 @@ pub fn workspace_create(
         path: folder,
         preset,
         workspace_type: WorkspaceType::Local,
-        remote_type: None,
-        base_url: None,
-        directory: None,
         display_name: None,
-        aurowork_host_url: None,
-        aurowork_token: None,
-        aurowork_client_token: None,
-        aurowork_host_token: None,
-        aurowork_workspace_id: None,
-        aurowork_workspace_name: None,
-        sandbox_backend: None,
-        sandbox_run_id: None,
-        sandbox_container_name: None,
     });
 
     state.selected_workspace_id = id.clone();
@@ -420,265 +395,6 @@ pub fn workspace_create(
     println!("[workspace] create local complete: {id}");
 
     let _ = watch_state;
-
-    Ok(build_workspace_list(state))
-}
-
-#[tauri::command]
-#[allow(clippy::too_many_arguments)]
-pub fn workspace_create_remote(
-    app: tauri::AppHandle,
-    base_url: String,
-    directory: Option<String>,
-    display_name: Option<String>,
-    remote_type: Option<RemoteType>,
-    aurowork_host_url: Option<String>,
-    aurowork_token: Option<String>,
-    aurowork_client_token: Option<String>,
-    aurowork_host_token: Option<String>,
-    aurowork_workspace_id: Option<String>,
-    aurowork_workspace_name: Option<String>,
-    sandbox_backend: Option<String>,
-    sandbox_run_id: Option<String>,
-    sandbox_container_name: Option<String>,
-    watch_state: State<WorkspaceWatchState>,
-) -> Result<WorkspaceList, String> {
-    println!("[workspace] create remote request");
-    let base_url = base_url.trim().to_string();
-    let remote_type = remote_type.unwrap_or_default();
-    if base_url.is_empty() {
-        return Err("baseUrl is required".to_string());
-    }
-    if !base_url.starts_with("http://") && !base_url.starts_with("https://") {
-        return Err("baseUrl must start with http:// or https://".to_string());
-    }
-
-    let directory = directory
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-    let display_name = display_name
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-
-    let aurowork_host_url = aurowork_host_url
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-
-    let aurowork_token = aurowork_token
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-
-    let aurowork_client_token = aurowork_client_token
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-
-    let aurowork_host_token = aurowork_host_token
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-
-    if remote_type == RemoteType::Aurowork {
-        let host_url = aurowork_host_url.clone().unwrap_or_default();
-        if host_url.is_empty() {
-            return Err("auroworkHostUrl is required for AuroWork remote".to_string());
-        }
-        if !host_url.starts_with("http://") && !host_url.starts_with("https://") {
-            return Err("auroworkHostUrl must start with http:// or https://".to_string());
-        }
-    }
-
-    let id = if remote_type == RemoteType::Aurowork {
-        stable_workspace_id_for_aurowork(
-            aurowork_host_url.as_deref().unwrap_or(""),
-            aurowork_workspace_id.as_deref(),
-        )
-    } else {
-        stable_workspace_id_for_remote(&base_url, directory.as_deref())
-    };
-    let name = aurowork_workspace_name
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| display_name.clone())
-        .unwrap_or_else(|| {
-            if remote_type == RemoteType::Aurowork {
-                aurowork_host_url
-                    .clone()
-                    .unwrap_or_else(|| base_url.clone())
-            } else {
-                base_url.clone()
-            }
-        });
-    let path = directory.clone().unwrap_or_default();
-
-    let mut state = load_workspace_state(&app)?;
-    state.workspaces.retain(|w| w.id != id);
-    state.workspaces.push(WorkspaceInfo {
-        id: id.clone(),
-        name,
-        path,
-        preset: "remote".to_string(),
-        workspace_type: WorkspaceType::Remote,
-        remote_type: Some(remote_type),
-        base_url: Some(base_url),
-        directory,
-        display_name,
-        aurowork_host_url,
-        aurowork_token,
-        aurowork_client_token,
-        aurowork_host_token,
-        aurowork_workspace_id,
-        aurowork_workspace_name,
-        sandbox_backend: sandbox_backend
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty()),
-        sandbox_run_id: sandbox_run_id
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty()),
-        sandbox_container_name: sandbox_container_name
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty()),
-    });
-    state.selected_workspace_id = id.clone();
-    save_workspace_state(&app, &state)?;
-    println!("[workspace] create remote complete: {id}");
-
-    let _ = watch_state;
-
-    Ok(build_workspace_list(state))
-}
-
-#[tauri::command]
-#[allow(clippy::too_many_arguments)]
-pub fn workspace_update_remote(
-    app: tauri::AppHandle,
-    workspace_id: String,
-    base_url: Option<String>,
-    directory: Option<String>,
-    display_name: Option<String>,
-    remote_type: Option<RemoteType>,
-    aurowork_host_url: Option<String>,
-    aurowork_token: Option<String>,
-    aurowork_client_token: Option<String>,
-    aurowork_host_token: Option<String>,
-    aurowork_workspace_id: Option<String>,
-    aurowork_workspace_name: Option<String>,
-    sandbox_backend: Option<String>,
-    sandbox_run_id: Option<String>,
-    sandbox_container_name: Option<String>,
-) -> Result<WorkspaceList, String> {
-    println!("[workspace] update remote request: {workspace_id}");
-    let mut state = load_workspace_state(&app)?;
-    let id = workspace_id.trim();
-    if id.is_empty() {
-        return Err("workspaceId is required".to_string());
-    }
-
-    let entry = state.workspaces.iter_mut().find(|w| w.id == id);
-    let Some(entry) = entry else {
-        return Err("Unknown workspaceId".to_string());
-    };
-
-    if entry.workspace_type != WorkspaceType::Remote {
-        return Err("workspaceId is not remote".to_string());
-    }
-
-    if let Some(next_base_url) = base_url
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-    {
-        if !next_base_url.starts_with("http://") && !next_base_url.starts_with("https://") {
-            return Err("baseUrl must start with http:// or https://".to_string());
-        }
-        entry.base_url = Some(next_base_url);
-    }
-
-    let next_directory = directory
-        .as_ref()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-    if directory.is_some() {
-        entry.directory = next_directory.clone();
-        entry.path = next_directory.unwrap_or_default();
-    }
-
-    if let Some(next_name) = display_name
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-    {
-        entry.display_name = Some(next_name.clone());
-        entry.name = next_name;
-    }
-
-    if let Some(next_remote_type) = remote_type {
-        entry.remote_type = Some(next_remote_type);
-    }
-
-    if let Some(next_host_url) = aurowork_host_url
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-    {
-        if !next_host_url.starts_with("http://") && !next_host_url.starts_with("https://") {
-            return Err("auroworkHostUrl must start with http:// or https://".to_string());
-        }
-        entry.aurowork_host_url = Some(next_host_url);
-    }
-
-    if aurowork_token.is_some() {
-        entry.aurowork_token = aurowork_token
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty());
-    }
-
-    if aurowork_client_token.is_some() {
-        entry.aurowork_client_token = aurowork_client_token
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty());
-    }
-
-    if aurowork_host_token.is_some() {
-        entry.aurowork_host_token = aurowork_host_token
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty());
-    }
-
-    if aurowork_workspace_id.is_some() {
-        entry.aurowork_workspace_id = aurowork_workspace_id
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty());
-    }
-
-    if let Some(next_name) = aurowork_workspace_name
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-    {
-        entry.aurowork_workspace_name = Some(next_name.clone());
-        if entry.display_name.is_none() {
-            entry.name = next_name;
-        }
-    }
-
-    if let Some(next_backend) = sandbox_backend
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-    {
-        entry.sandbox_backend = Some(next_backend);
-    }
-
-    if let Some(next_run_id) = sandbox_run_id
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-    {
-        entry.sandbox_run_id = Some(next_run_id);
-    }
-
-    if let Some(next_container) = sandbox_container_name
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-    {
-        entry.sandbox_container_name = Some(next_container);
-    }
-
-    save_workspace_state(&app, &state)?;
-    println!("[workspace] update remote complete: {id}");
 
     Ok(build_workspace_list(state))
 }
@@ -907,10 +623,6 @@ pub fn workspace_export_config(
         .find(|w| w.id == workspace_id)
         .ok_or_else(|| "Unknown workspaceId".to_string())?;
 
-    if workspace.workspace_type != WorkspaceType::Local {
-        return Err("Workspace export is only supported for local workspaces".to_string());
-    }
-
     let workspace_root = PathBuf::from(&workspace.path);
     if !workspace_root.exists() {
         return Err(format!(
@@ -1123,19 +835,7 @@ pub fn workspace_import_config(
         path: target_dir.clone(),
         preset,
         workspace_type: WorkspaceType::Local,
-        remote_type: None,
-        base_url: None,
-        directory: None,
         display_name: None,
-        aurowork_host_url: None,
-        aurowork_token: None,
-        aurowork_client_token: None,
-        aurowork_host_token: None,
-        aurowork_workspace_id: None,
-        aurowork_workspace_name: None,
-        sandbox_backend: None,
-        sandbox_run_id: None,
-        sandbox_container_name: None,
     });
     state.selected_workspace_id = id.clone();
     save_workspace_state(&app, &state)?;

@@ -38,7 +38,7 @@ export function createExtensionsStore(options: {
   client: () => Client | null;
   projectDir: () => string;
   selectedWorkspaceRoot: () => string;
-  workspaceType: () => "local" | "remote";
+  workspaceType: () => "local";
   auroworkServerClient: () => AuroworkServerClient | null;
   auroworkServerStatus: () => AuroworkServerStatus;
   auroworkServerCapabilities: () => AuroworkServerCapabilities | null;
@@ -312,7 +312,7 @@ export function createExtensionsStore(options: {
       return { ok: false, message: "Select a hub repo before installing skills." };
     }
 
-    const isRemoteWorkspace = options.workspaceType() === "remote";
+    const isRemoteWorkspace = false;
     const auroworkClient = options.auroworkServerClient();
     const auroworkWorkspaceId = options.runtimeWorkspaceId();
     const auroworkCapabilities = options.auroworkServerCapabilities();
@@ -367,8 +367,8 @@ export function createExtensionsStore(options: {
 
   async function refreshSkills(optionsOverride?: { force?: boolean }) {
     const root = options.selectedWorkspaceRoot().trim();
-    const isRemoteWorkspace = options.workspaceType() === "remote";
-    const isLocalWorkspace = options.workspaceType() === "local";
+    const isRemoteWorkspace = false;
+    const isLocalWorkspace = true;
     const auroworkClient = options.auroworkServerClient();
     const auroworkWorkspaceId = options.runtimeWorkspaceId();
     const auroworkCapabilities = options.auroworkServerCapabilities();
@@ -552,8 +552,8 @@ export function createExtensionsStore(options: {
   }
 
   async function refreshPlugins(scopeOverride?: PluginScope) {
-    const isRemoteWorkspace = options.workspaceType() === "remote";
-    const isLocalWorkspace = options.workspaceType() === "local";
+    const isRemoteWorkspace = false;
+    const isLocalWorkspace = true;
     const auroworkClient = options.auroworkServerClient();
     const auroworkWorkspaceId = options.runtimeWorkspaceId();
     const auroworkCapabilities = options.auroworkServerCapabilities();
@@ -692,8 +692,8 @@ export function createExtensionsStore(options: {
     const isManualInput = pluginNameOverride == null;
     const triggerName = stripPluginVersion(pluginName);
 
-    const isRemoteWorkspace = options.workspaceType() === "remote";
-    const isLocalWorkspace = options.workspaceType() === "local";
+    const isRemoteWorkspace = false;
+    const isLocalWorkspace = true;
     const auroworkClient = options.auroworkServerClient();
     const auroworkWorkspaceId = options.runtimeWorkspaceId();
     const auroworkCapabilities = options.auroworkServerCapabilities();
@@ -796,8 +796,8 @@ export function createExtensionsStore(options: {
     if (!name) return;
     const triggerName = stripPluginVersion(name);
 
-    const isRemoteWorkspace = options.workspaceType() === "remote";
-    const isLocalWorkspace = options.workspaceType() === "local";
+    const isRemoteWorkspace = false;
+    const isLocalWorkspace = true;
     const auroworkClient = options.auroworkServerClient();
     const auroworkWorkspaceId = options.runtimeWorkspaceId();
     const auroworkCapabilities = options.auroworkServerCapabilities();
@@ -871,7 +871,7 @@ export function createExtensionsStore(options: {
   }
 
   async function importLocalSkill() {
-    const isLocalWorkspace = options.workspaceType() === "local";
+    const isLocalWorkspace = true;
 
     if (!isTauriRuntime()) {
       options.setError(translate("skills.desktop_required"));
@@ -924,8 +924,8 @@ export function createExtensionsStore(options: {
   }
 
   async function installSkillCreator(): Promise<{ ok: boolean; message: string }> {
-    const isRemoteWorkspace = options.workspaceType() === "remote";
-    const isLocalWorkspace = options.workspaceType() === "local";
+    const isRemoteWorkspace = false;
+    const isLocalWorkspace = true;
     const auroworkClient = options.auroworkServerClient();
     const auroworkWorkspaceId = options.runtimeWorkspaceId();
     const auroworkCapabilities = options.auroworkServerCapabilities();
@@ -1071,11 +1071,6 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    if (options.workspaceType() !== "local") {
-      options.setError("Local workers are required to uninstall skills.");
-      return;
-    }
-
     const root = options.selectedWorkspaceRoot().trim();
     if (!root) {
       setSkillsStatus(translate("skills.pick_workspace_first"));
@@ -1119,8 +1114,8 @@ export function createExtensionsStore(options: {
       return null;
     }
 
-    const isRemoteWorkspace = options.workspaceType() === "remote";
-    const isLocalWorkspace = options.workspaceType() === "local";
+    const isRemoteWorkspace = false;
+    const isLocalWorkspace = true;
     const auroworkClient = options.auroworkServerClient();
     const auroworkWorkspaceId = options.runtimeWorkspaceId();
     const auroworkCapabilities = options.auroworkServerCapabilities();
@@ -1185,8 +1180,8 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    const isRemoteWorkspace = options.workspaceType() === "remote";
-    const isLocalWorkspace = options.workspaceType() === "local";
+    const isRemoteWorkspace = false;
+    const isLocalWorkspace = true;
     const auroworkClient = options.auroworkServerClient();
     const auroworkWorkspaceId = options.runtimeWorkspaceId();
     const auroworkCapabilities = options.auroworkServerCapabilities();

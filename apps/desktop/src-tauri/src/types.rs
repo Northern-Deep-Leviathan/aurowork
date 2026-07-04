@@ -91,13 +91,9 @@ pub struct EngineInfo {
 #[serde(rename_all = "camelCase")]
 pub struct AuroworkServerInfo {
     pub running: bool,
-    pub remote_access_enabled: bool,
     pub host: Option<String>,
     pub port: Option<u16>,
     pub base_url: Option<String>,
-    pub connect_url: Option<String>,
-    pub mdns_url: Option<String>,
-    pub lan_url: Option<String>,
     pub client_token: Option<String>,
     pub owner_token: Option<String>,
     pub host_token: Option<String>,
@@ -268,17 +264,6 @@ pub struct ScheduledJob {
 pub enum WorkspaceType {
     #[default]
     Local,
-    Remote,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-#[derive(Default)]
-pub enum RemoteType {
-    #[default]
-    #[serde(rename = "opencode")]
-    Auro,
-    Aurowork,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -291,33 +276,7 @@ pub struct WorkspaceInfo {
     #[serde(default)]
     pub workspace_type: WorkspaceType,
     #[serde(default)]
-    pub remote_type: Option<RemoteType>,
-    #[serde(default)]
-    pub base_url: Option<String>,
-    #[serde(default)]
-    pub directory: Option<String>,
-    #[serde(default)]
     pub display_name: Option<String>,
-    #[serde(default)]
-    pub aurowork_host_url: Option<String>,
-    #[serde(default)]
-    pub aurowork_token: Option<String>,
-    #[serde(default)]
-    pub aurowork_client_token: Option<String>,
-    #[serde(default)]
-    pub aurowork_host_token: Option<String>,
-    #[serde(default)]
-    pub aurowork_workspace_id: Option<String>,
-    #[serde(default)]
-    pub aurowork_workspace_name: Option<String>,
-
-    // Sandbox lifecycle metadata (desktop-managed)
-    #[serde(default)]
-    pub sandbox_backend: Option<String>,
-    #[serde(default)]
-    pub sandbox_run_id: Option<String>,
-    #[serde(default)]
-    pub sandbox_container_name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -376,20 +335,3 @@ impl Default for WorkspaceState {
 }
 
 pub const WORKSPACE_STATE_VERSION: u8 = 5;
-
-#[cfg(test)]
-mod remote_type_serde_tests {
-    use super::RemoteType;
-
-    #[test]
-    fn auro_variant_serializes_as_opencode_string() {
-        let json = serde_json::to_string(&RemoteType::Auro).expect("serialize");
-        assert_eq!(json, "\"opencode\"");
-    }
-
-    #[test]
-    fn opencode_string_deserializes_to_auro_variant() {
-        let value: RemoteType = serde_json::from_str("\"opencode\"").expect("deserialize");
-        assert!(matches!(value, RemoteType::Auro));
-    }
-}

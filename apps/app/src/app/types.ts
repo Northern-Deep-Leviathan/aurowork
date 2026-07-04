@@ -161,7 +161,6 @@ export type DashboardTab =
 
 export type SettingsTab =
   | "general"
-  | "den"
   | "model"
   | "skills"
   | "extensions"

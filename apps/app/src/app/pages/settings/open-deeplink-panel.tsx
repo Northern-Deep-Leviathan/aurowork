@@ -68,8 +68,7 @@ export function OpenDeeplinkPanel(props: OpenDeeplinkPanelProps) {
             </Button>
             <div class="text-[11px] text-dls-secondary">
               Accepts <span class="font-mono">aurowork://</span>,{" "}
-              <span class="font-mono">aurowork-dev://</span>, or a raw supported{" "}
-              <span class="font-mono">https://share.example.com/b/...</span> URL.
+              <span class="font-mono">aurowork-dev://</span>, or a supported local desktop deep link.
             </div>
           </div>
         </div>

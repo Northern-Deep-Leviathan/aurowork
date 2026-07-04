@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use tauri::Manager;
 
 use crate::paths::home_dir;
-use crate::types::{WorkspaceState, WorkspaceType, WORKSPACE_STATE_VERSION};
+use crate::types::{WorkspaceState, WORKSPACE_STATE_VERSION};
 
 pub fn stable_workspace_id(path: &str) -> String {
     let digest = Sha256::digest(path.as_bytes());
@@ -50,28 +50,11 @@ pub fn repair_workspace_state(state: &mut WorkspaceState) {
     let old_selected_workspace_id = state.selected_workspace_id.clone();
     let old_watched_workspace_id = state.watched_workspace_id.clone();
     for workspace in state.workspaces.iter_mut() {
-        let next_id = match workspace.workspace_type {
-            WorkspaceType::Local => {
-                let normalized = normalize_local_workspace_path(&workspace.path);
-                if !normalized.is_empty() {
-                    workspace.path = normalized;
-                }
-                stable_workspace_id(&workspace.path)
-            }
-            WorkspaceType::Remote => {
-                if workspace.remote_type == Some(crate::types::RemoteType::Aurowork) {
-                    stable_workspace_id_for_aurowork(
-                        workspace.aurowork_host_url.as_deref().unwrap_or(""),
-                        workspace.aurowork_workspace_id.as_deref(),
-                    )
-                } else {
-                    stable_workspace_id_for_remote(
-                        workspace.base_url.as_deref().unwrap_or(""),
-                        workspace.directory.as_deref(),
-                    )
-                }
-            }
-        };
+        let normalized = normalize_local_workspace_path(&workspace.path);
+        if !normalized.is_empty() {
+            workspace.path = normalized;
+        }
+        let next_id = stable_workspace_id(&workspace.path);
 
         if workspace.id != next_id {
             if old_selected_workspace_id == workspace.id {
@@ -119,11 +102,41 @@ pub fn load_workspace_state(app: &tauri::AppHandle) -> Result<WorkspaceState, St
 
     let raw =
         fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
-    let mut state: WorkspaceState = serde_json::from_str(&raw)
+    let sanitized = drop_legacy_remote_workspaces(&raw)?;
+    let mut state: WorkspaceState = serde_json::from_str(&sanitized)
         .map_err(|e| format!("Failed to parse {}: {e}", path.display()))?;
     repair_workspace_state(&mut state);
 
     Ok(state)
+}
+
+/// Legacy `aurowork-workspaces.json` files may contain workspace entries with
+/// `"workspaceType":"remote"`. The remote workspace model has been removed, so
+/// those entries can no longer be deserialized into `WorkspaceInfo`. Drop them
+/// at the `serde_json::Value` level before typed deserialization so upgrading
+/// over an old state file loads cleanly instead of failing outright.
+fn drop_legacy_remote_workspaces(raw: &str) -> Result<String, String> {
+    let mut value: serde_json::Value = match serde_json::from_str(raw) {
+        Ok(value) => value,
+        // Not valid JSON at all: hand the original text to the typed parser so
+        // it produces the canonical parse error.
+        Err(_) => return Ok(raw.to_string()),
+    };
+
+    if let Some(workspaces) = value
+        .get_mut("workspaces")
+        .and_then(|entry| entry.as_array_mut())
+    {
+        workspaces.retain(|workspace| {
+            workspace
+                .get("workspaceType")
+                .and_then(|kind| kind.as_str())
+                .map(|kind| kind != "remote")
+                .unwrap_or(true)
+        });
+    }
+
+    serde_json::to_string(&value).map_err(|e| e.to_string())
 }
 
 pub fn save_workspace_state(app: &tauri::AppHandle, state: &WorkspaceState) -> Result<(), String> {
@@ -137,33 +150,43 @@ pub fn save_workspace_state(app: &tauri::AppHandle, state: &WorkspaceState) -> R
     Ok(())
 }
 
-pub fn stable_workspace_id_for_remote(base_url: &str, directory: Option<&str>) -> String {
-    let mut key = format!("remote::{base_url}");
-    if let Some(dir) = directory {
-        if !dir.trim().is_empty() {
-            key.push_str("::");
-            key.push_str(dir.trim());
-        }
-    }
-    stable_workspace_id(&key)
-}
-
-pub fn stable_workspace_id_for_aurowork(host_url: &str, workspace_id: Option<&str>) -> String {
-    let mut key = format!("aurowork::{host_url}");
-    if let Some(id) = workspace_id {
-        if !id.trim().is_empty() {
-            key.push_str("::");
-            key.push_str(id.trim());
-        }
-    }
-    stable_workspace_id(&key)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{normalize_local_workspace_path, repair_workspace_state, stable_workspace_id};
+    use super::{
+        drop_legacy_remote_workspaces, normalize_local_workspace_path, repair_workspace_state,
+        stable_workspace_id,
+    };
     use crate::types::{WorkspaceInfo, WorkspaceState, WorkspaceType};
     use std::fs;
+
+    #[test]
+    fn drop_legacy_remote_workspaces_removes_remote_entries_and_loads() {
+        let raw = r#"{
+            "version": 4,
+            "selectedWorkspaceId": "ws_local",
+            "watchedWorkspaceId": "ws_local",
+            "workspaces": [
+                { "id": "ws_local", "name": "Local", "path": "/tmp/local", "preset": "starter", "workspaceType": "local" },
+                { "id": "ws_remote", "name": "Remote", "path": "", "preset": "remote", "workspaceType": "remote", "baseUrl": "http://example.com" }
+            ]
+        }"#;
+
+        let sanitized = drop_legacy_remote_workspaces(raw).expect("sanitize");
+        let state: WorkspaceState = serde_json::from_str(&sanitized).expect("deserialize");
+
+        assert_eq!(state.workspaces.len(), 1);
+        assert_eq!(state.workspaces[0].id, "ws_local");
+        assert!(state
+            .workspaces
+            .iter()
+            .all(|workspace| workspace.workspace_type == WorkspaceType::Local));
+    }
+
+    #[test]
+    fn drop_legacy_remote_workspaces_passes_through_non_json() {
+        let raw = "not json";
+        assert_eq!(drop_legacy_remote_workspaces(raw).expect("passthrough"), raw);
+    }
 
     #[test]
     fn normalize_local_workspace_path_expands_home_prefix() {
@@ -225,19 +248,7 @@ mod tests {
                     path: first.to_string_lossy().to_string(),
                     preset: "starter".to_string(),
                     workspace_type: WorkspaceType::Local,
-                    remote_type: None,
-                    base_url: None,
-                    directory: None,
                     display_name: None,
-                    aurowork_host_url: None,
-                    aurowork_token: None,
-                    aurowork_client_token: None,
-                    aurowork_host_token: None,
-                    aurowork_workspace_id: None,
-                    aurowork_workspace_name: None,
-                    sandbox_backend: None,
-                    sandbox_run_id: None,
-                    sandbox_container_name: None,
                 },
                 WorkspaceInfo {
                     id: "watched-legacy".to_string(),
@@ -245,19 +256,7 @@ mod tests {
                     path: second.to_string_lossy().to_string(),
                     preset: "starter".to_string(),
                     workspace_type: WorkspaceType::Local,
-                    remote_type: None,
-                    base_url: None,
-                    directory: None,
                     display_name: None,
-                    aurowork_host_url: None,
-                    aurowork_token: None,
-                    aurowork_client_token: None,
-                    aurowork_host_token: None,
-                    aurowork_workspace_id: None,
-                    aurowork_workspace_name: None,
-                    sandbox_backend: None,
-                    sandbox_run_id: None,
-                    sandbox_container_name: None,
                 },
             ],
         };
@@ -294,19 +293,7 @@ mod tests {
                 path: first.to_string_lossy().to_string(),
                 preset: "starter".to_string(),
                 workspace_type: WorkspaceType::Local,
-                remote_type: None,
-                base_url: None,
-                directory: None,
                 display_name: None,
-                aurowork_host_url: None,
-                aurowork_token: None,
-                aurowork_client_token: None,
-                aurowork_host_token: None,
-                aurowork_workspace_id: None,
-                aurowork_workspace_name: None,
-                sandbox_backend: None,
-                sandbox_run_id: None,
-                sandbox_container_name: None,
             }],
         };
 

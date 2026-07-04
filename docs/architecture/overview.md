@@ -129,33 +129,17 @@ These are all opencode primitives you can read the docs to find out exactly how 
 
 ## Core Architecture
 
-AuroWork is a client experience that consumes AuroWork server surfaces.
+AuroWork is a local desktop experience that consumes local AuroWork server surfaces.
 
-AuroWork supports two product runtime modes for users:
-
-- desktop
-- web/cloud (also usable from mobile clients)
-
-AuroWork therefore has two runtime connection modes:
-
-### Mode A - Desktop
+The current product runtime mode is desktop:
 
 - AuroWork runs on a desktop/laptop and can host AuroWork server surfaces locally.
 - The OpenCode server runs on loopback (`127.0.0.1`) on a dynamically allocated port; the port is recorded in the orchestrator state file. Defaults are not hardcoded.
-- The AuroWork server also defaults to loopback-only access on a port within the range `48000-51000`. Remote sharing is an explicit opt-in that rebinds the AuroWork server to `0.0.0.0` while keeping OpenCode on loopback.
+- The AuroWork server also defaults to loopback-only access on a port within the range `48000-51000`.
 - AuroWork UI connects via the official SDK and listens to events.
-- `aurowork-orchestrator` is the CLI host path for this mode.
+- `aurowork-orchestrator` is treated as local desktop infrastructure unless explicitly re-scoped later.
 
-### Mode B - Web/Cloud (can be mobile)
-
-- User signs in to hosted AuroWork web/app surfaces (including mobile browser/client access).
-- User launches a cloud worker from hosted control plane.
-- AuroWork returns remote connect credentials (`/w/ws_*` URL + access token).
-- User connects from AuroWork app using `Add a worker` -> `Connect remote`.
-
-This model keeps the user experience consistent across self-hosted and hosted paths while preserving OpenCode parity.
-
-### Mode A composition (Tauri shell + local services)
+### Desktop composition (Tauri shell + local services)
 
 - `/apps/app/` runs as the product UI; on desktop it is hosted inside `/apps/desktop/` (Tauri webview).
 - `/apps/desktop/` exposes native commands (`engine_*`, `orchestrator_*`, `aurowork_server_*`) to start/stop local services and report status to the UI.
@@ -181,26 +165,9 @@ This model keeps the user experience consistent across self-hosted and hosted pa
                +--> OpenCode
 ```
 
-### Mode B composition (Web/Cloud services)
+## Local Filesystem Actions
 
-The AuroWork app (desktop or mobile client) connects to remote AuroWork server surfaces via URL + token (`/w/ws_*` when available).
-
-## Cloud Worker Connect Flow (Canonical)
-
-1. Authenticate in AuroWork Cloud control surface.
-2. Launch worker (with checkout/paywall when needed).
-3. Wait for provisioning and health.
-4. Generate/retrieve connect credentials.
-5. Connect in AuroWork app via deep link or manual URL + token.
-
-Technical note:
-
-- Default connect URL should be workspace-scoped (`/w/ws_*`) when available.
-- Technical diagnostics (host URL, worker ID, raw logs) should be progressive disclosure, not default UI.
-
-## Web Parity + Filesystem Actions
-
-The browser runtime cannot read or write arbitrary local files. Any feature that:
+Any feature that:
 
 - reads skills/commands/plugins from `.opencode/`
 - edits `SKILL.md` / command templates / `opencode.json`
@@ -208,12 +175,12 @@ The browser runtime cannot read or write arbitrary local files. Any feature that
 
 must be routed through a host-side service.
 
-In AuroWork, the long-term direction is:
+In AuroWork, the current direction is:
 
 - Use the AuroWork server (`/apps/server/`) as the single API surface for filesystem-backed operations.
-- Treat Tauri-only file operations as an implementation detail / convenience fallback, not a separate feature set.
+- Treat Tauri-only file operations as an implementation detail / convenience fallback, not a separate product surface.
 
-This ensures the same UI flows work on desktop, mobile, and web clients, with approvals and auditing handled centrally.
+This keeps local desktop file behavior explicit and testable while approvals and diagnostics remain centralized.
 
 ## OpenCode Integration (Exact SDK + APIs)
 
@@ -285,9 +252,9 @@ UI should: show what is requested (scope + reason); provide allow-once / allow-s
 
 AuroWork exposes two extension surfaces:
 
-1. **Skills (OpenPackage)**
+1. **Skills**
    - Installed into `.opencode/skills/*`.
-   - AuroWork can run `opkg install` to pull packages from the registry or GitHub.
+   - AuroWork should preserve user-created skill folders and only update versioned built-in presets.
 
 2. **Plugins (OpenCode)**
    - Plugins are configured via `opencode.json` in the workspace.
@@ -300,15 +267,6 @@ AuroWork exposes two extension surfaces:
 - It calls OpenCode `POST /instance/dispose` with the workspace directory to force a config re-read.
 - Use after skills/plugins/MCP/config edits; reloads can interrupt active sessions.
 - Reload requests follow AuroWork server approval rules.
-
-### OpenPackage Registry (Current + Future)
-
-- Today, AuroWork only supports **curated lists + manual sources**.
-- Publishing to the official registry currently requires authentication (`opkg push` + `opkg configure`).
-- Future goals:
-  - in-app registry search
-  - curated list sync (e.g. Awesome Claude Skills)
-  - frictionless publishing without signup (pending registry changes)
 
 ## Projects + Path
 

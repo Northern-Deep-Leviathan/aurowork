@@ -3,8 +3,6 @@ import {
   Box,
   ChevronLeft,
   ChevronRight,
-  History,
-  MessageCircle,
   Settings,
   SlidersHorizontal,
   X,
@@ -23,16 +21,14 @@ type Props = {
   settingsTab?: SettingsTab;
   developerMode: boolean;
   activeWorkspaceLabel: string;
-  activeWorkspaceType: "local" | "remote";
+  activeWorkspaceType: "local";
   auroworkServerClient: AuroworkServerClient | null;
   runtimeWorkspaceId: string | null;
   inboxId: string;
   onToggleExpanded: () => void;
   onCloseMobile?: () => void;
-  onOpenAutomations: () => void;
   onOpenSkills: () => void;
   onOpenExtensions: () => void;
-  onOpenMessaging: () => void;
   onOpenAdvanced: () => void;
   onOpenSettings: () => void;
   onInboxToast?: (message: string) => void;
@@ -103,12 +99,6 @@ export default function WorkspaceRightSidebar(props: Props) {
       <div class={`flex-1 overflow-y-auto ${props.expanded ? "space-y-5 pt-1" : "space-y-3 pt-1"}`}>
         <div class="mb-2 space-y-1">
           {sidebarButton(
-            "Automations",
-            <History size={18} />,
-            showSelection() && (props.tab === "scheduled" || (props.tab === "settings" && props.settingsTab === "automations")),
-            props.onOpenAutomations,
-          )}
-          {sidebarButton(
             "Skills",
             <Zap size={18} />,
             showSelection() && (props.tab === "skills" || (props.tab === "settings" && props.settingsTab === "skills")),
@@ -120,12 +110,6 @@ export default function WorkspaceRightSidebar(props: Props) {
             showSelection() && (props.tab === "mcp" || props.tab === "plugins" || (props.tab === "settings" && props.settingsTab === "extensions")),
             props.onOpenExtensions,
           )}
-          {sidebarButton(
-            "Messaging",
-            <MessageCircle size={18} />,
-            showSelection() && (props.tab === "identities" || (props.tab === "settings" && props.settingsTab === "messaging")),
-            props.onOpenMessaging,
-          )}
           <Show when={props.developerMode}>
             {sidebarButton(
               "Advanced",
@@ -135,17 +119,6 @@ export default function WorkspaceRightSidebar(props: Props) {
             )}
           </Show>
         </div>
-
-        <Show when={props.expanded && props.activeWorkspaceType === "remote"}>
-          <div class="rounded-[20px] border border-dls-border bg-dls-surface p-3 shadow-[var(--dls-card-shadow)]">
-            <InboxPanel
-              id={props.inboxId}
-              client={props.auroworkServerClient}
-              workspaceId={props.runtimeWorkspaceId}
-              onToast={props.onInboxToast}
-            />
-          </div>
-        </Show>
       </div>
 
       <div class={`pt-3 ${props.expanded ? "mt-3 border-t border-dls-border/70" : "mt-2"}`}>

@@ -3,7 +3,7 @@ use tauri::{AppHandle, State};
 use crate::aurowork_server::manager::AuroworkServerManager;
 use crate::aurowork_server::start_aurowork_server;
 use crate::engine::manager::EngineManager;
-use crate::types::{AuroworkServerInfo, WorkspaceType};
+use crate::types::AuroworkServerInfo;
 use crate::workspace::state::load_workspace_state;
 
 #[tauri::command]
@@ -20,7 +20,6 @@ pub fn aurowork_server_restart(
     app: AppHandle,
     manager: State<AuroworkServerManager>,
     engine_manager: State<EngineManager>,
-    remote_access_enabled: Option<bool>,
 ) -> Result<AuroworkServerInfo, String> {
     let (workspace_paths, auro_connect_url, auro_username, auro_password) = {
         let engine = engine_manager
@@ -46,9 +45,6 @@ pub fn aurowork_server_restart(
     if workspace_paths.is_empty() {
         let state = load_workspace_state(&app)?;
         for workspace in state.workspaces {
-            if workspace.workspace_type != WorkspaceType::Local {
-                continue;
-            }
             let trimmed = workspace.path.trim().to_string();
             if trimmed.is_empty() || workspace_paths.iter().any(|path| path == &trimmed) {
                 continue;
@@ -64,6 +60,5 @@ pub fn aurowork_server_restart(
         auro_connect_url.as_deref(),
         auro_username.as_deref(),
         auro_password.as_deref(),
-        remote_access_enabled.unwrap_or(false),
     )
 }

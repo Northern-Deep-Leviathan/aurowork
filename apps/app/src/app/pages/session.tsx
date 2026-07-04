@@ -37,17 +37,9 @@ import {
   type WorkspaceInfo,
 } from "../lib/tauri";
 
-// Stub functions for removed obsidian sync module
-async function writeObsidianMirrorFile(_key: string, _path: string, _content: string): Promise<string> {
-  throw new Error("Obsidian sync has been removed.");
-}
-async function readObsidianMirrorFile(_key: string, _path: string): Promise<{ exists: boolean; content: string | null }> {
-  return { exists: false, content: null };
-}
 
 import { currentLocale, t } from "../../i18n";
 import { usePlatform } from "../context/platform";
-import { buildDenAuthUrl, createDenClient, readDenSettings, writeDenSettings } from "../lib/den";
 import { buildFeedbackUrl } from "../lib/feedback";
 import { getAuroWorkDeployment } from "../lib/aurowork-deployment";
 import { createWorkspaceShellLayout } from "../lib/workspace-shell-layout";
@@ -90,12 +82,10 @@ import {
   parseAuroworkWorkspaceIdFromUrl,
 } from "../lib/aurowork-server";
 import type {
-  AuroworkFileSession,
   AuroworkServerClient,
   AuroworkServerDiagnostics,
   AuroworkServerSettings,
   AuroworkServerStatus,
-  AuroworkWorkspaceExport,
 } from "../lib/aurowork-server";
 const DEFAULT_AUROWORK_PUBLISHER_BASE_URL = "";
 import { join } from "@tauri-apps/api/path";
@@ -158,7 +148,6 @@ export type SessionViewProps = {
   openCreateWorkspace: () => void;
   getStartedWorkspace: () => Promise<boolean>;
   pickFolderWorkspace: () => Promise<boolean>;
-  openCreateRemoteWorkspace: () => void;
   importWorkspaceConfig: () => void;
   importingWorkspaceConfig: boolean;
   exportWorkspaceConfig: (workspaceId?: string) => void;
@@ -169,9 +158,6 @@ export type SessionViewProps = {
   auroworkServerDiagnostics: AuroworkServerDiagnostics | null;
   auroworkServerSettings: AuroworkServerSettings;
   auroworkServerHostInfo: AuroworkServerInfo | null;
-  shareRemoteAccessBusy: boolean;
-  shareRemoteAccessError: string | null;
-  saveShareRemoteAccess: (enabled: boolean) => Promise<void>;
   runtimeWorkspaceId: string | null;
   engineInfo: EngineInfo | null;
   engineDoctorVersion: string | null;
@@ -325,14 +311,6 @@ type SharedSkillItem = {
   description?: string;
   content: string;
   trigger?: string;
-};
-
-type WorkspaceProfileBundleV1 = {
-  schemaVersion: 1;
-  type: "workspace-profile";
-  name: string;
-  description: string;
-  workspace: AuroworkWorkspaceExport;
 };
 
 type SkillsSetBundleV1 = {
@@ -516,7 +494,6 @@ export default function SessionView(props: SessionViewProps) {
   });
   const workspaceLabel = (workspace: WorkspaceInfo) =>
     workspace.displayName?.trim() ||
-    workspace.auroworkWorkspaceName?.trim() ||
     workspace.name?.trim() ||
     workspace.path?.trim() ||
     translate("session.workspace_fallback");
@@ -1075,498 +1052,6 @@ export default function SessionView(props: SessionViewProps) {
     };
   };
 
-  type RemoteMirrorTrackedFile = {
-    path: string;
-    localPath: string;
-    remoteRevision: string;
-    localFingerprint: string;
-    syncingLocal: boolean;
-  };
-
-  type RemoteFileSyncSession = AuroworkFileSession & { cursor: number };
-
-  const remoteMirrorTrackedFiles = new Map<string, RemoteMirrorTrackedFile>();
-  const [remoteFileSyncSession, setRemoteFileSyncSession] =
-    createSignal<RemoteFileSyncSession | null>(null);
-  const remoteMirrorWorkspaceKey = createMemo(
-    () =>
-      props.runtimeWorkspaceId?.trim() ||
-      props.selectedWorkspaceDisplay.id?.trim() ||
-      "remote-worker",
-  );
-  let remoteMirrorSyncTimer: number | undefined;
-  let remoteMirrorSyncInFlight = false;
-  let remoteMirrorLastErrorAt = 0;
-
-  const textFingerprint = (value: string) => {
-    let hash = 2166136261;
-    for (let idx = 0; idx < value.length; idx += 1) {
-      hash ^= value.charCodeAt(idx);
-      hash = Math.imul(hash, 16777619);
-    }
-    return `${value.length}:${hash >>> 0}`;
-  };
-
-  const utf8ToBase64 = (value: string) => {
-    const bytes = new TextEncoder().encode(value);
-    let binary = "";
-    for (const byte of bytes) {
-      binary += String.fromCharCode(byte);
-    }
-    const fallbackBuffer = (
-      globalThis as {
-        Buffer?: {
-          from: (
-            input: string,
-            encoding: string,
-          ) => { toString: (encoding: string) => string };
-        };
-      }
-    ).Buffer;
-    if (typeof btoa !== "function") {
-      if (!fallbackBuffer) {
-        throw new Error("Base64 encoder is unavailable");
-      }
-      return fallbackBuffer.from(value, "utf8").toString("base64");
-    }
-    return btoa(binary);
-  };
-
-  const base64ToUtf8 = (value: string) => {
-    const fallbackBuffer = (
-      globalThis as {
-        Buffer?: {
-          from: (
-            input: string,
-            encoding: string,
-          ) => { toString: (encoding: string) => string };
-        };
-      }
-    ).Buffer;
-    if (typeof atob !== "function") {
-      if (!fallbackBuffer) {
-        throw new Error("Base64 decoder is unavailable");
-      }
-      return fallbackBuffer.from(value, "base64").toString("utf8");
-    }
-    const binary = atob(value);
-    const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
-    return new TextDecoder().decode(bytes);
-  };
-
-  const stopRemoteMirrorSyncLoop = () => {
-    if (remoteMirrorSyncTimer !== undefined) {
-      window.clearInterval(remoteMirrorSyncTimer);
-      remoteMirrorSyncTimer = undefined;
-    }
-  };
-
-  const closeRemoteFileSyncSession = async (
-    session: RemoteFileSyncSession | null,
-  ) => {
-    const client = props.auroworkServerClient;
-    if (!client || !session) return;
-    try {
-      await client.closeFileSession(session.id);
-    } catch {
-      // best effort
-    }
-  };
-
-  const resetRemoteFileSync = async () => {
-    stopRemoteMirrorSyncLoop();
-    remoteMirrorSyncInFlight = false;
-    remoteMirrorTrackedFiles.clear();
-    const existing = remoteFileSyncSession();
-    setRemoteFileSyncSession(null);
-    await closeRemoteFileSyncSession(existing);
-  };
-
-  const toWorkerRelativeArtifactPath = (file: string) => {
-    const normalized = file
-      .trim()
-      .replace(/^file:\/\//i, "")
-      .replace(/[\\/]+/g, "/");
-    if (!normalized) return "";
-
-    const root = props.selectedWorkspaceRoot
-      .trim()
-      .replace(/[\\/]+/g, "/")
-      .replace(/\/+$/, "");
-    if (root) {
-      const rootKey = root.toLowerCase();
-      const fileKey = normalized.toLowerCase();
-      if (fileKey === rootKey) return "";
-      if (fileKey.startsWith(`${rootKey}/`)) {
-        return normalized.slice(root.length + 1);
-      }
-    }
-
-    let relative = normalized.replace(/^\.\/+/, "");
-
-    if (/^[ab]\/.+\.(md|mdx|markdown)$/i.test(relative)) {
-      relative = relative.slice(2);
-    }
-
-    if (/^workspace\//i.test(relative)) {
-      relative = relative.replace(/^workspace\//i, "");
-    }
-
-    if (/^\/+workspace\//i.test(relative)) {
-      relative = relative.replace(/^\/+workspace\//i, "");
-    }
-
-    if (!relative) return "";
-    if (
-      relative.startsWith("/") ||
-      relative.startsWith("~") ||
-      /^[a-zA-Z]:\//.test(relative)
-    ) {
-      return "";
-    }
-    if (relative.split("/").some((part) => part === "." || part === "..")) {
-      return "";
-    }
-    return relative;
-  };
-
-  const toRemoteArtifactCandidates = (file: string) => {
-    const target = toWorkerRelativeArtifactPath(file);
-    if (!target) return [] as string[];
-    const outboxPath = `.opencode/aurowork/outbox/${target}`.replace(
-      /\/+/g,
-      "/",
-    );
-    if (
-      target.startsWith(".opencode/aurowork/outbox/") ||
-      target.startsWith("./.opencode/aurowork/outbox/") ||
-      outboxPath === target
-    ) {
-      return [target];
-    }
-    return [target, outboxPath];
-  };
-
-  const ensureRemoteFileSyncSession =
-    async (): Promise<RemoteFileSyncSession> => {
-      const client = props.auroworkServerClient;
-      const workspaceId = props.runtimeWorkspaceId?.trim() ?? "";
-      if (!client || !workspaceId) {
-        throw new Error(translate("session.connect_server_to_sync"));
-      }
-
-      const existing = remoteFileSyncSession();
-      if (existing && existing.workspaceId === workspaceId) {
-        if (Date.now() + 45_000 < existing.expiresAt) {
-          return existing;
-        }
-
-        try {
-          const renewed = await client.renewFileSession(existing.id, {
-            ttlSeconds: 15 * 60,
-          });
-          const next: RemoteFileSyncSession = {
-            ...renewed.session,
-            cursor: existing.cursor,
-          };
-          setRemoteFileSyncSession(next);
-          return next;
-        } catch (error) {
-          if (
-            !(error instanceof AuroworkServerError) ||
-            error.code !== "file_session_not_found"
-          ) {
-            throw error;
-          }
-        }
-      }
-
-      if (existing) {
-        await closeRemoteFileSyncSession(existing);
-        setRemoteFileSyncSession(null);
-      }
-
-      const created = await client.createFileSession(workspaceId, {
-        ttlSeconds: 15 * 60,
-        write: true,
-      });
-      const next: RemoteFileSyncSession = {
-        ...created.session,
-        cursor: 0,
-      };
-      setRemoteFileSyncSession(next);
-      return next;
-    };
-
-  const refreshTrackedRemoteMirrorFile = async (
-    session: RemoteFileSyncSession,
-    path: string,
-  ) => {
-    const client = props.auroworkServerClient;
-    if (!client) throw new Error("AuroWork server client unavailable");
-
-    const result = await client.readFileBatch(session.id, [path]);
-    const item = result.items[0];
-    if (!item?.ok) {
-      if (item?.code === "file_not_found") {
-        remoteMirrorTrackedFiles.delete(path);
-        return null;
-      }
-      throw new Error(item?.message ?? `Unable to read ${path}`);
-    }
-
-    const content = base64ToUtf8(item.contentBase64);
-    const localPath = await writeObsidianMirrorFile(
-      remoteMirrorWorkspaceKey(),
-      path,
-      content,
-    );
-    const local = await readObsidianMirrorFile(
-      remoteMirrorWorkspaceKey(),
-      path,
-    );
-    const fingerprint = textFingerprint(local.content ?? content);
-
-    const previous = remoteMirrorTrackedFiles.get(path);
-    remoteMirrorTrackedFiles.set(path, {
-      path,
-      localPath,
-      remoteRevision: item.revision,
-      localFingerprint: fingerprint,
-      syncingLocal: previous?.syncingLocal ?? false,
-    });
-
-    return localPath;
-  };
-
-  const createConflictPath = (path: string) => {
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const marker = `.aurowork-conflict-${stamp}`;
-    const dot = path.lastIndexOf(".");
-    if (dot <= 0) {
-      return `${path}${marker}`;
-    }
-    return `${path.slice(0, dot)}${marker}${path.slice(dot)}`;
-  };
-
-  const runRemoteMirrorSyncTick = async () => {
-    if (remoteMirrorSyncInFlight) return;
-    if (remoteMirrorTrackedFiles.size === 0) {
-      stopRemoteMirrorSyncLoop();
-      return;
-    }
-
-    const client = props.auroworkServerClient;
-    if (!client) {
-      stopRemoteMirrorSyncLoop();
-      return;
-    }
-
-    remoteMirrorSyncInFlight = true;
-    try {
-      let session = await ensureRemoteFileSyncSession();
-
-      const events = await client.listFileSessionEvents(session.id, {
-        since: session.cursor,
-      });
-      if (events.cursor !== session.cursor) {
-        session = { ...session, cursor: events.cursor };
-        setRemoteFileSyncSession(session);
-      }
-
-      const refreshPaths = new Set<string>();
-      for (const event of events.items) {
-        if (
-          event.type === "write" &&
-          remoteMirrorTrackedFiles.has(event.path)
-        ) {
-          const tracked = remoteMirrorTrackedFiles.get(event.path);
-          if (!tracked?.syncingLocal) {
-            refreshPaths.add(event.path);
-          }
-          continue;
-        }
-
-        if (event.type === "rename") {
-          const tracked = remoteMirrorTrackedFiles.get(event.path);
-          if (!tracked) continue;
-          remoteMirrorTrackedFiles.delete(event.path);
-          if (event.toPath?.trim()) {
-            const nextPath = event.toPath.trim();
-            remoteMirrorTrackedFiles.set(nextPath, {
-              ...tracked,
-              path: nextPath,
-            });
-            refreshPaths.add(nextPath);
-          }
-          continue;
-        }
-
-        if (event.type === "delete") {
-          remoteMirrorTrackedFiles.delete(event.path);
-        }
-      }
-
-      for (const path of refreshPaths) {
-        await refreshTrackedRemoteMirrorFile(session, path);
-      }
-
-      for (const [path, tracked] of remoteMirrorTrackedFiles) {
-        if (tracked.syncingLocal) continue;
-
-        const local = await readObsidianMirrorFile(
-          remoteMirrorWorkspaceKey(),
-          path,
-        );
-        if (!local.exists || local.content === null) continue;
-        const nextFingerprint = textFingerprint(local.content);
-        if (nextFingerprint === tracked.localFingerprint) continue;
-
-        tracked.syncingLocal = true;
-        try {
-          const write = await client.writeFileBatch(session.id, [
-            {
-              path,
-              contentBase64: utf8ToBase64(local.content),
-              ifMatchRevision: tracked.remoteRevision,
-            },
-          ]);
-          const item = write.items[0];
-          if (item?.ok) {
-            tracked.remoteRevision = item.revision;
-            tracked.localFingerprint = nextFingerprint;
-            continue;
-          }
-
-          if (!item?.ok && item?.code === "conflict") {
-            const conflictPath = createConflictPath(path);
-            await writeObsidianMirrorFile(
-              remoteMirrorWorkspaceKey(),
-              conflictPath,
-              local.content,
-            );
-            await refreshTrackedRemoteMirrorFile(session, path);
-            setToastMessage(
-              `Conflict syncing ${path}. Saved local changes to ${conflictPath}.`,
-            );
-            continue;
-          }
-
-          throw new Error(item?.message ?? `Unable to sync ${path}`);
-        } finally {
-          tracked.syncingLocal = false;
-        }
-      }
-    } catch (error) {
-      if (Date.now() - remoteMirrorLastErrorAt > 6_000) {
-        remoteMirrorLastErrorAt = Date.now();
-        const message =
-          error instanceof Error ? error.message : translate("session.remote_sync_failed");
-        setToastMessage(message);
-      }
-    } finally {
-      remoteMirrorSyncInFlight = false;
-    }
-  };
-
-  const ensureRemoteMirrorSyncLoop = () => {
-    if (!isTauriRuntime()) return;
-    if (remoteMirrorTrackedFiles.size === 0) return;
-    if (remoteMirrorSyncTimer !== undefined) return;
-    remoteMirrorSyncTimer = window.setInterval(() => {
-      void runRemoteMirrorSyncTick();
-    }, 2500);
-    void runRemoteMirrorSyncTick();
-  };
-
-  const mirrorRemoteArtifactForObsidian = async (file: string) => {
-    const session = await ensureRemoteFileSyncSession();
-    const client = props.auroworkServerClient;
-    if (!client) {
-      throw new Error("Connect to AuroWork server to sync remote files.");
-    }
-
-    const candidates = toRemoteArtifactCandidates(file);
-    if (candidates.length === 0) {
-      throw new Error("Only worker-relative files can be opened in Obsidian.");
-    }
-
-    let lastError: Error | null = null;
-    for (const candidate of candidates) {
-      try {
-        const result = await client.readFileBatch(session.id, [candidate]);
-        const item = result.items[0];
-        if (!item?.ok) {
-          if (item?.code === "file_not_found") continue;
-          throw new Error(item?.message ?? `Unable to read ${candidate}`);
-        }
-
-        const content = base64ToUtf8(item.contentBase64);
-        const localPath = await writeObsidianMirrorFile(
-          remoteMirrorWorkspaceKey(),
-          candidate,
-          content,
-        );
-        const local = await readObsidianMirrorFile(
-          remoteMirrorWorkspaceKey(),
-          candidate,
-        );
-        const fingerprint = textFingerprint(local.content ?? content);
-
-        remoteMirrorTrackedFiles.set(candidate, {
-          path: candidate,
-          localPath,
-          remoteRevision: item.revision,
-          localFingerprint: fingerprint,
-          syncingLocal: false,
-        });
-        ensureRemoteMirrorSyncLoop();
-        return localPath;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-      }
-    }
-
-    throw lastError ?? new Error("Unable to open file in Obsidian");
-  };
-
-  createEffect(
-    on(
-      () =>
-        [
-          isTauriRuntime(),
-          props.selectedWorkspaceDisplay.workspaceType,
-          props.runtimeWorkspaceId?.trim() ?? "",
-          Boolean(props.auroworkServerClient),
-        ] as const,
-      ([desktopRuntime, workspaceType, workspaceId, hasClient], previous) => {
-        const previousWorkspaceId = previous?.[2] ?? "";
-        const hasRemoteContext =
-          desktopRuntime &&
-          workspaceType === "remote" &&
-          workspaceId.length > 0 &&
-          hasClient;
-        if (!hasRemoteContext) {
-          if (
-            remoteFileSyncSession() ||
-            remoteMirrorTrackedFiles.size > 0 ||
-            remoteMirrorSyncTimer !== undefined
-          ) {
-            void resetRemoteFileSync();
-          }
-          return;
-        }
-
-        if (previousWorkspaceId && previousWorkspaceId !== workspaceId) {
-          void resetRemoteFileSync();
-        }
-      },
-    ),
-  );
-
-  onCleanup(() => {
-    void resetRemoteFileSync();
-  });
 
   const revealWorkspaceInFinder = async (workspaceId: string) => {
     const workspace =
@@ -1607,10 +1092,7 @@ export default function SessionView(props: SessionViewProps) {
   let initialAnchorRafB: number | undefined;
   let initialAnchorGuardTimer: ReturnType<typeof setTimeout> | undefined;
   let jumpControlsSuppressTimer: ReturnType<typeof setTimeout> | undefined;
-  const attachmentsEnabled = createMemo(() => {
-    if (props.selectedWorkspaceDisplay.workspaceType !== "remote") return true;
-    return props.auroworkServerStatus === "connected";
-  });
+  const attachmentsEnabled = createMemo(() => true);
   const attachmentsDisabledReason = createMemo(() => {
     if (attachmentsEnabled()) return null;
     if (props.auroworkServerStatus === "limited") {
@@ -1804,11 +1286,6 @@ export default function SessionView(props: SessionViewProps) {
   const handleWorkingFileClick = async (file: string) => {
     const trimmed = file.trim();
     if (!trimmed) return;
-
-    if (props.selectedWorkspaceDisplay.workspaceType === "remote") {
-      setToastMessage(translate("session.file_open_unavailable_remote"));
-      return;
-    }
 
     if (!isTauriRuntime()) {
       setToastMessage(translate("session.file_open_desktop_only"));
@@ -2984,17 +2461,6 @@ export default function SessionView(props: SessionViewProps) {
   const shareWorkspaceDetail = createMemo(() => {
     const ws = shareWorkspace();
     if (!ws) return "";
-    if (ws.workspaceType === "remote") {
-      if (ws.remoteType === "aurowork") {
-        const hostUrl = ws.auroworkHostUrl?.trim() || ws.baseUrl?.trim() || "";
-        const mounted = buildAuroworkWorkspaceBaseUrl(
-          hostUrl,
-          ws.auroworkWorkspaceId,
-        );
-        return mounted || hostUrl;
-      }
-      return ws.baseUrl?.trim() || "";
-    }
     return ws.path?.trim() || "";
   });
 
@@ -3007,14 +2473,6 @@ export default function SessionView(props: SessionViewProps) {
   >(null);
   const [shareWorkspaceProfileError, setShareWorkspaceProfileError] =
     createSignal<string | null>(null);
-  const [shareWorkspaceProfileTeamBusy, setShareWorkspaceProfileTeamBusy] =
-    createSignal(false);
-  const [shareWorkspaceProfileTeamError, setShareWorkspaceProfileTeamError] =
-    createSignal<string | null>(null);
-  const [shareWorkspaceProfileTeamSuccess, setShareWorkspaceProfileTeamSuccess] =
-    createSignal<string | null>(null);
-  const [shareCloudSettingsVersion, setShareCloudSettingsVersion] =
-    createSignal(0);
   const [shareSkillsSetBusy, setShareSkillsSetBusy] = createSignal(false);
   const [shareSkillsSetUrl, setShareSkillsSetUrl] = createSignal<string | null>(
     null,
@@ -3028,9 +2486,6 @@ export default function SessionView(props: SessionViewProps) {
       setShareWorkspaceProfileBusy(false);
       setShareWorkspaceProfileUrl(null);
       setShareWorkspaceProfileError(null);
-      setShareWorkspaceProfileTeamBusy(false);
-      setShareWorkspaceProfileTeamError(null);
-      setShareWorkspaceProfileTeamSuccess(null);
       setShareSkillsSetBusy(false);
       setShareSkillsSetUrl(null);
       setShareSkillsSetError(null);
@@ -3082,109 +2537,16 @@ export default function SessionView(props: SessionViewProps) {
     });
   });
 
-  const shareFields = createMemo(() => {
-    const ws = shareWorkspace();
-    if (!ws) {
-      return [] as Array<{
+  const shareFields = createMemo(
+    () =>
+      [] as Array<{
         label: string;
         value: string;
         secret?: boolean;
         placeholder?: string;
         hint?: string;
-      }>;
-    }
-
-    if (ws.workspaceType !== "remote") {
-      if (props.auroworkServerHostInfo?.remoteAccessEnabled !== true) {
-        return [];
-      }
-      const hostUrl =
-        props.auroworkServerHostInfo?.connectUrl?.trim() ||
-        props.auroworkServerHostInfo?.lanUrl?.trim() ||
-        props.auroworkServerHostInfo?.mdnsUrl?.trim() ||
-        props.auroworkServerHostInfo?.baseUrl?.trim() ||
-        "";
-      const mountedUrl = shareLocalAuroworkWorkspaceId()
-        ? buildAuroworkWorkspaceBaseUrl(
-            hostUrl,
-            shareLocalAuroworkWorkspaceId(),
-          )
-        : null;
-      const url = mountedUrl || hostUrl;
-      const ownerToken = props.auroworkServerHostInfo?.ownerToken?.trim() || "";
-      const collaboratorToken = props.auroworkServerHostInfo?.clientToken?.trim() || "";
-      return [
-        {
-          label: translate("session.share_worker_url"),
-          value: url,
-          placeholder: !isTauriRuntime()
-            ? translate("session.share_desktop_required")
-            : translate("session.share_starting_server"),
-          hint: mountedUrl
-            ? translate("session.share_worker_url_hint")
-            : hostUrl
-              ? translate("session.share_worker_url_resolving_hint")
-              : undefined,
-        },
-        {
-          label: translate("session.share_password"),
-          value: ownerToken,
-          secret: true,
-          placeholder: isTauriRuntime() ? "-" : translate("session.share_desktop_required"),
-          hint: mountedUrl
-            ? translate("session.share_worker_url_hint")
-            : translate("session.share_password_hint"),
-        },
-        {
-          label: translate("session.share_collaborator_token"),
-          value: collaboratorToken,
-          secret: true,
-          placeholder: isTauriRuntime() ? "-" : translate("session.share_desktop_required"),
-          hint: mountedUrl
-            ? translate("session.share_collaborator_routine_hint")
-            : translate("session.share_collaborator_host_hint"),
-        },
-      ];
-    }
-
-    if (ws.remoteType === "aurowork") {
-      const hostUrl = ws.auroworkHostUrl?.trim() || ws.baseUrl?.trim() || "";
-      const url =
-        buildAuroworkWorkspaceBaseUrl(hostUrl, ws.auroworkWorkspaceId) ||
-        hostUrl;
-      const token =
-        ws.auroworkToken?.trim() ||
-        props.auroworkServerSettings.token?.trim() ||
-        "";
-      return [
-        {
-          label: translate("session.share_worker_url"),
-          value: url,
-        },
-        {
-          label: translate("session.share_password"),
-          value: token,
-          secret: true,
-          placeholder: token ? undefined : translate("session.share_set_token_hint"),
-          hint: translate("session.share_connected_password_hint"),
-        },
-      ];
-    }
-
-    const baseUrl = ws.baseUrl?.trim() || ws.path?.trim() || "";
-    const directory = ws.directory?.trim() || "";
-    return [
-      {
-        label: translate("session.share_opencode_base_url"),
-        value: baseUrl,
-      },
-      {
-        label: translate("session.share_directory"),
-        value: directory,
-        placeholder: translate("session.share_directory_auto"),
-      },
-    ];
-  });
+      }>,
+  );
 
   const shareNote = createMemo(() => {
     const ws = shareWorkspace();
@@ -3201,73 +2563,16 @@ export default function SessionView(props: SessionViewProps) {
   const shareServiceDisabledReason = createMemo(() => {
     const ws = shareWorkspace();
     if (!ws) return translate("session.share_select_workspace");
-    if (ws.workspaceType === "remote" && ws.remoteType !== "aurowork") {
-      return translate("session.share_aurowork_only");
-    }
-    if (ws.workspaceType !== "remote") {
-      const baseUrl = props.auroworkServerHostInfo?.baseUrl?.trim() ?? "";
-      const token =
-        props.auroworkServerHostInfo?.ownerToken?.trim() ||
-        props.auroworkServerHostInfo?.clientToken?.trim() ||
-        "";
-      if (!baseUrl || !token) {
-        return translate("session.share_local_host_not_ready");
-      }
-    } else {
-      const hostUrl = ws.auroworkHostUrl?.trim() || ws.baseUrl?.trim() || "";
-      const token =
-        ws.auroworkToken?.trim() ||
-        props.auroworkServerSettings.token?.trim() ||
-        "";
-      if (!hostUrl) return translate("session.share_missing_host_url");
-      if (!token) return translate("session.share_missing_token");
+    const baseUrl = props.auroworkServerHostInfo?.baseUrl?.trim() ?? "";
+    const token =
+      props.auroworkServerHostInfo?.ownerToken?.trim() ||
+      props.auroworkServerHostInfo?.clientToken?.trim() ||
+      "";
+    if (!baseUrl || !token) {
+      return translate("session.share_local_host_not_ready");
     }
     return null;
   });
-
-  const shareCloudSettings = createMemo(() => {
-    shareWorkspaceId();
-    shareCloudSettingsVersion();
-    return readDenSettings();
-  });
-
-  createEffect(() => {
-    const handleCloudSessionUpdate = () =>
-      setShareCloudSettingsVersion((value) => value + 1);
-    window.addEventListener("aurowork-den-session-updated", handleCloudSessionUpdate);
-    onCleanup(() =>
-      window.removeEventListener(
-        "aurowork-den-session-updated",
-        handleCloudSessionUpdate,
-      ),
-    );
-  });
-
-  const shareWorkspaceProfileTeamOrgName = createMemo(() => {
-    const orgName = shareCloudSettings().activeOrgName?.trim();
-    if (orgName) return orgName;
-    return translate("session.share_active_cloud_org");
-  });
-
-  const shareWorkspaceProfileToTeamNeedsSignIn = createMemo(
-    () => !shareCloudSettings().authToken?.trim(),
-  );
-
-  const shareWorkspaceProfileTeamDisabledReason = createMemo(() => {
-    const exportReason = shareServiceDisabledReason();
-    if (exportReason) return exportReason;
-    if (shareWorkspaceProfileToTeamNeedsSignIn()) return null;
-    const settings = shareCloudSettings();
-    if (!settings.activeOrgId?.trim() && !settings.activeOrgSlug?.trim()) {
-      return translate("session.share_choose_org");
-    }
-    return null;
-  });
-
-  const startShareWorkspaceProfileToTeamSignIn = () => {
-    const settings = readDenSettings();
-    platform.openLink(buildDenAuthUrl(settings.baseUrl, "sign-in"));
-  };
 
   const resolveShareExportContext = async (): Promise<{
     client: AuroworkServerClient;
@@ -3279,86 +2584,32 @@ export default function SessionView(props: SessionViewProps) {
       throw new Error(translate("session.share_select_workspace"));
     }
 
-    if (ws.workspaceType !== "remote") {
-      const baseUrl = props.auroworkServerHostInfo?.baseUrl?.trim() ?? "";
-      const token =
-        props.auroworkServerHostInfo?.ownerToken?.trim() ||
-        props.auroworkServerHostInfo?.clientToken?.trim() ||
-        "";
-      if (!baseUrl || !token) {
-        throw new Error(translate("session.share_local_host_not_ready"));
-      }
-      const client = createAuroworkServerClient({ baseUrl, token });
-
-      let workspaceId = shareLocalAuroworkWorkspaceId()?.trim() ?? "";
-      if (!workspaceId) {
-        const response = await client.listWorkspaces();
-        const items = Array.isArray(response.items) ? response.items : [];
-        const targetPath = normalizeDirectoryPath(ws.path?.trim() ?? "");
-        const match = items.find(
-          (entry) => normalizeDirectoryPath(entry.path) === targetPath,
-        );
-        workspaceId = (match?.id ?? "").trim();
-        setShareLocalAuroworkWorkspaceId(workspaceId || null);
-      }
-
-      if (!workspaceId) {
-        throw new Error(
-          translate("session.share_could_not_resolve_local"),
-        );
-      }
-
-      return { client, workspaceId, workspace: ws };
-    }
-
-    if (ws.remoteType !== "aurowork") {
-      throw new Error(
-        translate("session.share_aurowork_only"),
-      );
-    }
-
-    const hostUrl = ws.auroworkHostUrl?.trim() || ws.baseUrl?.trim() || "";
+    const baseUrl = props.auroworkServerHostInfo?.baseUrl?.trim() ?? "";
     const token =
-      ws.auroworkToken?.trim() ||
-      props.auroworkServerSettings.token?.trim() ||
+      props.auroworkServerHostInfo?.ownerToken?.trim() ||
+      props.auroworkServerHostInfo?.clientToken?.trim() ||
       "";
-    if (!hostUrl || !token) {
-      throw new Error(translate("session.share_host_url_token_required"));
+    if (!baseUrl || !token) {
+      throw new Error(translate("session.share_local_host_not_ready"));
     }
+    const client = createAuroworkServerClient({ baseUrl, token });
 
-    const client = createAuroworkServerClient({ baseUrl: hostUrl, token });
-    let workspaceId =
-      ws.auroworkWorkspaceId?.trim() ||
-      parseAuroworkWorkspaceIdFromUrl(ws.auroworkHostUrl ?? "") ||
-      parseAuroworkWorkspaceIdFromUrl(ws.baseUrl ?? "") ||
-      "";
-
+    let workspaceId = shareLocalAuroworkWorkspaceId()?.trim() ?? "";
     if (!workspaceId) {
       const response = await client.listWorkspaces();
       const items = Array.isArray(response.items) ? response.items : [];
-      const directoryHint = normalizeDirectoryPath(
-        ws.directory?.trim() ?? ws.path?.trim() ?? "",
+      const targetPath = normalizeDirectoryPath(ws.path?.trim() ?? "");
+      const match = items.find(
+        (entry) => normalizeDirectoryPath(entry.path) === targetPath,
       );
-      const match = directoryHint
-        ? items.find((entry) => {
-            const entryPath = normalizeDirectoryPath(
-              (
-                entry.opencode?.directory ??
-                entry.directory ??
-                entry.path ??
-                ""
-              ).trim(),
-            );
-            return Boolean(entryPath && entryPath === directoryHint);
-          })
-        : ((response.activeId
-            ? items.find((entry) => entry.id === response.activeId)
-            : null) ?? items[0]);
       workspaceId = (match?.id ?? "").trim();
+      setShareLocalAuroworkWorkspaceId(workspaceId || null);
     }
 
     if (!workspaceId) {
-      throw new Error(translate("session.share_could_not_resolve_host"));
+      throw new Error(
+        translate("session.share_could_not_resolve_local"),
+      );
     }
 
     return { client, workspaceId, workspace: ws };
@@ -3371,29 +2622,7 @@ export default function SessionView(props: SessionViewProps) {
     setShareWorkspaceProfileUrl(null);
 
     try {
-      const { client, workspaceId, workspace } =
-        await resolveShareExportContext();
-      const exported = await client.exportWorkspace(workspaceId);
-      const payload: WorkspaceProfileBundleV1 = {
-        schemaVersion: 1,
-        type: "workspace-profile",
-        name: `${workspaceLabel(workspace)} template`,
-        description:
-          translate("session.share_workspace_template_description"),
-        workspace: exported,
-      };
-
-      const result = await client.publishBundle(payload, "workspace-profile", {
-        name: payload.name,
-        baseUrl: DEFAULT_AUROWORK_PUBLISHER_BASE_URL,
-      });
-
-      setShareWorkspaceProfileUrl(result.url);
-      try {
-        await navigator.clipboard.writeText(result.url);
-      } catch {
-        // ignore
-      }
+      throw new Error("Public workspace profile links are not part of the local desktop product.");
     } catch (error) {
       setShareWorkspaceProfileError(
         error instanceof Error
@@ -3405,81 +2634,6 @@ export default function SessionView(props: SessionViewProps) {
     }
   };
 
-  const shareWorkspaceProfileToTeam = async (templateName: string) => {
-    if (shareWorkspaceProfileTeamBusy()) return;
-    setShareWorkspaceProfileTeamBusy(true);
-    setShareWorkspaceProfileTeamError(null);
-    setShareWorkspaceProfileTeamSuccess(null);
-
-    try {
-      const { client, workspaceId, workspace } =
-        await resolveShareExportContext();
-      const exported = await client.exportWorkspace(workspaceId);
-      const fallbackName = `${workspaceLabel(workspace)} template`;
-      const name = templateName.trim() || fallbackName;
-      const payload: WorkspaceProfileBundleV1 = {
-        schemaVersion: 1,
-        type: "workspace-profile",
-        name,
-        description:
-          translate("session.share_workspace_template_description"),
-        workspace: exported,
-      };
-
-      const settings = readDenSettings();
-      const token = settings.authToken?.trim() ?? "";
-      if (!token) {
-        throw new Error(
-          translate("session.share_sign_in_cloud"),
-        );
-      }
-
-      const cloudClient = createDenClient({ baseUrl: settings.baseUrl, token });
-      let orgId = settings.activeOrgId?.trim() ?? "";
-      let orgSlug = settings.activeOrgSlug?.trim() ?? "";
-      let orgName = settings.activeOrgName?.trim() ?? "";
-
-      if (!orgSlug || !orgName) {
-        const response = await cloudClient.listOrgs();
-        const match = orgId
-          ? response.orgs.find((org) => org.id === orgId)
-          : response.orgs.find((org) => org.slug === orgSlug) ??
-            response.orgs[0];
-        if (!match) {
-          throw new Error(
-            translate("session.share_choose_org"),
-          );
-        }
-        orgId = match.id;
-        orgSlug = match.slug;
-        orgName = match.name;
-        writeDenSettings({
-          ...settings,
-          baseUrl: settings.baseUrl,
-          authToken: token,
-          activeOrgId: orgId,
-          activeOrgSlug: orgSlug,
-          activeOrgName: orgName,
-        });
-      }
-
-      const created = await cloudClient.createTemplate(orgSlug, {
-        name,
-        templateData: payload,
-      });
-
-      setShareWorkspaceProfileTeamSuccess(
-        `${translate("session.share_team_saved_prefix")} ${created.name} ${translate("session.share_team_saved_to")} ${orgName || translate("session.share_team_templates")}.`,
-      );
-    } catch (error) {
-      setShareWorkspaceProfileTeamError(
-        error instanceof Error ? error.message : translate("session.share_team_save_failed"),
-      );
-    } finally {
-      setShareWorkspaceProfileTeamBusy(false);
-    }
-  };
-
   const publishSkillsSetLink = async () => {
     if (shareSkillsSetBusy()) return;
     setShareSkillsSetBusy(true);
@@ -3487,42 +2641,7 @@ export default function SessionView(props: SessionViewProps) {
     setShareSkillsSetUrl(null);
 
     try {
-      const { client, workspaceId, workspace } =
-        await resolveShareExportContext();
-      const exported = await client.exportWorkspace(workspaceId);
-      const skills = Array.isArray(exported.skills) ? exported.skills : [];
-      if (!skills.length) {
-        throw new Error(translate("session.share_no_skills"));
-      }
-
-      const payload: SkillsSetBundleV1 = {
-        schemaVersion: 1,
-        type: "skills-set",
-        name: `${workspaceLabel(workspace)} skills`,
-        description: translate("session.share_skills_set_description"),
-        skills: skills.map((skill) => ({
-          name: skill.name,
-          description: skill.description,
-          trigger: skill.trigger,
-          content: skill.content,
-        })),
-        sourceWorkspace: {
-          id: workspaceId,
-          name: workspaceLabel(workspace),
-        },
-      };
-
-      const result = await client.publishBundle(payload, "skills-set", {
-        name: payload.name,
-        baseUrl: DEFAULT_AUROWORK_PUBLISHER_BASE_URL,
-      });
-
-      setShareSkillsSetUrl(result.url);
-      try {
-        await navigator.clipboard.writeText(result.url);
-      } catch {
-        // ignore
-      }
+      throw new Error("Public skills-set links are not part of the local desktop product.");
     } catch (error) {
       setShareSkillsSetError(
         error instanceof Error ? error.message : translate("session.share_skills_publish_failed"),
@@ -3535,8 +2654,6 @@ export default function SessionView(props: SessionViewProps) {
   const exportDisabledReason = createMemo(() => {
     const ws = shareWorkspace();
     if (!ws) return translate("session.export_local_desktop_only");
-    if (ws.workspaceType === "remote")
-      return translate("session.export_local_only");
     if (!isTauriRuntime()) return translate("session.export_desktop_only");
     if (props.exportWorkspaceBusy) return translate("session.export_already_running");
     return null;
@@ -3548,12 +2665,6 @@ export default function SessionView(props: SessionViewProps) {
     startRun();
     props.sendPromptAsync(draft).catch(() => undefined);
   };
-
-  const isSandboxWorkspace = createMemo(() =>
-    Boolean(
-      (props.selectedWorkspaceDisplay as any)?.sandboxContainerName?.trim(),
-    ),
-  );
 
   const uploadInboxFiles = async (
     files: File[],
@@ -4081,9 +3192,6 @@ export default function SessionView(props: SessionViewProps) {
                 setShareWorkspaceId(workspaceId)
               }
               onRevealWorkspace={revealWorkspaceInFinder}
-              onRecoverWorkspace={props.recoverWorkspace}
-              onTestWorkspaceConnection={props.testWorkspaceConnection}
-              onEditWorkspaceConnection={props.editWorkspaceConnection}
               onForgetWorkspace={props.forgetWorkspace}
               onOpenCreateWorkspace={props.openCreateWorkspace}
             />
@@ -4714,10 +3822,6 @@ export default function SessionView(props: SessionViewProps) {
               recentFiles={props.workingFiles}
               searchFiles={props.searchFiles}
               listCommands={props.listCommands}
-              isRemoteWorkspace={
-                props.selectedWorkspaceDisplay.workspaceType === "remote"
-              }
-              isSandboxWorkspace={isSandboxWorkspace()}
               onUploadInboxFiles={uploadInboxFiles}
               attachmentsEnabled={attachmentsEnabled()}
               attachmentsDisabledReason={attachmentsDisabledReason()}
@@ -4732,7 +3836,6 @@ export default function SessionView(props: SessionViewProps) {
             onSendFeedback={openFeedback}
             showSettingsButton={true}
             onOpenSettings={props.toggleSettings}
-            onOpenMessaging={() => openSettings("general")}
             onOpenProviders={openProviderAuth}
             onOpenMcp={openMcp}
             providerConnectedIds={props.providerConnectedIds}
@@ -4932,28 +4035,12 @@ export default function SessionView(props: SessionViewProps) {
         workspaceName={shareWorkspaceName()}
         workspaceDetail={shareWorkspaceDetail()}
         fields={shareFields()}
-        remoteAccess={shareWorkspace()?.workspaceType === "local"
-          ? {
-              enabled: props.auroworkServerHostInfo?.remoteAccessEnabled === true,
-              busy: props.shareRemoteAccessBusy,
-              error: props.shareRemoteAccessError,
-              onSave: props.saveShareRemoteAccess,
-            }
-          : undefined}
         note={shareNote()}
         onShareWorkspaceProfile={publishWorkspaceProfileLink}
         shareWorkspaceProfileBusy={shareWorkspaceProfileBusy()}
         shareWorkspaceProfileUrl={shareWorkspaceProfileUrl()}
         shareWorkspaceProfileError={shareWorkspaceProfileError()}
         shareWorkspaceProfileDisabledReason={shareServiceDisabledReason()}
-        onShareWorkspaceProfileToTeam={shareWorkspaceProfileToTeam}
-        shareWorkspaceProfileToTeamBusy={shareWorkspaceProfileTeamBusy()}
-        shareWorkspaceProfileToTeamError={shareWorkspaceProfileTeamError()}
-        shareWorkspaceProfileToTeamSuccess={shareWorkspaceProfileTeamSuccess()}
-        shareWorkspaceProfileToTeamDisabledReason={shareWorkspaceProfileTeamDisabledReason()}
-        shareWorkspaceProfileToTeamOrgName={shareWorkspaceProfileTeamOrgName()}
-        shareWorkspaceProfileToTeamNeedsSignIn={shareWorkspaceProfileToTeamNeedsSignIn()}
-        onShareWorkspaceProfileToTeamSignIn={startShareWorkspaceProfileToTeamSignIn}
         onShareSkillsSet={publishSkillsSetLink}
         onOpenSingleSkillShare={() => {
           setShareWorkspaceId(null);

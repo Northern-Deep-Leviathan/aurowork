@@ -1,11 +1,8 @@
 import type { WorkspaceInfo } from "../lib/tauri";
 
-import { t, currentLocale } from "../../i18n";
-
 import { ChevronDown, Folder, Globe, Loader2, Zap } from "lucide-solid";
 
-function iconForWorkspace(preset: string, workspaceType: string) {
-  if (workspaceType === "remote") return Globe;
+function iconForWorkspace(preset: string) {
   if (preset === "starter") return Zap;
   if (preset === "automation") return Folder;
   if (preset === "minimal") return Globe;
@@ -17,17 +14,8 @@ export default function WorkspaceChip(props: {
   onClick: () => void;
   connecting?: boolean;
 }) {
-  const Icon = iconForWorkspace(props.workspace.preset, props.workspace.workspaceType);
-  const subtitle = () =>
-    props.workspace.workspaceType === "remote"
-      ? props.workspace.baseUrl ?? props.workspace.path
-      : props.workspace.path;
-  const isSandboxWorkspace =
-    props.workspace.workspaceType === "remote" &&
-    (props.workspace.sandboxBackend === "docker" ||
-      Boolean(props.workspace.sandboxRunId?.trim()) ||
-      Boolean(props.workspace.sandboxContainerName?.trim()));
-  const translate = (key: string) => t(key, currentLocale());
+  const Icon = iconForWorkspace(props.workspace.preset);
+  const subtitle = () => props.workspace.path;
 
   return (
     <button
@@ -36,7 +24,7 @@ export default function WorkspaceChip(props: {
     >
       <div
         class={`p-1 rounded ${
-          props.workspace.workspaceType !== "remote" && props.workspace.preset === "starter"
+          props.workspace.preset === "starter"
             ? "bg-amber-7/10 text-amber-6"
             : "bg-indigo-7/10 text-indigo-6"
         }`}
@@ -48,11 +36,6 @@ export default function WorkspaceChip(props: {
           <span class="text-xs font-medium text-dls-text leading-none truncate max-w-[9.5rem]">
             {props.workspace.name}
           </span>
-          {props.workspace.workspaceType === "remote" ? (
-            <span class="text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-dls-active text-dls-secondary">
-              {isSandboxWorkspace ? "Sandbox" : translate("dashboard.remote")}
-            </span>
-          ) : null}
         </div>
         <span class="text-[10px] text-dls-secondary font-mono leading-none max-w-[120px] truncate">
           {subtitle()}

@@ -378,9 +378,7 @@ export const TOY_UI_HTML = `<!doctype html>
             <div class="hr"></div>
 
             <div class="tabs" id="tabs">
-              <button class="tab active" data-tab="share">Share</button>
-              <button class="tab" data-tab="automations">Automations</button>
-              <button class="tab" data-tab="skills">Skills</button>
+              <button class="tab active" data-tab="skills">Skills</button>
               <button class="tab" data-tab="plugins">Plugins</button>
               <button class="tab" data-tab="apps">Apps</button>
               <button class="tab" data-tab="config">Config</button>
@@ -394,7 +392,6 @@ export const TOY_UI_HTML = `<!doctype html>
                 </select>
                 <input class="input" id="share-label" type="text" placeholder="label (optional)" />
                 <button class="btn" id="btn-mint">Mint token</button>
-                <button class="btn" id="btn-deploy">Deploy (Beta)</button>
               </div>
               <div class="small">Minting tokens requires an owner token (or host access).</div>
 
@@ -651,7 +648,7 @@ function addCheckpoint(label, detail) {
   }
 }
 
-let activeTab = "share";
+let activeTab = "skills";
 
 function setTab(tab) {
   activeTab = tab;
@@ -1547,7 +1544,7 @@ async function main() {
     const buttons = tabsEl.querySelectorAll(".tab");
     buttons.forEach((btn) => {
       btn.onclick = async () => {
-        const tab = btn.getAttribute("data-tab") || "share";
+        const tab = btn.getAttribute("data-tab") || "skills";
         setTab(tab);
         try {
           if (tab === "automations") await refreshAutomations(workspaceId);
@@ -1655,10 +1652,6 @@ async function main() {
     } catch (e) {
       setStatus(e && e.message ? e.message : "Token mint failed", "bad");
     }
-  };
-
-  qs("#btn-deploy").onclick = () => {
-    setStatus("Deploy (Beta) is not implemented in the Toy UI yet", "");
   };
 
   qs("#btn-events").onclick = async () => {

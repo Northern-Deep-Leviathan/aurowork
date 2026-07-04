@@ -47,9 +47,6 @@ export default function ConfigView(props: ConfigViewProps) {
   const [auroworkTokenVisible, setAuroworkTokenVisible] = createSignal(false);
   const [auroworkTestState, setAuroworkTestState] = createSignal<"idle" | "testing" | "success" | "error">("idle");
   const [auroworkTestMessage, setAuroworkTestMessage] = createSignal<string | null>(null);
-  const [clientTokenVisible, setClientTokenVisible] = createSignal(false);
-  const [ownerTokenVisible, setOwnerTokenVisible] = createSignal(false);
-  const [hostTokenVisible, setHostTokenVisible] = createSignal(false);
   const [copyingField, setCopyingField] = createSignal<string | null>(null);
   let copyTimeout: number | undefined;
 
@@ -124,22 +121,6 @@ export default function ConfigView(props: ConfigViewProps) {
   });
 
   const hostInfo = createMemo(() => props.auroworkServerHostInfo);
-  const hostRemoteAccessEnabled = createMemo(
-    () => hostInfo()?.remoteAccessEnabled === true,
-  );
-  const hostStatusLabel = createMemo(() => {
-    if (!hostInfo()?.running) return "Offline";
-    return hostRemoteAccessEnabled() ? "Remote enabled" : "Local only";
-  });
-  const hostStatusStyle = createMemo(() => {
-    if (!hostInfo()?.running) return "bg-dls-active/60 text-dls-secondary border-dls-border/50";
-    return "bg-green-7/10 text-green-11 border-green-7/20";
-  });
-  const hostConnectUrl = createMemo(() => {
-    const info = hostInfo();
-    return info?.connectUrl ?? info?.mdnsUrl ?? info?.lanUrl ?? info?.baseUrl ?? "";
-  });
-  const hostConnectUrlUsesMdns = createMemo(() => hostConnectUrl().includes(".local"));
 
   const diagnosticsBundle = createMemo(() => {
     const urlOverride = props.auroworkServerSettings.urlOverride?.trim() ?? "";
@@ -167,11 +148,7 @@ export default function ConfigView(props: ConfigViewProps) {
         host: host
           ? {
               running: Boolean(host.running),
-              remoteAccessEnabled: host.remoteAccessEnabled,
               baseUrl: host.baseUrl ?? null,
-              connectUrl: host.connectUrl ?? null,
-              mdnsUrl: host.mdnsUrl ?? null,
-              lanUrl: host.lanUrl ?? null,
             }
           : null,
       },
@@ -180,10 +157,6 @@ export default function ConfigView(props: ConfigViewProps) {
         autoReloadAvailable: props.workspaceAutoReloadAvailable,
         autoReloadEnabled: props.workspaceAutoReloadEnabled,
         autoReloadResumeEnabled: props.workspaceAutoReloadResumeEnabled,
-      },
-      sharing: {
-        hostConnectUrl: hostConnectUrl() || null,
-        hostConnectUrlUsesMdns: hostConnectUrlUsesMdns(),
       },
       performance: {
         retainedEntries: perfLogs.length,
@@ -322,156 +295,6 @@ export default function ConfigView(props: ConfigViewProps) {
           <pre class="text-xs text-dls-text whitespace-pre-wrap break-words max-h-64 overflow-auto bg-dls-surface/20 border border-dls-border rounded-xl p-3">
             {diagnosticsBundleJson()}
           </pre>
-        </div>
-      </Show>
-
-      <Show when={hostInfo()}>
-        <div class="bg-dls-hover/30 border border-dls-border/50 rounded-2xl p-5 space-y-4">
-          <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div class="text-sm font-medium text-dls-text">AuroWork server sharing</div>
-              <div class="text-xs text-dls-secondary">
-                Share these details with a trusted device. Keep the server on the same network for the fastest setup.
-              </div>
-            </div>
-            <div class={`text-xs px-2 py-1 rounded-full border ${hostStatusStyle()}`}>
-              {hostStatusLabel()}
-            </div>
-          </div>
-
-          <div class="grid gap-3">
-            <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
-              <div class="min-w-0">
-                <div class="text-xs font-medium text-dls-secondary">AuroWork Server URL</div>
-                <div class="text-xs text-dls-secondary font-mono truncate">{hostConnectUrl() || "Starting server…"}</div>
-                <Show when={hostConnectUrl()}>
-                  <div class="text-[11px] text-dls-secondary mt-1">
-                    {!hostRemoteAccessEnabled()
-                      ? "Remote access is off. Use Share workspace to enable it before connecting from another machine."
-                      : hostConnectUrlUsesMdns()
-                      ? ".local names are easier to remember but may not resolve on all networks."
-                      : "Use your local IP on the same Wi-Fi for the fastest connection."}
-                  </div>
-                </Show>
-              </div>
-              <Button
-                variant="outline"
-                class="text-xs h-8 py-0 px-3 shrink-0"
-                onClick={() => handleCopy(hostConnectUrl(), "host-url")}
-                disabled={!hostConnectUrl()}
-              >
-                {copyingField() === "host-url" ? "Copied" : "Copy"}
-              </Button>
-            </div>
-
-            <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
-              <div class="min-w-0">
-                <div class="text-xs font-medium text-dls-secondary">Collaborator token</div>
-                <div class="text-xs text-dls-secondary font-mono truncate">
-                  {clientTokenVisible()
-                    ? hostInfo()?.clientToken || "—"
-                    : hostInfo()?.clientToken
-                      ? "••••••••••••"
-                      : "—"}
-                </div>
-                <div class="text-[11px] text-dls-secondary mt-1">
-                  {hostRemoteAccessEnabled()
-                    ? "Routine remote access for phones or laptops connecting to this server."
-                    : "Stored in advance for remote sharing, but remote access is currently disabled."}
-                </div>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <Button
-                  variant="outline"
-                  class="text-xs h-8 py-0 px-3"
-                  onClick={() => setClientTokenVisible((prev) => !prev)}
-                  disabled={!hostInfo()?.clientToken}
-                >
-                  {clientTokenVisible() ? "Hide" : "Show"}
-                </Button>
-                <Button
-                  variant="outline"
-                  class="text-xs h-8 py-0 px-3"
-                  onClick={() => handleCopy(hostInfo()?.clientToken ?? "", "client-token")}
-                  disabled={!hostInfo()?.clientToken}
-                >
-                  {copyingField() === "client-token" ? "Copied" : "Copy"}
-                </Button>
-              </div>
-            </div>
-
-            <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
-              <div class="min-w-0">
-                <div class="text-xs font-medium text-dls-secondary">Owner token</div>
-                <div class="text-xs text-dls-secondary font-mono truncate">
-                  {ownerTokenVisible()
-                    ? hostInfo()?.ownerToken || "—"
-                    : hostInfo()?.ownerToken
-                      ? "••••••••••••"
-                      : "—"}
-                </div>
-                <div class="text-[11px] text-dls-secondary mt-1">
-                  {hostRemoteAccessEnabled()
-                    ? "Use this when a remote client needs to answer permission prompts or take owner-only actions."
-                    : "Only relevant after you enable remote access for this worker."}
-                </div>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <Button
-                  variant="outline"
-                  class="text-xs h-8 py-0 px-3"
-                  onClick={() => setOwnerTokenVisible((prev) => !prev)}
-                  disabled={!hostInfo()?.ownerToken}
-                >
-                  {ownerTokenVisible() ? "Hide" : "Show"}
-                </Button>
-                <Button
-                  variant="outline"
-                  class="text-xs h-8 py-0 px-3"
-                  onClick={() => handleCopy(hostInfo()?.ownerToken ?? "", "owner-token")}
-                  disabled={!hostInfo()?.ownerToken}
-                >
-                  {copyingField() === "owner-token" ? "Copied" : "Copy"}
-                </Button>
-              </div>
-            </div>
-
-            <div class="flex items-center justify-between bg-dls-surface p-3 rounded-xl border border-dls-border gap-3">
-              <div class="min-w-0">
-                <div class="text-xs font-medium text-dls-secondary">Host admin token</div>
-                <div class="text-xs text-dls-secondary font-mono truncate">
-                  {hostTokenVisible()
-                    ? hostInfo()?.hostToken || "—"
-                    : hostInfo()?.hostToken
-                      ? "••••••••••••"
-                      : "—"}
-                </div>
-                <div class="text-[11px] text-dls-secondary mt-1">Internal host-only token for approvals CLI and admin APIs. Do not use this in the remote app connect flow.</div>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <Button
-                  variant="outline"
-                  class="text-xs h-8 py-0 px-3"
-                  onClick={() => setHostTokenVisible((prev) => !prev)}
-                  disabled={!hostInfo()?.hostToken}
-                >
-                  {hostTokenVisible() ? "Hide" : "Show"}
-                </Button>
-                <Button
-                  variant="outline"
-                  class="text-xs h-8 py-0 px-3"
-                  onClick={() => handleCopy(hostInfo()?.hostToken ?? "", "host-token")}
-                  disabled={!hostInfo()?.hostToken}
-                >
-                  {copyingField() === "host-token" ? "Copied" : "Copy"}
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div class="text-xs text-dls-secondary">
-            For per-workspace sharing links, use <span class="font-medium">Share...</span> in the workspace menu.
-          </div>
         </div>
       </Show>
 

@@ -41,7 +41,6 @@ import { currentLocale, t, type Language } from "../../i18n";
 export type McpViewProps = {
   busy: boolean;
   selectedWorkspaceRoot: string;
-  isRemoteWorkspace: boolean;
   readConfigFile?: (scope: "project" | "global") => Promise<AuroConfigFile | null>;
   showHeader?: boolean;
   mcpServers: McpServerEntry[];
@@ -786,7 +785,6 @@ export default function McpView(props: McpViewProps) {
         onClose={() => setAddMcpModalOpen(false)}
         onAdd={(entry) => props.connectMcp(entry)}
         busy={props.busy}
-        isRemoteWorkspace={props.isRemoteWorkspace}
         language={locale()}
       />
 
