@@ -197,7 +197,6 @@ pub fn engine_restart(
     orchestrator_manager: State<OrchestratorManager>,
     aurowork_manager: State<AuroworkServerManager>,
     auro_enable_exa: Option<bool>,
-    aurowork_remote_access: Option<bool>,
 ) -> Result<EngineInfo, String> {
     let (project_dir, runtime) = {
         let state = manager.inner.lock().expect("engine mutex poisoned");
@@ -220,7 +219,6 @@ pub fn engine_restart(
         None,
         None,
         auro_enable_exa,
-        aurowork_remote_access,
         Some(runtime),
         Some(workspace_paths),
     )
@@ -323,7 +321,6 @@ pub fn engine_start(
     prefer_sidecar: Option<bool>,
     auro_bin_path: Option<String>,
     auro_enable_exa: Option<bool>,
-    aurowork_remote_access: Option<bool>,
     runtime: Option<EngineRuntime>,
     workspace_paths: Option<Vec<String>>,
 ) -> Result<EngineInfo, String> {
@@ -370,7 +367,6 @@ pub fn engine_start(
     let client_host = "127.0.0.1".to_string();
     let port = find_free_port()?;
     let dev_mode = aurowork_dev_mode_enabled();
-    let aurowork_remote_access_enabled = aurowork_remote_access.unwrap_or(false);
     let (managed_opencode_username, managed_opencode_password) =
         generate_managed_opencode_credentials();
     let auro_username = Some(managed_opencode_username);
@@ -746,7 +742,6 @@ pub fn engine_start(
             Some(&opencode_connect_url),
             auro_username.as_deref(),
             auro_password.as_deref(),
-            aurowork_remote_access_enabled,
         ) {
             if let Ok(mut state) = manager.inner.lock() {
                 state.last_stderr =
@@ -1009,7 +1004,6 @@ pub fn engine_start(
         Some(&auro_connect_url),
         auro_username.as_deref(),
         auro_password.as_deref(),
-        aurowork_remote_access_enabled,
     ) {
         state.last_stderr = Some(truncate_output(&format!("AuroWork server: {error}"), 8000));
     }

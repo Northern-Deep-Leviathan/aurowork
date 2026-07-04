@@ -1,5 +1,3 @@
-use gethostname::gethostname;
-use local_ip_address::local_ip;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -330,21 +328,6 @@ fn issue_owner_token(base_url: &str, host_token: &str) -> Result<String, String>
         .ok_or_else(|| "AuroWork server did not return an owner token".to_string())
 }
 
-fn build_urls(port: u16) -> (Option<String>, Option<String>, Option<String>) {
-    let hostname = gethostname().to_string_lossy().trim().to_string();
-    let mdns_url = if hostname.is_empty() {
-        None
-    } else {
-        let trimmed = hostname.trim_end_matches(".local");
-        Some(format!("http://{trimmed}.local:{port}"))
-    };
-
-    let lan_url = local_ip().ok().map(|ip| format!("http://{ip}:{port}"));
-    let connect_url = lan_url.clone().or(mdns_url.clone());
-
-    (connect_url, mdns_url, lan_url)
-}
-
 pub fn start_aurowork_server(
     app: &AppHandle,
     manager: &AuroworkServerManager,
@@ -352,7 +335,6 @@ pub fn start_aurowork_server(
     auro_base_url: Option<&str>,
     auro_username: Option<&str>,
     auro_password: Option<&str>,
-    remote_access_enabled: bool,
 ) -> Result<AuroworkServerInfo, String> {
     let mut state = manager
         .inner
@@ -360,11 +342,7 @@ pub fn start_aurowork_server(
         .map_err(|_| "aurowork server mutex poisoned".to_string())?;
     AuroworkServerManager::stop_locked(&mut state);
 
-    let host = if remote_access_enabled {
-        "0.0.0.0".to_string()
-    } else {
-        "127.0.0.1".to_string()
-    };
+    let host = "127.0.0.1".to_string();
     let active_workspace = workspace_paths
         .first()
         .map(|path| path.as_str())
@@ -405,7 +383,6 @@ pub fn start_aurowork_server(
 
     state.child = Some(child);
     state.child_exited = false;
-    state.remote_access_enabled = remote_access_enabled;
     state.host = Some(host.clone());
     state.port = Some(port);
     state.base_url = Some(format!("http://127.0.0.1:{port}"));
@@ -413,14 +390,6 @@ pub fn start_aurowork_server(
         .base_url
         .clone()
         .unwrap_or_else(|| format!("http://127.0.0.1:{port}"));
-    let (connect_url, mdns_url, lan_url) = if remote_access_enabled {
-        build_urls(port)
-    } else {
-        (None, None, None)
-    };
-    state.connect_url = connect_url;
-    state.mdns_url = mdns_url;
-    state.lan_url = lan_url;
     state.client_token = Some(client_token);
     state.owner_token = workspace_tokens.owner_token.clone();
     if state.owner_token.is_none() {

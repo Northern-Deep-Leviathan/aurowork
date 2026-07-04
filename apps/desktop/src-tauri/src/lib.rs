@@ -49,10 +49,9 @@ use commands::updater::updater_environment;
 use commands::window::set_window_decorations;
 use commands::workspace::{
     workspace_add_authorized_root, workspace_aurowork_read, workspace_aurowork_write,
-    workspace_bootstrap, workspace_check_folder, workspace_create, workspace_create_remote,
-    workspace_export_config, workspace_forget, workspace_import_config, workspace_register,
-    workspace_set_active, workspace_set_runtime_active, workspace_set_selected,
-    workspace_update_display_name, workspace_update_remote,
+    workspace_bootstrap, workspace_check_folder, workspace_create, workspace_export_config,
+    workspace_forget, workspace_import_config, workspace_register, workspace_set_active,
+    workspace_set_runtime_active, workspace_set_selected, workspace_update_display_name,
 };
 use engine::manager::EngineManager;
 use launch_log::format::Level;
@@ -273,10 +272,8 @@ pub fn run() {
             workspace_set_active,
             workspace_check_folder,
             workspace_create,
-            workspace_create_remote,
             workspace_register,
             workspace_update_display_name,
-            workspace_update_remote,
             workspace_forget,
             workspace_add_authorized_root,
             workspace_export_config,
